@@ -1,0 +1,49 @@
+<UserControl x:Class="ZlinksPackageSystem.Desktop.Views.LoginView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:materialDesign="http://materialdesigninxaml.net/winfx/xaml/themes"
+             mc:Ignorable="d" 
+             d:DesignHeight="450" d:DesignWidth="300">
+
+    <Grid>
+        <Border Background="#FF304156" CornerRadius="10" Padding="30">
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                <TextBlock Text="Zlinks Package System" 
+                          FontSize="24" 
+                          Foreground="White" 
+                          HorizontalAlignment="Center" 
+                          Margin="0,0,0,30"/>
+                
+                <TextBlock Text="游戏包管理系统" 
+                          FontSize="14" 
+                          Foreground="#FFBFcbd9" 
+                          HorizontalAlignment="Center" 
+                          Margin="0,0,0,40"/>
+
+                <TextBox Text="{Binding Username, UpdateSourceTrigger=PropertyChanged}"
+                         materialDesign:HintAssist.Hint="用户名"
+                         Style="{StaticResource MaterialDesignOutlinedTextFieldTextBox}"
+                         Margin="0,0,0,20"/>
+
+                <PasswordBox x:Name="PasswordBox"
+                            materialDesign:HintAssist.Hint="密码"
+                            Style="{StaticResource MaterialDesignOutlinedTextFieldPasswordBox}"
+                            Margin="0,0,0,10"/>
+
+                <TextBlock Text="{Binding ErrorMessage}"
+                          Foreground="#FFF56C6C"
+                          Visibility="{Binding HasError, Converter={StaticResource BooleanToVisibilityConverter}}"
+                          Margin="0,0,0,10"/>
+
+                <Button Content="登录"
+                        Command="{Binding LoginCommand}"
+                        Style="{StaticResource MaterialDesignRaisedButton}"
+                        Width="200"
+                        Height="40"
+                        Margin="0,20,0,0"/>
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>

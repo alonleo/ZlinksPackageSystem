@@ -1,0 +1,40 @@
+# OS files
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+logs/
+
+# ==================== Frontend (Vue/Vite) ====================
+frontend/node_modules/
+frontend/dist/
+frontend/.env.local
+frontend/.env.*.local
+frontend/*.local
+
+# ==================== Backend (Java/Maven) ====================
+backend/target/
+backend/maven/
+*.class
+*.jar
+*.war
+*.ear
+hs_err_pid*
+
+# ==================== Desktop (.NET) ====================
+desktop/**/bin/
+desktop/**/obj/
+desktop/**/.vs/
+desktop/**/*.user
+desktop/**/*.suo
+desktop/**/*.cache
+desktop/**/packages/

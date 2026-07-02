@@ -1,0 +1,6 @@
+build/
+target/
+node_modules/
+maven/
+/backend/target/
+/frontend/node_modules/

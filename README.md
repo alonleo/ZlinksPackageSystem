@@ -52,7 +52,8 @@ ZlinksPackageSystem/
 │   ├── start-backend.bat       # 后端启动脚本
 │   ├── start-frontend.bat      # 前端启动脚本
 │   ├── start-desktop.bat       # 桌面端启动脚本
-│   └── init-database.sql       # 数据库初始化
+│   ├── init-database.sql       # MySQL 数据库初始化
+│   └── init-database-pgsql.sql # PostgreSQL 数据库初始化
 │
 └── 需求表结构.md                # 需求文档
 ```
@@ -62,7 +63,7 @@ ZlinksPackageSystem/
 ### 后端
 - **框架**: Spring Boot 2.7.18
 - **ORM**: MyBatis-Plus 3.5.5
-- **数据库**: MySQL 8.0
+- **数据库**: PostgreSQL 15+ (默认) / MySQL 8.0 (可选) / H2 (开发)
 - **连接池**: Druid
 - **安全**: Spring Security + JWT
 - **文档**: Knife4j (Swagger)
@@ -89,11 +90,32 @@ ZlinksPackageSystem/
 - JDK 1.8+
 - Node.js 18+ / Bun
 - .NET 6 SDK
-- MySQL 8.0
+- PostgreSQL 15+ (默认) 或 MySQL 8.0 (可选)
 
 ### 数据库初始化
+
+**PostgreSQL (默认)**
+```bash
+createdb zlinks_package_system
+psql -d zlinks_package_system -f scripts/init-database-pgsql.sql
+```
+
+**MySQL (可选)**
 ```bash
 mysql -u root -p < scripts/init-database.sql
+```
+
+### Profile 切换
+
+```bash
+# PostgreSQL (默认)
+mvnw spring-boot:run
+
+# MySQL
+mvnw spring-boot:run -Dspring-boot.run.profiles=mysql
+
+# H2 内存数据库 (开发模式)
+mvnw spring-boot:run -Dspring-boot.run.profiles=h2
 ```
 
 ### 启动后端
@@ -145,19 +167,30 @@ dotnet run
 
 如果使用 admin/admin123 登录失败，请检查：
 
-1. **MySQL服务是否启动**
+1. **数据库服务是否启动**
    ```bash
-   # 检查MySQL服务状态
+   # PostgreSQL (默认)
+   pg_isready
+
+   # MySQL (可选)
    mysql -u root -p -e "SELECT 1"
    ```
 
 2. **数据库是否创建**
    ```bash
+   # PostgreSQL
+   createdb zlinks_package_system
+
+   # MySQL
    mysql -u root -p -e "CREATE DATABASE IF NOT EXISTS zlinks_package_system DEFAULT CHARACTER SET utf8mb4;"
    ```
 
 3. **初始化脚本是否执行**
    ```bash
+   # PostgreSQL
+   psql -d zlinks_package_system -f scripts/init-database-pgsql.sql
+
+   # MySQL
    mysql -u root -p zlinks_package_system < scripts/init-database.sql
    ```
 
@@ -166,7 +199,8 @@ dotnet run
    - 查看后端日志是否有错误信息
 
 5. **数据库连接配置**
-   - 检查 `backend/src/main/resources/application.yml` 中的数据库连接信息
+   - 默认使用 PostgreSQL 连接
+   - 切换 MySQL: 启动时加 `-Dspring-boot.run.profiles=mysql`
    - 默认用户名: root, 密码: root
 
 ### 自动初始化
@@ -184,9 +218,10 @@ dotnet run
    - 可在配置文件中修改
 
 2. **数据库连接失败**
-   - 检查MySQL服务是否启动
-   - 检查用户名密码是否正确
-   - 检查数据库名称是否正确
+    - 检查 PostgreSQL 或 MySQL 服务是否启动
+    - 检查用户名密码是否正确
+    - 检查数据库名称是否正确
+    - 确认激活了正确的 profile（默认 PG，加 `-Dspring-boot.run.profiles=mysql` 切换到 MySQL）
 
 3. **前端无法访问后端**
    - 确保后端服务已启动

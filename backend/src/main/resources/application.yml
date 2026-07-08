@@ -8,8 +8,8 @@ spring:
     name: zlinks-package-system
   datasource:
     type: com.alibaba.druid.pool.DruidDataSource
-    driver-class-name: com.mysql.cj.jdbc.Driver
-    url: jdbc:mysql://localhost:3306/zlinks_package_system?useUnicode=true&characterEncoding=utf-8&useSSL=false&serverTimezone=Asia/Shanghai
+    driver-class-name: org.postgresql.Driver
+    url: jdbc:postgresql://localhost:5432/zlinks_package_system
     username: root
     password: root
     druid:
@@ -25,7 +25,7 @@ spring:
       test-on-return: false
       pool-prepared-statements: true
       max-pool-prepared-statement-per-connection-size: 20
-      filters: stat,wall,slf4j
+      filters: stat,slf4j
       stat-view-servlet:
         enabled: true
         url-pattern: /druid/*

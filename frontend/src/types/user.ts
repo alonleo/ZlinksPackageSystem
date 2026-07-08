@@ -3,7 +3,8 @@ export interface User {
   username: string
   realName: string
   status: string
-  groupId: number
+  groupIds: number[]
+  groupNames: string[]
   remark: string
   createTime: string
   updateTime: string

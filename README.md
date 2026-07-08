@@ -61,12 +61,12 @@ ZlinksPackageSystem/
 ## 技术栈
 
 ### 后端
-- **框架**: Spring Boot 2.7.18
-- **ORM**: MyBatis-Plus 3.5.5
+- **框架**: Spring Boot 3.3.7 / Jakarta EE 9
+- **ORM**: MyBatis-Plus 3.5.7
 - **数据库**: PostgreSQL 15+ (默认) / MySQL 8.0 (可选) / H2 (开发)
 - **连接池**: Druid
 - **安全**: Spring Security + JWT
-- **文档**: Knife4j (Swagger)
+- **文档**: Knife4j (OpenAPI 3)
 
 ### 前端
 - **框架**: Vue 3.4
@@ -87,7 +87,7 @@ ZlinksPackageSystem/
 ## 快速开始
 
 ### 环境要求
-- JDK 1.8+
+- JDK 21+
 - Node.js 18+ / Bun
 - .NET 6 SDK
 - PostgreSQL 15+ (默认) 或 MySQL 8.0 (可选)
@@ -121,7 +121,7 @@ mvnw spring-boot:run -Dspring-boot.run.profiles=h2
 ### 启动后端
 ```bash
 cd backend
-mvnw.cmd spring-boot:run
+mvnw spring-boot:run
 ```
 
 ### 启动前端

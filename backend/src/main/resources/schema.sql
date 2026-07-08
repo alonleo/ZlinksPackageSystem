@@ -19,7 +19,32 @@ CREATE TABLE IF NOT EXISTS users (
     password VARCHAR(100) NOT NULL,
     real_name VARCHAR(50),
     status VARCHAR(20) DEFAULT 'active',
-    group_id BIGINT,
+    remark TEXT,
+    create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    update_time TIMESTAMP,
+    is_deleted TINYINT DEFAULT 0
+);
+
+-- 用户权限组关联表
+CREATE TABLE IF NOT EXISTS user_group (
+    user_id BIGINT NOT NULL,
+    group_id BIGINT NOT NULL,
+    PRIMARY KEY (user_id, group_id)
+);
+
+-- 产品表
+CREATE TABLE IF NOT EXISTS product (
+    id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    copyright_id BIGINT,
+    game_id BIGINT,
+    company_id BIGINT,
+    platform VARCHAR(50),
+    package_name VARCHAR(100),
+    sdk_version VARCHAR(50),
+    apk_version VARCHAR(50),
+    batch VARCHAR(50),
+    package_mode VARCHAR(20),
+    status VARCHAR(20) DEFAULT 'pending',
     remark TEXT,
     create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     update_time TIMESTAMP,
@@ -167,7 +192,18 @@ CREATE TABLE IF NOT EXISTS `notification` (
     `receiver_ids` TEXT,
     `receiver_type` VARCHAR(20),
     `is_pinned` TINYINT DEFAULT 0,
-    `status` VARCHAR(20) DEFAULT 'unread',
+    `is_deleted` TINYINT DEFAULT 0
+);
+
+-- 操作日志表
+CREATE TABLE IF NOT EXISTS `operation_log` (
+    `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
+    `user_id` BIGINT,
+    `username` VARCHAR(50),
+    `module` VARCHAR(50),
+    `action` VARCHAR(20),
+    `target` VARCHAR(200),
+    `ip_address` VARCHAR(50),
     `create_time` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     `update_time` TIMESTAMP,
     `is_deleted` TINYINT DEFAULT 0

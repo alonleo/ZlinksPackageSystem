@@ -1,0 +1,49 @@
+#!/bin/sh
+
+# resolve links - $0 may be a softlink
+PRG="$0"
+while [ -h "$PRG" ]; do
+    ls=$(ls -ld "$PRG")
+    link=$(expr "$ls" : '.*-> \(.*\)$')
+    if expr "$link" : '/.*' > /dev/null; then
+        PRG="$link"
+    else
+        PRG=$(dirname "$PRG")/"$link"
+    fi
+done
+
+SAVED="$(pwd)"
+cd "$(dirname "$PRG")/" >/dev/null
+APP_HOME="$(pwd -P)"
+cd "$SAVED" >/dev/null
+
+# find Java from PATH if JAVA_HOME is not set
+if [ -z "$JAVA_HOME" ]; then
+    JAVA_BIN=$(command -v java 2>/dev/null)
+    if [ -n "$JAVA_BIN" ]; then
+        export JAVA_HOME=$(dirname $(dirname $(readlink -f "$JAVA_BIN")))
+    fi
+fi
+
+if [ -z "$JAVA_HOME" ]; then
+    echo "ERROR: JAVA_HOME is not set and no java command could be found in your PATH."
+    exit 1
+fi
+
+WRAPPER_JAR="$APP_HOME/.mvn/wrapper/maven-wrapper.jar"
+
+if [ ! -f "$WRAPPER_JAR" ]; then
+    echo "ERROR: Maven wrapper jar not found at $WRAPPER_JAR"
+    exit 1
+fi
+
+MAVEN_PROJECTBASEDIR="$APP_HOME"
+export MAVEN_PROJECTBASEDIR
+
+exec "$JAVA_HOME/bin/java" \
+    $MAVEN_OPTS \
+    $MAVEN_DEBUG_OPTS \
+    -classpath "$WRAPPER_JAR" \
+    -Dmaven.multiModuleProjectDirectory="$MAVEN_PROJECTBASEDIR" \
+    org.apache.maven.wrapper.MavenWrapperMain \
+    "$@"

@@ -146,6 +146,29 @@ CREATE TABLE IF NOT EXISTS `sign_file` (
     FOREIGN KEY (`company_id`) REFERENCES `company`(`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='签名文件信息表';
 
+-- 产品表
+CREATE TABLE IF NOT EXISTS `product` (
+    `id` BIGINT NOT NULL AUTO_INCREMENT,
+    `copyright_id` BIGINT COMMENT '软著ID',
+    `game_id` BIGINT COMMENT '游戏ID',
+    `company_id` BIGINT COMMENT '公司ID',
+    `platform` VARCHAR(50) COMMENT '平台',
+    `package_name` VARCHAR(100) COMMENT '包名',
+    `sdk_version` VARCHAR(50) COMMENT 'SDK版本',
+    `apk_version` VARCHAR(50) COMMENT 'APK版本',
+    `batch` VARCHAR(50) COMMENT '批次',
+    `package_mode` VARCHAR(20) COMMENT '打包模式',
+    `status` VARCHAR(20) DEFAULT 'pending' COMMENT '状态',
+    `remark` TEXT COMMENT '备注信息',
+    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建日期',
+    `update_time` DATETIME ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    `is_deleted` TINYINT DEFAULT 0 COMMENT '逻辑删除',
+    PRIMARY KEY (`id`),
+    FOREIGN KEY (`copyright_id`) REFERENCES `copyright`(`id`),
+    FOREIGN KEY (`game_id`) REFERENCES `game`(`id`),
+    FOREIGN KEY (`company_id`) REFERENCES `company`(`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='产品表';
+
 -- 权限组表
 CREATE TABLE IF NOT EXISTS `permission_group` (
     `id` BIGINT NOT NULL AUTO_INCREMENT,
@@ -166,15 +189,22 @@ CREATE TABLE IF NOT EXISTS `user` (
     `password` VARCHAR(100) NOT NULL COMMENT '密码',
     `real_name` VARCHAR(50) COMMENT '姓名',
     `status` VARCHAR(20) DEFAULT 'active' COMMENT '在职状态',
-    `group_id` BIGINT COMMENT '所属组ID',
     `remark` TEXT COMMENT '备注信息',
     `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建日期',
     `update_time` DATETIME ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     `is_deleted` TINYINT DEFAULT 0 COMMENT '逻辑删除',
     PRIMARY KEY (`id`),
-    UNIQUE KEY `uk_username` (`username`),
-    FOREIGN KEY (`group_id`) REFERENCES `permission_group`(`id`)
+    UNIQUE KEY `uk_username` (`username`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户表';
+
+-- 用户权限组关联表
+CREATE TABLE IF NOT EXISTS `user_group` (
+    `user_id` BIGINT NOT NULL,
+    `group_id` BIGINT NOT NULL,
+    PRIMARY KEY (`user_id`, `group_id`),
+    FOREIGN KEY (`user_id`) REFERENCES `user`(`id`),
+    FOREIGN KEY (`group_id`) REFERENCES `permission_group`(`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户权限组关联表';
 
 -- 通知表
 CREATE TABLE IF NOT EXISTS `notification` (
@@ -203,6 +233,9 @@ INSERT INTO `permission_group` (`group_name`, `group_permission`, `remark`) VALU
 ('运营组', '{"modules":["products","companies"]}', '运营人员，负责产品和公司管理');
 
 -- 插入默认管理员用户 (密码: admin123)
--- 注意：密码需要使用BCrypt加密，以下哈希值对应密码 admin123
-INSERT INTO `user` (`username`, `password`, `real_name`, `status`, `group_id`) VALUES
-('admin', '$2a$10$EqKcp1WFKVQIShMPC7B3kuznX9gAZMsVnSNjN0ABNuHVBCpzqABae', '系统管理员', 'active', 1);
+INSERT INTO `user` (`username`, `password`, `real_name`, `status`) VALUES
+('admin', '$2a$10$EqKcp1WFKVQIShMPC7B3kuznX9gAZMsVnSNjN0ABNuHVBCpzqABae', '系统管理员', 'active');
+
+-- 将管理员用户关联到管理员组
+INSERT INTO `user_group` (`user_id`, `group_id`) VALUES
+((SELECT id FROM `user` WHERE username = 'admin'), 1);

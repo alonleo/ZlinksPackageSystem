@@ -1,5 +1,6 @@
 package com.zlinks.package_system.entity;
 
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -13,4 +14,7 @@ public class PermissionGroup extends BaseEntity {
     private String groupPermission;
     private String groupAccounts;
     private String remark;
+
+    @TableField(exist = false)
+    private Long userCount;
 }

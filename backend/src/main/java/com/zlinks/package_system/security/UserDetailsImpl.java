@@ -24,7 +24,6 @@ public class UserDetailsImpl implements UserDetails {
     private String password;
     private String realName;
     private String status;
-    private Long groupId;
     private Collection<? extends GrantedAuthority> authorities;
 
     public static UserDetailsImpl build(User user) {
@@ -37,7 +36,6 @@ public class UserDetailsImpl implements UserDetails {
                 user.getPassword(),
                 user.getRealName(),
                 user.getStatus(),
-                user.getGroupId(),
                 authorities
         );
     }

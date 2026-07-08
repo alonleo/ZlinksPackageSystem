@@ -3,7 +3,9 @@ package com.zlinks.package_system.config;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.zlinks.package_system.entity.PermissionGroup;
 import com.zlinks.package_system.entity.User;
+import com.zlinks.package_system.entity.UserGroup;
 import com.zlinks.package_system.service.PermissionGroupService;
+import com.zlinks.package_system.service.UserGroupService;
 import com.zlinks.package_system.service.UserService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -18,6 +20,7 @@ public class DataInitializer implements CommandLineRunner {
 
     private final UserService userService;
     private final PermissionGroupService permissionGroupService;
+    private final UserGroupService userGroupService;
     private final PasswordEncoder passwordEncoder;
 
     @Override
@@ -69,8 +72,12 @@ public class DataInitializer implements CommandLineRunner {
             admin.setPassword(passwordEncoder.encode("admin123"));
             admin.setRealName("系统管理员");
             admin.setStatus("active");
-            admin.setGroupId(1L);
             userService.save(admin);
+
+            UserGroup ug = new UserGroup();
+            ug.setUserId(admin.getId());
+            ug.setGroupId(1L);
+            userGroupService.save(ug);
 
             log.info("Default admin user initialized. Username: admin, Password: admin123");
         }

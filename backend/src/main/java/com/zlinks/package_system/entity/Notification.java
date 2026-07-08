@@ -1,5 +1,6 @@
 package com.zlinks.package_system.entity;
 
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableName;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -19,4 +20,10 @@ public class Notification extends BaseEntity {
     private String receiverType;
     private Integer isPinned;
     private String status;
+
+    @TableField(exist = false)
+    private String senderName;
+
+    @TableField(exist = false)
+    private String receiverNames;
 }

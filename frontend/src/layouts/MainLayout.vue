@@ -1,7 +1,8 @@
 <script setup lang="ts">
-import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { ref, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
+import { useTabsStore } from '@/stores/tabs'
 import {
   HomeFilled,
   Monitor,
@@ -12,12 +13,29 @@ import {
   OfficeBuilding,
   Document,
   Bell,
+  Key,
   SwitchButton,
+  Fold,
+  Expand,
+  ArrowDown,
+  Close,
+  Tickets,
 } from '@element-plus/icons-vue'
+import { ElMessageBox } from 'element-plus'
 
 const router = useRouter()
+const route = useRoute()
 const userStore = useUserStore()
+const tabsStore = useTabsStore()
 const isCollapse = ref(false)
+
+watch(
+  () => route.fullPath,
+  () => {
+    tabsStore.addTab(route)
+  },
+  { immediate: true },
+)
 
 const menuItems = [
   { index: '/', icon: HomeFilled, title: '首页' },
@@ -27,8 +45,10 @@ const menuItems = [
   { index: '/users', icon: User, title: '用户管理' },
   { index: '/permissions', icon: Lock, title: '权限管理' },
   { index: '/companies', icon: OfficeBuilding, title: '公司管理' },
+  { index: '/sign-files', icon: Key, title: '签名管理' },
   { index: '/copyrights', icon: Document, title: '软著管理' },
   { index: '/notifications', icon: Bell, title: '通知管理' },
+  { index: '/operation-logs', icon: Tickets, title: '日志管理' },
 ]
 
 const handleMenuSelect = (index: string) => {
@@ -38,6 +58,34 @@ const handleMenuSelect = (index: string) => {
 const handleLogout = () => {
   userStore.logout()
   router.push({ name: 'login' })
+}
+
+const handleTabClick = (path: string) => {
+  tabsStore.activeTab = path
+  router.push(path)
+}
+
+const handleTabRemove = (path: string) => {
+  tabsStore.removeTab(path)
+  if (tabsStore.activeTab) {
+    router.push(tabsStore.activeTab)
+  } else {
+    router.push('/')
+  }
+}
+
+const handleCloseAll = async () => {
+  try {
+    await ElMessageBox.confirm('确定要关闭所有标签页吗？', '提示', {
+      confirmButtonText: '确定',
+      cancelButtonText: '取消',
+      type: 'warning',
+    })
+    tabsStore.closeAllTabs()
+    router.push('/')
+  } catch {
+    // cancelled
+  }
 }
 </script>
 
@@ -88,6 +136,15 @@ const handleLogout = () => {
             <span class="user-info">
               <el-icon><User /></el-icon>
               {{ userStore.currentUser?.realName || '用户' }}
+              <el-tag
+                v-for="name in userStore.currentUser?.groupNames"
+                :key="name"
+                size="small"
+                effect="plain"
+                class="role-tag"
+              >
+                {{ name }}
+              </el-tag>
               <el-icon class="el-icon--right"><ArrowDown /></el-icon>
             </span>
             <template #dropdown>
@@ -101,6 +158,38 @@ const handleLogout = () => {
           </el-dropdown>
         </div>
       </el-header>
+      <div v-if="tabsStore.tabs.length > 0" class="tab-bar">
+        <div class="tab-list">
+          <div
+            v-for="tab in tabsStore.tabs"
+            :key="tab.path"
+            class="tab-item"
+            :class="{ active: tabsStore.activeTab === tab.path }"
+            @click="handleTabClick(tab.path)"
+          >
+            <span class="tab-title">{{ tab.title }}</span>
+            <el-icon
+              class="tab-close"
+              @click.stop="handleTabRemove(tab.path)"
+            >
+              <Close />
+            </el-icon>
+          </div>
+        </div>
+        <el-dropdown trigger="click" class="tab-actions">
+          <span class="tab-dropdown-trigger">
+            <el-icon><ArrowDown /></el-icon>
+          </span>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item @click="handleCloseAll">
+                <el-icon><Close /></el-icon>
+                关闭所有标签页
+              </el-dropdown-item>
+            </el-dropdown-menu>
+          </template>
+        </el-dropdown>
+      </div>
       <el-main class="main">
         <router-view />
       </el-main>
@@ -174,8 +263,100 @@ const handleLogout = () => {
   color: #409eff;
 }
 
+.role-tag {
+  margin-left: 8px;
+}
+
 .main {
   background-color: #f0f2f5;
   padding: 20px;
+}
+
+.tab-bar {
+  display: flex;
+  align-items: center;
+  background: #fff;
+  border-bottom: 1px solid #e4e7ed;
+  padding: 0 12px;
+  height: 36px;
+  flex-shrink: 0;
+}
+
+.tab-list {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  overflow-x: auto;
+  height: 100%;
+  scrollbar-width: none;
+}
+
+.tab-list::-webkit-scrollbar {
+  display: none;
+}
+
+.tab-item {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  padding: 0 12px;
+  font-size: 13px;
+  color: #666;
+  border-right: 1px solid #e4e7ed;
+  cursor: pointer;
+  white-space: nowrap;
+  position: relative;
+  transition: color 0.2s;
+  flex-shrink: 0;
+}
+
+.tab-item:hover {
+  color: #409eff;
+}
+
+.tab-item.active {
+  color: #409eff;
+  background: #f0f2f5;
+}
+
+.tab-title {
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tab-close {
+  margin-left: 6px;
+  font-size: 12px;
+  border-radius: 50%;
+  padding: 2px;
+  transition: background 0.2s;
+}
+
+.tab-close:hover {
+  background: #c0c4cc;
+  color: #fff;
+}
+
+.tab-actions {
+  flex-shrink: 0;
+  margin-left: 8px;
+}
+
+.tab-dropdown-trigger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+  color: #666;
+  border-radius: 4px;
+}
+
+.tab-dropdown-trigger:hover {
+  background: #f0f2f5;
+  color: #409eff;
 }
 </style>

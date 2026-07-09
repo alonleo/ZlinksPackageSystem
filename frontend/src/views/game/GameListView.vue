@@ -44,7 +44,7 @@ const searchForm = ref({
 const isNew = computed(() => selectedId.value === null && isEditing.value)
 
 const directionLabels: Record<string, string> = { horizontal: '横屏', vertical: '竖屏' }
-const statusLabels: Record<string, string> = { active: '进行中', completed: '已完成', paused: '已暂停' }
+const statusLabels: Record<string, string> = { active: '进行中', completed: '已完成', paused: '已暂停', pending: '待处理' }
 const priorityOptions = [
   { label: '1', value: 1 }, { label: '2', value: 2 }, { label: '3', value: 3 },
   { label: '4', value: 4 }, { label: '5', value: 5 },

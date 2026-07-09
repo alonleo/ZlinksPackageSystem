@@ -1,0 +1,72 @@
+using System;
+using Avalonia;
+using Avalonia.Controls.ApplicationLifetimes;
+using Avalonia.Markup.Xaml;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using ZlinksPackageSystem.Desktop.Services;
+using ZlinksPackageSystem.Desktop.ViewModels;
+using ZlinksPackageSystem.Desktop.Views;
+
+namespace ZlinksPackageSystem.Desktop;
+
+public partial class App : Application
+{
+    private readonly IHost _host;
+
+    public static IServiceProvider? Services => ((App?)Current)?._host.Services;
+
+    public App()
+    {
+        _host = Host.CreateDefaultBuilder()
+            .ConfigureServices((context, services) =>
+            {
+                // Services
+                services.AddSingleton<IApiService, ApiService>();
+                services.AddSingleton<IAuthService, AuthService>();
+                services.AddSingleton<IDialogService, DialogService>();
+                services.AddSingleton<IFilePickerService, FilePickerService>();
+
+                // ViewModels
+                services.AddSingleton<MainViewModel>();
+                services.AddTransient<LoginViewModel>();
+                services.AddTransient<HomeViewModel>();
+                services.AddTransient<GameListViewModel>();
+                services.AddTransient<ProductViewModel>();
+                services.AddTransient<TestViewModel>();
+                services.AddTransient<ToolLibraryViewModel>();
+                services.AddTransient<NotificationViewModel>();
+                services.AddTransient<SettingsViewModel>();
+
+                // Views
+                services.AddTransient<MainWindow>();
+                services.AddTransient<HomeView>();
+                services.AddTransient<GameListView>();
+                services.AddTransient<ProductView>();
+                services.AddTransient<TestView>();
+                services.AddTransient<ToolLibraryView>();
+                services.AddTransient<NotificationView>();
+                services.AddTransient<SettingsView>();
+            })
+            .Build();
+    }
+
+    public override void Initialize()
+    {
+        AvaloniaXamlLoader.Load(this);
+    }
+
+    public override async void OnFrameworkInitializationCompleted()
+    {
+        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+        {
+            await _host.StartAsync();
+
+            var mainWindow = _host.Services.GetRequiredService<MainWindow>();
+            desktop.MainWindow = mainWindow;
+            mainWindow.Show();
+        }
+
+        base.OnFrameworkInitializationCompleted();
+    }
+}

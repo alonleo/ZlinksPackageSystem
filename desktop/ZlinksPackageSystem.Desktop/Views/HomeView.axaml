@@ -1,0 +1,164 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="ZlinksPackageSystem.Desktop.Views.HomeView">
+
+    <Grid Margin="20" RowDefinitions="Auto,*,*">
+        <!-- Stat Cards -->
+        <Grid Grid.Row="0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="*" />
+            </Grid.ColumnDefinitions>
+
+            <Border Grid.Column="0" Margin="8" Padding="16,12"
+                    Background="Transparent"
+                    BorderBrush="#661976D2" BorderThickness="0,0,0,2"
+                    CornerRadius="8">
+                <StackPanel>
+                    <TextBlock Text="🎮 游戏数量" Foreground="#FF1976D2" FontSize="14" FontWeight="Bold" />
+                    <TextBlock Text="{Binding GameCount}" Foreground="White" FontSize="36" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,6,0,0" />
+                    <TextBlock Foreground="#80FFFFFF" FontSize="11" HorizontalAlignment="Center" Margin="0,2,0,0">
+                        <Run Text="{Binding PendingGameCount}" /><Run Text=" 个待处理" />
+                    </TextBlock>
+                </StackPanel>
+            </Border>
+
+            <Border Grid.Column="1" Margin="8" Padding="16,12"
+                    Background="Transparent"
+                    BorderBrush="#66FF4081" BorderThickness="0,0,0,2"
+                    CornerRadius="8">
+                <StackPanel>
+                    <TextBlock Text="📦 产品数量" Foreground="#FFFF4081" FontSize="14" FontWeight="Bold" />
+                    <TextBlock Text="{Binding ProductCount}" Foreground="White" FontSize="36" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,6,0,0" />
+                    <TextBlock Foreground="#80FFFFFF" FontSize="11" HorizontalAlignment="Center" Margin="0,2,0,0">
+                        <Run Text="{Binding PendingProductCount}" /><Run Text=" 个待处理" />
+                    </TextBlock>
+                </StackPanel>
+            </Border>
+
+            <Border Grid.Column="2" Margin="8" Padding="16,12"
+                    Background="Transparent"
+                    BorderBrush="#66E6A23C" BorderThickness="0,0,0,2"
+                    CornerRadius="8">
+                <StackPanel>
+                    <TextBlock Text="🧪 测试数量" Foreground="#FFE6A23C" FontSize="14" FontWeight="Bold" />
+                    <TextBlock Text="{Binding TestCount}" Foreground="White" FontSize="36" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,6,0,0" />
+                    <TextBlock Foreground="#80FFFFFF" FontSize="11" HorizontalAlignment="Center" Margin="0,2,0,0">
+                        <Run Text="{Binding PendingTestCount}" /><Run Text=" 个待处理" />
+                    </TextBlock>
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <!-- 公告区域 -->
+        <Border Grid.Row="1" Margin="8,16,8,8" Padding="0" CornerRadius="10"
+                Background="Transparent">
+            <Grid RowDefinitions="Auto,*">
+                <TextBlock Grid.Row="0" Text="📢 公告" FontSize="16" FontWeight="Bold"
+                           Foreground="#FFE6A23C" Margin="0,0,0,10" />
+
+                <ScrollViewer Grid.Row="1"
+                              VerticalScrollBarVisibility="Hidden">
+                    <ItemsControl ItemsSource="{Binding Announcements}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <StackPanel Spacing="6" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Padding="12,10" CornerRadius="6"
+                                        Background="#1AE6A23C"
+                                        BorderBrush="#33E6A23C" BorderThickness="1">
+                                    <Grid RowDefinitions="Auto,Auto,Auto">
+                                        <Grid Grid.Row="0" ColumnDefinitions="*,Auto">
+                                            <TextBlock Grid.Column="0" Text="{Binding Title}"
+                                                       FontSize="14" FontWeight="Bold"
+                                                       Foreground="#FFF0C060" />
+                                            <TextBlock Grid.Column="1"
+                                                       Text="{Binding Time, StringFormat='{}{0:MM-dd HH:mm}'}"
+                                                       FontSize="11" Foreground="#77FFFFFF"
+                                                       VerticalAlignment="Center" />
+                                        </Grid>
+                                        <TextBlock Grid.Row="1" Text="{Binding Content}"
+                                                   FontSize="13" Foreground="#FFBFcbd9"
+                                                   TextWrapping="Wrap" Margin="0,4,0,0" />
+                                        <TextBlock Grid.Row="2"
+                                                   Text="{Binding Publisher, StringFormat='发布: {0}'}"
+                                                   FontSize="11" Foreground="#66FFFFFF"
+                                                   Margin="0,4,0,0" />
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Grid>
+        </Border>
+
+        <!-- 通知区域 -->
+        <Grid Grid.Row="2" Margin="8,0,8,8" RowDefinitions="Auto,*">
+            <Grid Grid.Row="0" Margin="0,0,0,6">
+                <TextBlock Text="🔔 最新通知" FontSize="16" FontWeight="Bold"
+                           Foreground="White" VerticalAlignment="Center" />
+                <Border Background="#FF52C41A" CornerRadius="10"
+                        Padding="6,2" HorizontalAlignment="Right"
+                        IsVisible="{Binding UnreadCount, Converter={StaticResource IntPositiveToBoolConverter}}">
+                    <TextBlock Foreground="White" FontSize="11">
+                        <Run Text="{Binding UnreadCount}" /><Run Text=" 条未读" />
+                    </TextBlock>
+                </Border>
+            </Grid>
+
+            <ListBox Grid.Row="1" ItemsSource="{Binding Notifications}"
+                     BorderThickness="0" Background="Transparent">
+                <ListBox.Styles>
+                    <Style Selector="ListBox ScrollViewer">
+                        <Setter Property="VerticalScrollBarVisibility" Value="Hidden" />
+                    </Style>
+                    <Style Selector="ListBoxItem">
+                        <Setter Property="Padding" Value="0" />
+                        <Setter Property="Margin" Value="0" />
+                        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                    </Style>
+                    <Style Selector="ListBoxItem:selected">
+                        <Setter Property="Background" Value="Transparent" />
+                    </Style>
+                </ListBox.Styles>
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <Border CornerRadius="6" Padding="10,8" Margin="0,0,0,6"
+                                Background="{Binding IsRead, Converter={StaticResource ReadToBackgroundConverter}}"
+                                PointerPressed="NotificationItem_PointerPressed">
+                            <Grid RowDefinitions="Auto,Auto">
+                                <Grid Grid.Row="0"
+                                      ColumnDefinitions="Auto,Auto,*,Auto">
+                                    <Ellipse Grid.Column="0" Width="8" Height="8"
+                                             Fill="{Binding Urgency, Converter={StaticResource UrgencyToColorConverter}}"
+                                             Margin="0,0,6,0" VerticalAlignment="Center" />
+                                    <Ellipse Grid.Column="1" Width="6" Height="6" Fill="#FF52C41A"
+                                             Margin="0,0,8,0" VerticalAlignment="Center"
+                                             IsVisible="{Binding !IsRead}" />
+                                    <TextBlock Grid.Column="2" Text="{Binding Message}"
+                                               FontSize="13" VerticalAlignment="Center"
+                                               TextWrapping="Wrap"
+                                               Foreground="#FFBFcbd9"
+                                               Opacity="{Binding IsRead, Converter={StaticResource ReadToOpacityConverter}}" />
+                                    <TextBlock Grid.Column="3" Text="{Binding Time, StringFormat='{}{0:MM-dd HH:mm}'}"
+                                               FontSize="11" VerticalAlignment="Center"
+                                               Foreground="#99FFFFFF"
+                                               Opacity="{Binding IsRead, Converter={StaticResource ReadToOpacityConverter}}" />
+                                </Grid>
+                                <Grid Grid.Row="1" Margin="14,4,0,0">
+                                    <TextBlock Text="{Binding Publisher, StringFormat='发布人: {0}'}"
+                                               FontSize="11" Foreground="#77FFFFFF" VerticalAlignment="Center" />
+                                </Grid>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </Grid>
+    </Grid>
+</UserControl>

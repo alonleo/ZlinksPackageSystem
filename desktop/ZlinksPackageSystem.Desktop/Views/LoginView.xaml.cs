@@ -18,5 +18,13 @@ namespace ZlinksPackageSystem.Desktop.Views
                 viewModel.Password = ((PasswordBox)sender).Password;
             }
         }
+
+        private void LoginView_Loaded(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is LoginViewModel vm && !string.IsNullOrEmpty(vm.Password))
+            {
+                PasswordBox.Password = vm.Password;
+            }
+        }
     }
 }

@@ -4,6 +4,7 @@ import com.alibaba.excel.EasyExcel;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.zlinks.package_system.dto.CountResult;
 import com.zlinks.package_system.dto.ProductExcelDTO;
 import com.zlinks.package_system.dto.ProductRequest;
 import com.zlinks.package_system.entity.Company;
@@ -54,6 +55,12 @@ public class ProductController {
     private final GameService gameService;
     private final CompanyService companyService;
     private final ObjectMapper objectMapper;
+
+    @Operation(summary = "获取产品统计")
+    @GetMapping("/counts")
+    public Result<CountResult> getCounts() {
+        return Result.success(productService.getCounts());
+    }
 
     @Operation(summary = "获取产品列表")
     @GetMapping

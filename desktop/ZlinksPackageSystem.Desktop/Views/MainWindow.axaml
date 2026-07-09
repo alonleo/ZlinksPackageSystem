@@ -1,0 +1,150 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="clr-namespace:ZlinksPackageSystem.Desktop.Views"
+        xmlns:vm="clr-namespace:ZlinksPackageSystem.Desktop.ViewModels"
+        x:Class="ZlinksPackageSystem.Desktop.Views.MainWindow"
+        Title="{Binding Title}"
+        Width="1200" Height="800"
+        MinWidth="900" MinHeight="600"
+        WindowStartupLocation="CenterScreen"
+        SystemDecorations="None"
+        CanResize="True"
+        Background="Transparent"
+        TransparencyLevelHint="None"
+        Padding="4"
+        PointerMoved="Window_PointerMoved"
+        PointerPressed="Window_PointerPressed">
+
+    <Window.DataTemplates>
+        <DataTemplate DataType="{x:Type vm:LoginViewModel}">
+            <local:LoginView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:HomeViewModel}">
+            <local:HomeView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:GameListViewModel}">
+            <local:GameListView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:ProductViewModel}">
+            <local:ProductView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:TestViewModel}">
+            <local:TestView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:ToolLibraryViewModel}">
+            <local:ToolLibraryView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:NotificationViewModel}">
+            <local:NotificationView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:SettingsViewModel}">
+            <local:SettingsView />
+        </DataTemplate>
+    </Window.DataTemplates>
+
+    <Window.Styles>
+        <Style Selector="Button.CaptionButton">
+            <Setter Property="Width" Value="34" />
+            <Setter Property="Height" Value="24" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="#FFBFcbd9" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Cursor" Value="Arrow" />
+        </Style>
+        <Style Selector="Button.CaptionButton:pointerover">
+            <Setter Property="Background" Value="#44FFFFFF" />
+        </Style>
+        <Style Selector="Button.CloseButton">
+            <Setter Property="Width" Value="34" />
+            <Setter Property="Height" Value="24" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="#FFBFcbd9" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Cursor" Value="Arrow" />
+        </Style>
+        <Style Selector="Button.CloseButton:pointerover">
+            <Setter Property="Background" Value="#E81123" />
+            <Setter Property="Foreground" Value="White" />
+        </Style>
+    </Window.Styles>
+
+    <Grid>
+        <!-- Background Layer -->
+        <Rectangle Fill="{Binding BackgroundBrush}"
+                   Opacity="{Binding BackgroundOpacity}"
+                   IsHitTestVisible="False" />
+
+        <!-- Dimming overlay to keep content readable -->
+        <Rectangle Fill="#CC1e1e2e" IsHitTestVisible="False" />
+
+        <Border CornerRadius="8">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="34" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <!-- Custom Title Bar -->
+                <Border Grid.Row="0" Background="Transparent" PointerPressed="TitleBar_PointerPressed">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Grid.Column="0"
+                                   Text="{Binding Title}"
+                                   Foreground="#FFBFcbd9"
+                                   FontSize="13"
+                                   VerticalAlignment="Center"
+                                   Margin="16,0,0,0" />
+
+                        <StackPanel Grid.Column="1" Orientation="Horizontal">
+                            <Button x:Name="MinimizeButton"
+                                    Content="─"
+                                    Click="MinimizeButton_Click"
+                                    Classes="CaptionButton" />
+                            <Button x:Name="MaximizeButton"
+                                    Content="□"
+                                    Click="MaximizeButton_Click"
+                                    Classes="CaptionButton" />
+                            <Button x:Name="CloseButton"
+                                    Content="✕"
+                                    Click="CloseButton_Click"
+                                    Classes="CloseButton" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Menu Bar -->
+                <Menu Grid.Row="1"
+                      IsVisible="{Binding IsLoggedIn}"
+                      HorizontalAlignment="Center">
+                    <MenuItem Header="🏠 首页" Command="{Binding NavigateToHomeCommand}" />
+                    <MenuItem Header="🎮 游戏" Command="{Binding NavigateToGamesCommand}" />
+                    <MenuItem Header="📦 产品" Command="{Binding NavigateToProductsCommand}" />
+                    <MenuItem Header="🧪 测试" Command="{Binding NavigateToTestsCommand}" />
+                    <MenuItem Header="🔧 工具库" Command="{Binding NavigateToToolLibraryCommand}" />
+                    <MenuItem Header="🔔 消息中心" Command="{Binding NavigateToNotificationCommand}" />
+                    <MenuItem Header="⚙️ 设置" Command="{Binding NavigateToSettingsCommand}" />
+                    <Separator />
+                    <MenuItem Header="🚪 退出" Command="{Binding LogoutCommand}" />
+                </Menu>
+
+                <!-- Main Content -->
+                <ScrollViewer Grid.Row="2"
+                              VerticalScrollBarVisibility="Hidden"
+                              HorizontalScrollBarVisibility="Hidden">
+                    <ContentControl Content="{Binding CurrentViewModel}" />
+                </ScrollViewer>
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

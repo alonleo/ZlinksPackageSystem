@@ -1,0 +1,156 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="ZlinksPackageSystem.Desktop.Views.ToolLibraryView">
+
+    <UserControl.Styles>
+        <Style Selector="Button">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="#33FFFFFF" />
+            <Setter Property="BorderThickness" Value="1" />
+        </Style>
+        <Style Selector="Button:pointerover">
+            <Setter Property="Background" Value="#1AFFFFFF" />
+            <Setter Property="BorderBrush" Value="#66FFFFFF" />
+        </Style>
+        <Style Selector="TextBox">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderBrush" Value="#33FFFFFF" />
+            <Setter Property="BorderThickness" Value="1" />
+        </Style>
+        <Style Selector="TextBox:pointerover">
+            <Setter Property="Background" Value="#1AFFFFFF" />
+        </Style>
+        <Style Selector="TextBox:focus">
+            <Setter Property="BorderBrush" Value="#FF1976D2" />
+        </Style>
+    </UserControl.Styles>
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Top Bar -->
+        <Grid Grid.Row="0" Margin="0,0,0,16" ColumnDefinitions="Auto,*,Auto">
+            <TextBlock Grid.Column="0" Text="🔧 工具库" FontSize="18" FontWeight="Bold"
+                       Foreground="White" VerticalAlignment="Center" Margin="0,0,16,0" />
+            <TextBox Grid.Column="1" Text="{Binding SearchText}"
+                     Watermark="🔍 搜索工具名称..."
+                     VerticalAlignment="Center" />
+            <Button Grid.Column="2" Content="＋ 新建工具"
+                    Command="{Binding OpenAddDialogCommand}"
+                    Margin="16,0,0,0" Width="110"
+                    BorderBrush="#FF1976D2" Foreground="#FF1976D2" />
+        </Grid>
+
+        <!-- Card Grid -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Hidden">
+            <ItemsControl ItemsSource="{Binding Projects}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel />
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                        <Border Width="280" Margin="0,0,14,14" Padding="0"
+                                CornerRadius="10" Background="#1AFFFFFF"
+                                BorderBrush="#22FFFFFF" BorderThickness="1">
+                            <Grid RowDefinitions="Auto,Auto,Auto,Auto">
+                                <!-- Card Header -->
+                                <Border Grid.Row="0" Padding="14,12" CornerRadius="10,10,0,0"
+                                        Background="#1A1976D2"
+                                        PointerPressed="Card_PointerPressed">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock Text="{Binding Name}" FontSize="15" FontWeight="Bold"
+                                                       Foreground="White" />
+                                            <TextBlock Text="{Binding Category, StringFormat='🏷 {0}'}"
+                                                       FontSize="11" Foreground="#99FFFFFF" Margin="0,2,0,0" />
+                                        </StackPanel>
+                                        <Border Grid.Column="1" Padding="6,3" CornerRadius="4"
+                                                Background="#1AFFFFFF" VerticalAlignment="Top">
+                                            <TextBlock Text="{Binding Status}" FontSize="10"
+                                                       Foreground="#FFBFcbd9" />
+                                        </Border>
+                                    </Grid>
+                                </Border>
+
+                                <!-- Description -->
+                                <TextBlock Grid.Row="1" Text="{Binding Description}"
+                                           FontSize="12" Foreground="#99BFcbd9"
+                                           TextWrapping="Wrap" Margin="14,10,14,6"
+                                           MaxHeight="40" TextTrimming="CharacterEllipsis" />
+
+                                <!-- Meta Info -->
+                                <StackPanel Grid.Row="2" Margin="14,0,14,8">
+                                    <TextBlock FontSize="11" Foreground="#66FFFFFF">
+                                        <Run Text="版本: " /><Run Text="{Binding Version}" />
+                                        <Run Text="  |  " /><Run Text="负责人: " /><Run Text="{Binding Manager}" />
+                                    </TextBlock>
+                                    <TextBlock Text="{Binding CreateTime, StringFormat='📅 {0:yyyy-MM-dd}'}"
+                                               FontSize="11" Foreground="#44FFFFFF" Margin="0,2,0,0" />
+                                </StackPanel>
+
+                                <!-- Actions -->
+                                <Grid Grid.Row="3" Margin="14,0,14,12" ColumnDefinitions="Auto,Auto">
+                                    <Button Grid.Column="0" Content="✏ 编辑" FontSize="11"
+                                            BorderBrush="#FF1976D2" Foreground="#FF1976D2"
+                                            Command="{Binding DataContext.OpenEditDialogCommand, RelativeSource={RelativeSource FindAncestor, AncestorType=ItemsControl}}"
+                                            CommandParameter="{Binding}" />
+                                    <Button Grid.Column="1" Content="🗑 删除" FontSize="11"
+                                            BorderBrush="#FFF56C6C" Foreground="#FFF56C6C"
+                                            Margin="8,0,0,0"
+                                            Command="{Binding DataContext.DeleteProjectCommand, RelativeSource={RelativeSource FindAncestor, AncestorType=ItemsControl}}"
+                                            CommandParameter="{Binding}" />
+                                </Grid>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+
+        <!-- Edit Overlay -->
+        <Border Grid.Row="0" Grid.RowSpan="2"
+                IsVisible="{Binding IsEditing}"
+                Background="#80000000"
+                VerticalAlignment="Stretch" HorizontalAlignment="Stretch">
+            <Border VerticalAlignment="Center" HorizontalAlignment="Center"
+                    Width="420" Padding="24" CornerRadius="12"
+                    Background="#F01e1e2e"
+                    BorderBrush="#33FFFFFF" BorderThickness="1">
+                <StackPanel Spacing="12">
+                    <TextBlock Text="工具信息" FontSize="16" FontWeight="Bold"
+                               Foreground="White" />
+
+                    <TextBox Text="{Binding EditName}" Watermark="🔧 工具名称" />
+                    <TextBox Text="{Binding EditDescription}" Watermark="📝 描述信息" Height="60"
+                             AcceptsReturn="True" TextWrapping="Wrap" />
+                    <Grid ColumnDefinitions="*,*">
+                        <TextBox Grid.Column="0" Text="{Binding EditCategory}"
+                                 Watermark="📂 分类" Margin="0,0,6,0" />
+                        <TextBox Grid.Column="1" Text="{Binding EditVersion}"
+                                 Watermark="🏷 版本号" Margin="6,0,0,0" />
+                    </Grid>
+                    <Grid ColumnDefinitions="*,*">
+                        <TextBox Grid.Column="0" Text="{Binding EditStatus}"
+                                 Watermark="📊 状态" Margin="0,0,6,0" />
+                        <TextBox Grid.Column="1" Text="{Binding EditManager}"
+                                 Watermark="👤 负责人" Margin="6,0,0,0" />
+                    </Grid>
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right"
+                                Margin="0,8,0,0" Spacing="10">
+                        <Button Content="取消" Width="80"
+                                Command="{Binding CancelEditCommand}" />
+                        <Button Content="保存" Width="80"
+                                Background="#FF1976D2" BorderBrush="#FF1976D2"
+                                Foreground="White"
+                                Command="{Binding SaveProjectCommand}" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+        </Border>
+    </Grid>
+</UserControl>

@@ -1,3 +1,4 @@
+using System;
 using System.Windows;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -21,17 +22,25 @@ namespace ZlinksPackageSystem.Desktop
                     // Services
                     services.AddSingleton<IApiService, ApiService>();
                     services.AddSingleton<IAuthService, AuthService>();
-                    
+
                     // ViewModels
-                    services.AddTransient<MainViewModel>();
+                    services.AddSingleton<MainViewModel>();
                     services.AddTransient<LoginViewModel>();
                     services.AddTransient<HomeViewModel>();
                     services.AddTransient<GameListViewModel>();
-                    
+                    services.AddTransient<ProductViewModel>();
+                    services.AddTransient<TestViewModel>();
+                    services.AddTransient<ToolLibraryViewModel>();
+                    services.AddTransient<SettingsViewModel>();
+
                     // Views
                     services.AddTransient<MainWindow>();
                     services.AddTransient<HomeView>();
                     services.AddTransient<GameListView>();
+                    services.AddTransient<ProductView>();
+                    services.AddTransient<TestView>();
+                    services.AddTransient<ToolLibraryView>();
+                    services.AddTransient<SettingsView>();
                 })
                 .Build();
         }

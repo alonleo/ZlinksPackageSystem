@@ -1,0 +1,95 @@
+<Application xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:converters="clr-namespace:ZlinksPackageSystem.Desktop.Converters"
+             x:Class="ZlinksPackageSystem.Desktop.App"
+             RequestedThemeVariant="Dark">
+    <Application.Styles>
+        <FluentTheme />
+        <Style Selector="Button">
+            <Setter Property="Background" Value="#FF3d3d5c" />
+            <Setter Property="Foreground" Value="#FFBFcbd9" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="4" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+        <Style Selector="Button:pointerover">
+            <Setter Property="Background" Value="#FF4d4d6c" />
+        </Style>
+        <Style Selector="Button:pressed">
+            <Setter Property="Background" Value="#FF2d2d4c" />
+        </Style>
+        <Style Selector="TextBox">
+            <Setter Property="Background" Value="#FF2d2d44" />
+            <Setter Property="Foreground" Value="#FFBFcbd9" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="CornerRadius" Value="4" />
+        </Style>
+        <Style Selector="TextBox:pointerover">
+            <Setter Property="Background" Value="#1AFFFFFF" />
+        </Style>
+        <Style Selector="TextBox:focus">
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="BorderBrush" Value="#FF1976D2" />
+        </Style>
+        <Style Selector="CheckBox">
+            <Setter Property="Foreground" Value="#FFBFcbd9" />
+        </Style>
+        <Style Selector="RadioButton">
+            <Setter Property="Foreground" Value="#FFBFcbd9" />
+        </Style>
+        <Style Selector="ToggleButton">
+            <Setter Property="Foreground" Value="#FFBFcbd9" />
+        </Style>
+        <Style Selector="ListBox">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+        <Style Selector="ListBoxItem">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="#FFBFcbd9" />
+        </Style>
+        <Style Selector="ListBoxItem:selected">
+            <Setter Property="Background" Value="#44333333" />
+        </Style>
+        <Style Selector="DataGrid">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="#FFBFcbd9" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="GridLinesVisibility" Value="None" />
+            <Setter Property="HeadersVisibility" Value="Column" />
+        </Style>
+        <Style Selector="DataGridColumnHeader">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="#FFBFcbd9" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="SeparatorBrush" Value="Transparent" />
+        </Style>
+        <Style Selector="DataGridCell">
+            <Setter Property="Foreground" Value="#FFBFcbd9" />
+            <Setter Property="BorderThickness" Value="0" />
+        </Style>
+        <Style Selector="Menu">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="#FFBFcbd9" />
+        </Style>
+        <Style Selector="MenuItem">
+            <Setter Property="Foreground" Value="#FFBFcbd9" />
+        </Style>
+        <Style Selector="Separator">
+            <Setter Property="Background" Value="#FF444466" />
+        </Style>
+    </Application.Styles>
+
+    <Application.Resources>
+        <ResourceDictionary>
+            <converters:InverseBooleanConverter x:Key="BooleanInverseConverter" />
+            <converters:RadioBoolConverter x:Key="RadioBoolConverter" />
+            <converters:ReadToBackgroundConverter x:Key="ReadToBackgroundConverter" />
+            <converters:ReadToOpacityConverter x:Key="ReadToOpacityConverter" />
+            <converters:UrgencyToColorConverter x:Key="UrgencyToColorConverter" />
+            <converters:IntPositiveToBoolConverter x:Key="IntPositiveToBoolConverter" />
+
+        </ResourceDictionary>
+    </Application.Resources>
+</Application>

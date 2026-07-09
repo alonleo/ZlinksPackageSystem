@@ -24,7 +24,7 @@ namespace ZlinksPackageSystem.Desktop.Services
             _httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
         }
 
-        public async Task<T?> GetAsync<T>(string endpoint)
+        public async Task<T?> GetAsync<T>(string endpoint) where T : class
         {
             try
             {
@@ -41,7 +41,7 @@ namespace ZlinksPackageSystem.Desktop.Services
             }
         }
 
-        public async Task<T?> PostAsync<T>(string endpoint, object? data = null)
+        public async Task<T?> PostAsync<T>(string endpoint, object? data = null) where T : class
         {
             try
             {
@@ -60,7 +60,7 @@ namespace ZlinksPackageSystem.Desktop.Services
             }
         }
 
-        public async Task<T?> PutAsync<T>(string endpoint, object? data = null)
+        public async Task<T?> PutAsync<T>(string endpoint, object? data = null) where T : class
         {
             try
             {

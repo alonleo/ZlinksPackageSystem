@@ -1,4 +1,4 @@
-<Window x:Class="ZlinksPackageSystem.Desktop.Views.MainWindow"
+<Window
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
@@ -7,12 +7,18 @@
         xmlns:vm="clr-namespace:ZlinksPackageSystem.Desktop.ViewModels"
         mc:Ignorable="d"
         Title="{Binding Title}"
-        Height="600" Width="800"
-        WindowStartupLocation="CenterScreen">
-    
-    <Window.DataContext>
-        <vm:MainViewModel />
-    </Window.DataContext>
+        Height="800" Width="1200"
+        MinHeight="600" MinWidth="900"
+        WindowStartupLocation="CenterScreen"
+        WindowStyle="None"
+        Background="#FF1e1e2e">
+
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="34"
+                      GlassFrameThickness="0"
+                      ResizeBorderThickness="5"
+                      CornerRadius="8" />
+    </WindowChrome.WindowChrome>
 
     <Window.Resources>
         <DataTemplate DataType="{x:Type vm:LoginViewModel}">
@@ -24,25 +30,133 @@
         <DataTemplate DataType="{x:Type vm:GameListViewModel}">
             <local:GameListView />
         </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:ProductViewModel}">
+            <local:ProductView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:TestViewModel}">
+            <local:TestView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:ToolLibraryViewModel}">
+            <local:ToolLibraryView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:NotificationViewModel}">
+            <local:NotificationView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:SettingsViewModel}">
+            <local:SettingsView />
+        </DataTemplate>
+
+        <Style x:Key="CaptionButton" TargetType="Button">
+            <Setter Property="Width" Value="34" />
+            <Setter Property="Height" Value="24" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="#FFBFcbd9" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontFamily" Value="Segoe MDL2 Assets" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="HorizontalContentAlignment" Value="Center" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Cursor" Value="Arrow" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}">
+                            <TextBlock Text="{TemplateBinding Content}"
+                                      Foreground="{TemplateBinding Foreground}"
+                                      FontFamily="{TemplateBinding FontFamily}"
+                                      FontSize="{TemplateBinding FontSize}"
+                                      VerticalAlignment="Center"
+                                      HorizontalAlignment="Center" />
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#44FFFFFF" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
+        <Style x:Key="CloseButton" TargetType="Button" BasedOn="{StaticResource CaptionButton}">
+            <Style.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter Property="Background" Value="#E81123" />
+                    <Setter Property="Foreground" Value="White" />
+                </Trigger>
+            </Style.Triggers>
+        </Style>
     </Window.Resources>
 
     <Grid>
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
-        </Grid.RowDefinitions>
+        <!-- Background Layer -->
+        <Rectangle Fill="{Binding BackgroundBrush}"
+                   Opacity="{Binding BackgroundOpacity}"
+                   IsHitTestVisible="False"/>
 
-        <!-- Menu Bar -->
-        <Menu Grid.Row="0" IsEnabled="{Binding IsLoggedIn}">
-            <MenuItem Header="首页" Command="{Binding NavigateToHomeCommand}" />
-            <MenuItem Header="游戏管理" Command="{Binding NavigateToGamesCommand}" />
-            <MenuItem Header="产品管理" />
-            <MenuItem Header="测试管理" />
-            <Separator />
-            <MenuItem Header="退出" Command="{Binding LogoutCommand}" />
-        </Menu>
+        <Border Background="{x:Null}" CornerRadius="8">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="34" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
 
-        <!-- Main Content -->
-        <ContentControl Grid.Row="1" Content="{Binding CurrentViewModel}" />
+                <!-- Custom Title Bar -->
+                <Border Grid.Row="0" Background="Transparent" MouseLeftButtonDown="TitleBar_MouseLeftButtonDown">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+
+                        <TextBlock Grid.Column="0"
+                                   Text="{Binding Title}"
+                                   Foreground="#FFBFcbd9"
+                                   FontSize="13"
+                                   VerticalAlignment="Center"
+                                   Margin="16,0,0,0" />
+
+                        <StackPanel Grid.Column="1" Orientation="Horizontal"
+                                    WindowChrome.IsHitTestVisibleInChrome="True">
+                            <Button x:Name="MinimizeButton"
+                                    Content="&#xE921;"
+                                    Style="{StaticResource CaptionButton}"
+                                    WindowChrome.IsHitTestVisibleInChrome="True"
+                                    Click="MinimizeButton_Click" />
+                            <Button x:Name="MaximizeButton"
+                                    Content="&#xE922;"
+                                    Style="{StaticResource CaptionButton}"
+                                    WindowChrome.IsHitTestVisibleInChrome="True"
+                                    Click="MaximizeButton_Click" />
+                            <Button x:Name="CloseButton"
+                                    Content="&#xE8BB;"
+                                    Style="{StaticResource CloseButton}"
+                                    WindowChrome.IsHitTestVisibleInChrome="True"
+                                    Click="CloseButton_Click" />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Menu Bar -->
+                <Menu Grid.Row="1" Visibility="{Binding IsLoggedIn, Converter={StaticResource BooleanToVisibilityConverter}}"
+                      Background="#CC252540" Foreground="#FFBFcbd9">
+                    <MenuItem Header="首页" Command="{Binding NavigateToHomeCommand}" />
+                    <MenuItem Header="游戏" Command="{Binding NavigateToGamesCommand}" />
+                    <MenuItem Header="产品" Command="{Binding NavigateToProductsCommand}" />
+                    <MenuItem Header="测试" Command="{Binding NavigateToTestsCommand}" />
+                    <MenuItem Header="工具库" Command="{Binding NavigateToToolLibraryCommand}" />
+                    <MenuItem Header="通知" Command="{Binding NavigateToNotificationCommand}" />
+                    <MenuItem Header="设置" Command="{Binding NavigateToSettingsCommand}" />
+                    <Separator />
+                    <MenuItem Header="退出" Command="{Binding LogoutCommand}" />
+                </Menu>
+
+                <!-- Main Content -->
+                <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Hidden">
+                    <ContentControl Content="{Binding CurrentViewModel}" />
+                </ScrollViewer>
+            </Grid>
+        </Border>
     </Grid>
 </Window>

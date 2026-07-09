@@ -4,6 +4,7 @@ import com.alibaba.excel.EasyExcel;
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
 import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.zlinks.package_system.dto.CountResult;
 import com.zlinks.package_system.dto.GameExcelDTO;
 import com.zlinks.package_system.entity.Game;
 import com.zlinks.package_system.service.GameService;
@@ -41,6 +42,12 @@ public class GameController {
 
     private final GameService gameService;
     private final ObjectMapper objectMapper;
+
+    @Operation(summary = "获取游戏统计")
+    @GetMapping("/counts")
+    public Result<CountResult> getCounts() {
+        return Result.success(gameService.getCounts());
+    }
 
     @Operation(summary = "获取游戏列表")
     @GetMapping

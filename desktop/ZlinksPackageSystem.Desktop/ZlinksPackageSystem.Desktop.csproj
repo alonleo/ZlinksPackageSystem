@@ -2,21 +2,39 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net6.0-windows</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
-    <UseWPF>true</UseWPF>
     <RootNamespace>ZlinksPackageSystem.Desktop</RootNamespace>
     <AssemblyName>ZlinksPackageSystem.Desktop</AssemblyName>
   </PropertyGroup>
 
+  <!-- Exclude old WPF files (kept for reference) and vendor directory -->
   <ItemGroup>
+    <Compile Remove="MaterialDesignInXamlToolkit\**\*.cs" />
+    <Compile Remove="App.xaml.cs" />
+    <Compile Remove="Views\MainWindow.xaml.cs" />
+    <Compile Remove="Views\LoginView.xaml.cs" />
+    <Compile Remove="Views\HomeView.xaml.cs" />
+    <Compile Remove="Views\GameListView.xaml.cs" />
+    <Compile Remove="Views\ProductView.xaml.cs" />
+    <Compile Remove="Views\TestView.xaml.cs" />
+    <Compile Remove="Views\ToolLibraryView.xaml.cs" />
+    <AvaloniaResource Remove="**/*.xaml" />
+    <Content Remove="**/*.xaml" />
+    <None Remove="**/*.xaml" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Avalonia" Version="11.2.0" />
+    <PackageReference Include="Avalonia.Desktop" Version="11.2.0" />
+    <PackageReference Include="Avalonia.Themes.Fluent" Version="11.2.0" />
+    <PackageReference Include="Avalonia.Controls.DataGrid" Version="11.2.0" />
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.2.2" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
-    <PackageReference Include="MaterialDesignThemes" Version="4.9.0" />
-    <PackageReference Include="MaterialDesignColors" Version="2.1.4" />
+    <PackageReference Include="Tmds.DBus.Protocol" Version="0.21.3" />
   </ItemGroup>
 
 </Project>

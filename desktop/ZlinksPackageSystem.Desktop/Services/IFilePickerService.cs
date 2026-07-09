@@ -5,5 +5,6 @@ namespace ZlinksPackageSystem.Desktop.Services
     public interface IFilePickerService
     {
         Task<string?> PickImageFileAsync();
+        Task<string?> PickFontFileAsync();
     }
 }

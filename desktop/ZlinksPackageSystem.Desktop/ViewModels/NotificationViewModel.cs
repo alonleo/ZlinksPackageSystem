@@ -16,7 +16,6 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
         [ObservableProperty]
         private int _unreadCount;
 
-        public ObservableCollection<AnnouncementItem> Announcements { get; } = new();
         public ObservableCollection<NotificationItem> Notifications { get; } = new();
 
         public NotificationViewModel(IDialogService dialogService)
@@ -31,27 +30,8 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
         {
             IsBusy = true;
 
-            // 公告数据（模拟）
-            Announcements.Clear();
-            Announcements.Add(new AnnouncementItem
-            {
-                Id = 1,
-                Title = "系统升级通知",
-                Content = "平台将于本周六凌晨 02:00-04:00 进行系统升级维护，期间所有服务将暂时不可用。请提前安排好打包和测试任务，避免在维护期间进行操作。",
-                Time = DateTime.Now.AddDays(-1),
-                Publisher = "系统管理员"
-            });
-            Announcements.Add(new AnnouncementItem
-            {
-                Id = 2,
-                Title = "新版本 SDK v3.2.0 已发布",
-                Content = "新增了对 Android 14 的适配支持，优化了 IL2CPP 打包性能，修复了若干已知问题。请各项目组尽快升级到最新版本。",
-                Time = DateTime.Now.AddDays(-2),
-                Publisher = "SDK 团队"
-            });
-
-            // 通知数据（模拟）
-            Notifications.Clear();
+                        // 通知数据（模拟）
+                        Notifications.Clear();
             Notifications.Add(new NotificationItem
             {
                 Id = 1,

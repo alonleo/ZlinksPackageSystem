@@ -37,4 +37,15 @@
     <PackageReference Include="Tmds.DBus.Protocol" Version="0.21.3" />
   </ItemGroup>
 
+  <!-- 应用图标:按平台自动选取(Linux/macOS 用 AvaloniaResource,Windows 额外配置 ApplicationIcon) -->
+  <ItemGroup>
+    <AvaloniaResource Include="Assets\icon.png" />
+    <AvaloniaResource Include="Assets\icon.ico" />
+    <AvaloniaResource Include="Assets\icon.icns" />
+  </ItemGroup>
+
+  <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('windows'))">
+    <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
+  </PropertyGroup>
+
 </Project>

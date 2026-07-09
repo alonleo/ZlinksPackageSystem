@@ -8,7 +8,11 @@ namespace ZlinksPackageSystem.Desktop.Converters
     {
         public object Convert(object? value, Type targetType, object? parameter, CultureInfo culture)
         {
-            return value is int count && count > 0;
+            var isPositive = value is int count && count > 0;
+            // parameter="invert" 时取反,用于"列表为空"的可见性绑定
+            if (parameter is string s && string.Equals(s, "invert", StringComparison.OrdinalIgnoreCase))
+                isPositive = !isPositive;
+            return isPositive;
         }
 
         public object ConvertBack(object? value, Type targetType, object? parameter, CultureInfo culture)

@@ -2,58 +2,9 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="ZlinksPackageSystem.Desktop.Views.NotificationView">
 
-    <Grid Margin="20" RowDefinitions="Auto,Auto,*">
-        <!-- 公告区域 -->
-        <Border Grid.Row="0" Margin="0,0,0,16" Padding="0" CornerRadius="10"
-                Background="Transparent">
-            <Grid RowDefinitions="Auto,*">
-                <TextBlock Grid.Row="0" Text="📢 公告" FontSize="16" FontWeight="Bold"
-                           Foreground="#FFE6A23C" Margin="0,0,0,12" />
-
-                <ScrollViewer Grid.Row="1"
-                              VerticalScrollBarVisibility="Hidden">
-                    <ItemsControl ItemsSource="{Binding Announcements}">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate>
-                                <StackPanel Spacing="8" />
-                            </ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <Border Padding="12,10" CornerRadius="6"
-                                        Background="#1AE6A23C"
-                                        BorderBrush="#33E6A23C" BorderThickness="1">
-                                    <Grid RowDefinitions="Auto,Auto,Auto">
-                                        <Grid Grid.Row="0"
-                                              ColumnDefinitions="*,Auto">
-                                            <TextBlock Grid.Column="0"
-                                                       Text="{Binding Title}"
-                                                       FontSize="14" FontWeight="Bold"
-                                                       Foreground="#FFF0C060" />
-                                            <TextBlock Grid.Column="1"
-                                                       Text="{Binding Time, StringFormat='{}{0:MM-dd HH:mm}'}"
-                                                       FontSize="11" Foreground="#77FFFFFF"
-                                                       VerticalAlignment="Center" />
-                                        </Grid>
-                                        <TextBlock Grid.Row="1"
-                                                   Text="{Binding Content}"
-                                                   FontSize="13" Foreground="#FFBFcbd9"
-                                                   TextWrapping="Wrap" Margin="0,6,0,0" />
-                                        <TextBlock Grid.Row="2"
-                                                   Text="{Binding Publisher, StringFormat='发布: {0}'}"
-                                                   FontSize="11" Foreground="#66FFFFFF"
-                                                   Margin="0,4,0,0" />
-                                    </Grid>
-                                </Border>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </ScrollViewer>
-            </Grid>
-        </Border>
-
+    <Grid Margin="20" RowDefinitions="Auto,*">
         <!-- 通知标题 -->
-        <Grid Grid.Row="1" Margin="0,0,0,8">
+        <Grid Grid.Row="0" Margin="0,0,0,8">
             <TextBlock Text="🔔 通知" FontSize="16" FontWeight="Bold"
                        Foreground="White" VerticalAlignment="Center" />
             <Border Background="#FF52C41A" CornerRadius="10"
@@ -66,7 +17,7 @@
         </Grid>
 
         <!-- 通知列表 -->
-        <ListBox Grid.Row="2" ItemsSource="{Binding Notifications}"
+        <ListBox Grid.Row="1" ItemsSource="{Binding Notifications}"
                  BorderThickness="0" Background="Transparent">
             <ListBox.Styles>
                 <Style Selector="ListBox ScrollViewer">

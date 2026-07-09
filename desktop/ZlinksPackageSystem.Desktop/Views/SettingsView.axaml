@@ -2,128 +2,510 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="ZlinksPackageSystem.Desktop.Views.SettingsView">
 
-    <ScrollViewer VerticalScrollBarVisibility="Auto">
-        <StackPanel Margin="20" MaxWidth="600">
+    <UserControl.Resources>
+        <!-- 卡片通用样式 -->
+        <SolidColorBrush x:Key="CardBackground" Color="#1A2d2d44" />
+        <SolidColorBrush x:Key="CardBorder" Color="#22FFFFFF" />
+        <SolidColorBrush x:Key="CardHover" Color="#22FFFFFF" />
+        <SolidColorBrush x:Key="SubItemBackground" Color="#0DFFFFFF" />
 
-            <!-- 🎨 主题设置 -->
-            <Border Margin="0,0,0,16" Padding="20" CornerRadius="8"
-                    Background="Transparent"
-                    BorderBrush="#661976D2" BorderThickness="0,0,0,1">
-                <StackPanel>
-                    <Grid ColumnDefinitions="Auto,*" Margin="0,0,0,16">
-                        <TextBlock Grid.Column="0" Text="🎨" FontSize="20"
-                                   VerticalAlignment="Center" Margin="0,0,10,0" />
-                        <TextBlock Grid.Column="1" Text="主题设置" FontSize="16" FontWeight="Bold"
-                                   Foreground="White" VerticalAlignment="Center" />
-                    </Grid>
+        <!-- 侧边导航项背景 -->
+        <SolidColorBrush x:Key="NavItemBackground" Color="Transparent" />
+        <SolidColorBrush x:Key="NavItemHoverBackground" Color="#15FFFFFF" />
+        <SolidColorBrush x:Key="NavItemSelectedBackground" Color="#331976D2" />
+    </UserControl.Resources>
 
-                    <StackPanel Margin="10,0,0,0">
-                        <RadioButton GroupName="Theme" Content="☀️ 浅色模式"
-                                     IsChecked="{Binding IsDarkTheme, Converter={StaticResource BooleanInverseConverter}}"
-                                     Margin="0,0,0,8"
-                                     Foreground="#FFBFcbd9" />
-                        <RadioButton GroupName="Theme" Content="🌙 深色模式"
-                                     IsChecked="{Binding IsDarkTheme}"
-                                     Foreground="#FFBFcbd9" />
-                    </StackPanel>
+    <Grid Margin="0" ColumnDefinitions="240,*">
+        <!-- =========================================================== -->
+        <!-- 左侧:分类导航                                                -->
+        <!-- =========================================================== -->
+        <Border Grid.Column="0"
+                Background="#0DFFFFFF"
+                BorderBrush="#11FFFFFF" BorderThickness="0,0,1,0"
+                Padding="12,16">
+            <DockPanel>
+                <!-- 标题 -->
+                <StackPanel DockPanel.Dock="Top" Margin="8,4,8,16">
+                    <TextBlock Text="设置"
+                               FontSize="20" FontWeight="Bold"
+                               Foreground="White" />
+                    <TextBlock Text="个性化与系统选项"
+                               FontSize="11"
+                               Foreground="#88FFFFFF"
+                               Margin="0,2,0,0" />
                 </StackPanel>
-            </Border>
 
-            <!-- 🖼️ 背景设置 -->
-            <Border Margin="0,0,0,16" Padding="20" CornerRadius="8"
-                    Background="Transparent"
-                    BorderBrush="#66FF4081" BorderThickness="0,0,0,1">
-                <StackPanel>
-                    <Grid ColumnDefinitions="Auto,*" Margin="0,0,0,16">
-                        <TextBlock Grid.Column="0" Text="🖼️" FontSize="20"
-                                   VerticalAlignment="Center" Margin="0,0,10,0" />
-                        <TextBlock Grid.Column="1" Text="背景设置" FontSize="16" FontWeight="Bold"
-                                   Foreground="White" VerticalAlignment="Center" />
-                    </Grid>
+                <!-- 分类列表 -->
+                <ListBox ItemsSource="{Binding Categories}"
+                         SelectedItem="{Binding SelectedCategory}"
+                         Background="Transparent"
+                         BorderThickness="0"
+                         Padding="0">
+                    <ListBox.Styles>
+                        <Style Selector="ListBoxItem">
+                            <Setter Property="Padding" Value="0" />
+                            <Setter Property="Margin" Value="0,2" />
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+                        </Style>
+                        <Style Selector="ListBoxItem /template/ ContentPresenter">
+                            <Setter Property="Background" Value="Transparent" />
+                        </Style>
+                        <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter">
+                            <Setter Property="Background" Value="{StaticResource NavItemHoverBackground}" />
+                        </Style>
+                        <Style Selector="ListBoxItem:selected /template/ ContentPresenter">
+                            <Setter Property="Background" Value="{StaticResource NavItemSelectedBackground}" />
+                        </Style>
+                    </ListBox.Styles>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Border Padding="14,12" CornerRadius="8">
+                                <Grid ColumnDefinitions="Auto,*" RowDefinitions="Auto,Auto">
+                                    <TextBlock Grid.Row="0" Grid.RowSpan="2" Grid.Column="0"
+                                               Text="{Binding Icon}"
+                                               FontSize="22"
+                                               VerticalAlignment="Center"
+                                               Margin="0,0,12,0" />
+                                    <TextBlock Grid.Row="0" Grid.Column="1"
+                                               Text="{Binding Title}"
+                                               FontSize="14" FontWeight="SemiBold"
+                                               Foreground="White" />
+                                    <TextBlock Grid.Row="1" Grid.Column="1"
+                                               Text="{Binding Description}"
+                                               FontSize="11"
+                                               Foreground="#99FFFFFF"
+                                               Margin="0,2,0,0" />
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </DockPanel>
+        </Border>
 
-                    <StackPanel Margin="10,0,0,0">
-                        <RadioButton Content="⬛ 无背景" GroupName="Bg"
-                                     IsChecked="{Binding BackgroundType, Converter={StaticResource RadioBoolConverter}, ConverterParameter=0}"
-                                     Margin="0,0,0,8"
-                                     Foreground="#FFBFcbd9" />
-                        <RadioButton Content="🌌 渐变 1" GroupName="Bg"
-                                     IsChecked="{Binding BackgroundType, Converter={StaticResource RadioBoolConverter}, ConverterParameter=1}"
-                                     Margin="0,0,0,8"
-                                     Foreground="#FFBFcbd9" />
-                        <RadioButton Content="🌊 渐变 2" GroupName="Bg"
-                                     IsChecked="{Binding BackgroundType, Converter={StaticResource RadioBoolConverter}, ConverterParameter=2}"
-                                     Margin="0,0,0,8"
-                                     Foreground="#FFBFcbd9" />
+        <!-- =========================================================== -->
+        <!-- 右侧:内容区                                                  -->
+        <!-- =========================================================== -->
+        <ScrollViewer Grid.Column="1"
+                      VerticalScrollBarVisibility="Auto"
+                      HorizontalScrollBarVisibility="Disabled">
+            <Grid Margin="32,28,32,32" MaxWidth="720" HorizontalAlignment="Stretch">
+
+                <!-- ============ 外观主题 ============ -->
+                <StackPanel IsVisible="{Binding IsAppearanceVisible}" Spacing="16">
+                    <!-- 标题头 -->
+                    <StackPanel Margin="0,0,0,8">
+                        <TextBlock Text="外观主题" FontSize="22" FontWeight="Bold"
+                                   Foreground="White" />
+                        <TextBlock Text="选择应用整体明暗风格,设置立即生效"
+                                   FontSize="12" Foreground="#88FFFFFF"
+                                   Margin="0,4,0,0" />
                     </StackPanel>
+
+                    <Border Padding="24" CornerRadius="10"
+                            Background="{StaticResource CardBackground}"
+                            BorderBrush="{StaticResource CardBorder}" BorderThickness="1">
+                        <StackPanel Spacing="12">
+                            <RadioButton GroupName="Theme"
+                                         IsChecked="{Binding IsDarkTheme, Converter={StaticResource BooleanInverseConverter}}"
+                                         Foreground="#FFBFcbd9">
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <TextBlock Text="☀️" FontSize="16" VerticalAlignment="Center" />
+                                    <TextBlock Text="浅色模式" FontSize="14" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </RadioButton>
+                            <RadioButton GroupName="Theme"
+                                         IsChecked="{Binding IsDarkTheme}"
+                                         Foreground="#FFBFcbd9">
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <TextBlock Text="🌙" FontSize="16" VerticalAlignment="Center" />
+                                    <TextBlock Text="深色模式" FontSize="14" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </RadioButton>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+                <!-- ============ 字体 ============ -->
+                                <StackPanel IsVisible="{Binding IsFontVisible}" Spacing="16">
+                                    <StackPanel Margin="0,0,0,8">
+                                        <TextBlock Text="字体" FontSize="22" FontWeight="Bold"
+                                                   Foreground="White" />
+                                        <TextBlock Text="选择应用全局字体、字号与样式"
+                                                   FontSize="12" Foreground="#88FFFFFF"
+                                                   Margin="0,4,0,0" />
+                                    </StackPanel>
+
+                                    <!-- 字体族 -->
+                                                                        <Border Padding="20" CornerRadius="10"
+                                                                                Background="{StaticResource CardBackground}"
+                                                                                BorderBrush="{StaticResource CardBorder}" BorderThickness="1">
+                                                                            <StackPanel Spacing="10">
+                                                                                <Grid ColumnDefinitions="*,Auto">
+                                                                                    <TextBlock Grid.Column="0" Text="字体"
+                                                                                               FontSize="13" FontWeight="SemiBold"
+                                                                                               Foreground="#FFBFcbd9" />
+                                                                                    <Button Grid.Column="1"
+                                                                                            Content="恢复默认"
+                                                                                            Command="{Binding ResetFontCommand}"
+                                                                                            FontSize="11" Padding="10,4" />
+                                                                                </Grid>
+                                                                                <ComboBox ItemsSource="{Binding InstalledFonts}"
+                                                                                          SelectedItem="{Binding FontFamily}"
+                                                                                          HorizontalAlignment="Stretch"
+                                                                                          PlaceholderText="选择字体…" />
+                                                                                <Grid ColumnDefinitions="*,Auto" Margin="0,6,0,0">
+                                                                                    <TextBlock Grid.Column="0"
+                                                                                               Text="💡 带 📁 的是外部加载的字体"
+                                                                                               FontSize="11"
+                                                                                               Foreground="#88FFFFFF"
+                                                                                               VerticalAlignment="Center" />
+                                                                                    <Button Grid.Column="1"
+                                                                                            Content="📁 加载外部字体..."
+                                                                                            Command="{Binding LoadCustomFontCommand}"
+                                                                                            FontSize="11" Padding="10,4" />
+                                                                                </Grid>
+                                                                            </StackPanel>
+                                                                        </Border>
+
+                                                                        <!-- 已加载的自定义字体 -->
+                                                                        <Border Padding="20" CornerRadius="10"
+                                                                                Background="{StaticResource CardBackground}"
+                                                                                BorderBrush="{StaticResource CardBorder}" BorderThickness="1">
+                                                                            <StackPanel Spacing="10">
+                                                                                <TextBlock Text="已加载的自定义字体"
+                                                                                           FontSize="13" FontWeight="SemiBold"
+                                                                                           Foreground="#FFBFcbd9" />
+                                                                                <TextBlock Text="仅保存路径与副本,卸载后仅留系统字体。"
+                                                                                           FontSize="11"
+                                                                                           Foreground="#88FFFFFF"
+                                                                                           Margin="0,0,0,4"
+                                                                                           TextWrapping="Wrap" />
+                                                                                <!-- 空状态 -->
+                                                                                <Border Padding="16"
+                                                                                        CornerRadius="6"
+                                                                                        Background="#0DFFFFFF"
+                                                                                        IsVisible="{Binding CustomFonts.Count, Converter={StaticResource IntPositiveToBoolConverter}, ConverterParameter=invert}">
+                                                                                    <TextBlock Text="尚无外部字体,点击上方“加载外部字体...”按钮添加 .ttf / .otf 文件。"
+                                                                                               FontSize="12"
+                                                                                               Foreground="#88FFFFFF"
+                                                                                               TextWrapping="Wrap"
+                                                                                               HorizontalAlignment="Center" />
+                                                                                </Border>
+                                                                                <!-- 列表 -->
+                                                                                <ItemsControl ItemsSource="{Binding CustomFonts}">
+                                                                                    <ItemsControl.ItemTemplate>
+                                                                                        <DataTemplate>
+                                                                                            <Grid Margin="0,4,0,0" ColumnDefinitions="*,Auto,Auto">
+                                                                                                <StackPanel Grid.Column="0" VerticalAlignment="Center" Spacing="2">
+                                                                                                    <TextBlock Text="{Binding DisplayName}"
+                                                                                                               FontSize="13"
+                                                                                                               Foreground="White"
+                                                                                                               TextTrimming="CharacterEllipsis" />
+                                                                                                    <TextBlock Text="{Binding FilePath}"
+                                                                                                               FontSize="10"
+                                                                                                               Foreground="#66FFFFFF"
+                                                                                                               TextTrimming="CharacterEllipsis" />
+                                                                                                </StackPanel>
+                                                                                                <Button Grid.Column="1"
+                                                                                                        Content="应用"
+                                                                                                        FontSize="11"
+                                                                                                        Padding="8,3"
+                                                                                                        Margin="0,0,6,0"
+                                                                                                        Tag="{Binding}"
+                                                                                                        Click="ApplyCustomFont_Click" />
+                                                                                                <Button Grid.Column="2"
+                                                                                                        Content="✕"
+                                                                                                        FontSize="11"
+                                                                                                        Padding="7,3"
+                                                                                                        Tag="{Binding}"
+                                                                                                        Click="RemoveCustomFont_Click" />
+                                                                                            </Grid>
+                                                                                        </DataTemplate>
+                                                                                    </ItemsControl.ItemTemplate>
+                                                                                </ItemsControl>
+                                                                            </StackPanel>
+                                                                        </Border>
+
+                                    <!-- 字号 -->
+                                    <Border Padding="20" CornerRadius="10"
+                                            Background="{StaticResource CardBackground}"
+                                            BorderBrush="{StaticResource CardBorder}" BorderThickness="1">
+                                        <StackPanel Spacing="12">
+                                            <Grid ColumnDefinitions="*,Auto">
+                                                <TextBlock Grid.Column="0" Text="字号"
+                                                           FontSize="13" FontWeight="SemiBold"
+                                                           Foreground="#FFBFcbd9" />
+                                                <TextBlock Grid.Column="1"
+                                                           Text="{Binding FontSize, StringFormat='{}{0} px'}"
+                                                           FontSize="13" Foreground="#FFBFcbd9"
+                                                           FontWeight="SemiBold" />
+                                            </Grid>
+                                            <Slider Value="{Binding FontSize}"
+                                                    Minimum="10" Maximum="28"
+                                                    TickFrequency="1"
+                                                    IsSnapToTickEnabled="True"
+                                                    TickPlacement="BottomRight" />
+                                            <ItemsControl ItemsSource="{Binding FontSizePresets}">
+                                                <ItemsControl.ItemsPanel>
+                                                    <ItemsPanelTemplate>
+                                                        <WrapPanel Orientation="Horizontal" />
+                                                    </ItemsPanelTemplate>
+                                                </ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Button Content="{Binding}"
+                                                                Margin="0,4,6,0" Padding="10,3"
+                                                                FontSize="11"
+                                                                Tag="{Binding}"
+                                                                Click="FontSizePreset_Click" />
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- 样式:粗体 / 斜体 -->
+                                    <Border Padding="20" CornerRadius="10"
+                                            Background="{StaticResource CardBackground}"
+                                            BorderBrush="{StaticResource CardBorder}" BorderThickness="1">
+                                        <StackPanel Spacing="14">
+                                            <Grid ColumnDefinitions="*,Auto">
+                                                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                                    <TextBlock Text="粗体"
+                                                               FontSize="13" FontWeight="SemiBold"
+                                                               Foreground="#FFBFcbd9" />
+                                                    <TextBlock Text="加粗所有文本(未显式设置的控件)"
+                                                               FontSize="11" Foreground="#88FFFFFF"
+                                                               Margin="0,3,0,0" />
+                                                </StackPanel>
+                                                <ToggleSwitch Grid.Column="1"
+                                                              IsChecked="{Binding FontIsBold}"
+                                                              OnContent="开" OffContent="关"
+                                                              VerticalAlignment="Center" />
+                                            </Grid>
+
+                                            <Border Height="1" Background="#22FFFFFF" />
+
+                                            <Grid ColumnDefinitions="*,Auto">
+                                                <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                                    <TextBlock Text="斜体"
+                                                               FontSize="13" FontWeight="SemiBold"
+                                                               Foreground="#FFBFcbd9" />
+                                                    <TextBlock Text="斜体显示所有文本"
+                                                               FontSize="11" Foreground="#88FFFFFF"
+                                                               Margin="0,3,0,0" />
+                                                </StackPanel>
+                                                <ToggleSwitch Grid.Column="1"
+                                                              IsChecked="{Binding FontIsItalic}"
+                                                              OnContent="开" OffContent="关"
+                                                              VerticalAlignment="Center" />
+                                            </Grid>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <!-- 预览 -->
+                                    <Border Padding="24" CornerRadius="10"
+                                            Background="#1A9C27B0"
+                                            BorderBrush="#339C27B0" BorderThickness="1">
+                                        <StackPanel Spacing="10">
+                                            <TextBlock Text="预览效果"
+                                                       FontSize="11" Foreground="#BBFFFFFF" />
+                                            <TextBlock Text="字体预览 The quick brown fox 0123"
+                                                       FontFamily="{Binding PreviewFontFamily}"
+                                                       FontSize="{Binding FontSize}"
+                                                       FontWeight="{Binding PreviewFontWeight}"
+                                                       FontStyle="{Binding PreviewFontStyle}"
+                                                       Foreground="White"
+                                                       TextWrapping="Wrap" />
+                                            <TextBlock Text="敏捷的棕色狐狸跃过懒狗 · 中文 · English · 1234567890"
+                                                       FontFamily="{Binding PreviewFontFamily}"
+                                                       FontSize="{Binding FontSize}"
+                                                       FontWeight="{Binding PreviewFontWeight}"
+                                                       FontStyle="{Binding PreviewFontStyle}"
+                                                       Foreground="#FFBFcbd9"
+                                                       TextWrapping="Wrap"
+                                                       Opacity="0.85" />
+                                        </StackPanel>
+                                    </Border>
+                                </StackPanel>
+
+                                <!-- ============ 背景 ============ -->
+                <StackPanel IsVisible="{Binding IsBackgroundVisible}" Spacing="16">
+                    <StackPanel Margin="0,0,0,8">
+                        <TextBlock Text="背景" FontSize="22" FontWeight="Bold"
+                                   Foreground="White" />
+                        <TextBlock Text="选择背景样式与透明度,设置立即生效"
+                                   FontSize="12" Foreground="#88FFFFFF"
+                                   Margin="0,4,0,0" />
+                    </StackPanel>
+
+                    <!-- 背景类型 -->
+                    <Border Padding="24" CornerRadius="10"
+                            Background="{StaticResource CardBackground}"
+                            BorderBrush="{StaticResource CardBorder}" BorderThickness="1">
+                        <StackPanel Spacing="12">
+                            <RadioButton GroupName="Bg"
+                                         IsChecked="{Binding BackgroundType, Converter={StaticResource RadioBoolConverter}, ConverterParameter=0}"
+                                         Foreground="#FFBFcbd9">
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <TextBlock Text="⬛" FontSize="16" VerticalAlignment="Center" />
+                                    <TextBlock Text="无背景" FontSize="14" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </RadioButton>
+                            <RadioButton GroupName="Bg"
+                                         IsChecked="{Binding BackgroundType, Converter={StaticResource RadioBoolConverter}, ConverterParameter=1}"
+                                         Foreground="#FFBFcbd9">
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <TextBlock Text="🌌" FontSize="16" VerticalAlignment="Center" />
+                                    <TextBlock Text="渐变 1" FontSize="14" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </RadioButton>
+                            <RadioButton GroupName="Bg"
+                                         IsChecked="{Binding BackgroundType, Converter={StaticResource RadioBoolConverter}, ConverterParameter=2}"
+                                         Foreground="#FFBFcbd9">
+                                <StackPanel Orientation="Horizontal" Spacing="10">
+                                    <TextBlock Text="🌊" FontSize="16" VerticalAlignment="Center" />
+                                    <TextBlock Text="渐变 2" FontSize="14" VerticalAlignment="Center" />
+                                </StackPanel>
+                            </RadioButton>
+                        </StackPanel>
+                    </Border>
 
                     <!-- 自定义图片 -->
-                    <Border Margin="10,8,0,16" Padding="12" CornerRadius="6"
-                            Background="#0DFFFFFF"
-                            BorderBrush="#22FFFFFF" BorderThickness="1">
-                        <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="*,Auto">
-                            <TextBlock Grid.Row="0" Grid.Column="0"
-                                       Text="📷 自定义图片"
-                                       VerticalAlignment="Center" FontSize="13"
-                                       Foreground="#FFBFcbd9" Margin="0,0,0,4" />
-                            <Button Grid.Row="0" Grid.Column="1" Grid.RowSpan="2"
-                                    Content="选择图片"
-                                    Command="{Binding SelectImageFileCommand}"
-                                    VerticalAlignment="Center" />
-                            <TextBlock Grid.Row="1" Grid.Column="0"
-                                       Text="{Binding BackgroundValue}"
-                                       FontSize="11" Foreground="#66FFFFFF"
-                                       TextTrimming="CharacterEllipsis"
-                                       MaxWidth="350" />
-                        </Grid>
+                    <Border Padding="20" CornerRadius="10"
+                            Background="{StaticResource CardBackground}"
+                            BorderBrush="{StaticResource CardBorder}" BorderThickness="1">
+                        <StackPanel Spacing="12">
+                            <TextBlock Text="自定义图片" FontSize="13" FontWeight="SemiBold"
+                                       Foreground="#FFBFcbd9" />
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Grid.Column="0"
+                                           Text="{Binding BackgroundValue, FallbackValue='(未选择)'}"
+                                           FontSize="12" Foreground="#AAFFFFFF"
+                                           VerticalAlignment="Center"
+                                           TextTrimming="CharacterEllipsis" />
+                                <Button Grid.Column="1"
+                                        Content="选择图片"
+                                        Command="{Binding SelectImageFileCommand}" />
+                            </Grid>
+                        </StackPanel>
                     </Border>
 
                     <!-- 透明度 -->
-                    <Border Margin="10,0,0,0" Padding="12" CornerRadius="6"
-                            Background="#0DFFFFFF"
-                            BorderBrush="#22FFFFFF" BorderThickness="1">
-                        <Grid RowDefinitions="Auto,Auto" ColumnDefinitions="Auto,*">
-                            <TextBlock Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2"
-                                       Text="🔆 背景透明度"
-                                       FontSize="13" Foreground="#FFBFcbd9" Margin="0,0,0,8" />
-                            <TextBlock Grid.Row="1" Grid.Column="0"
-                                       Text="{Binding BackgroundOpacity, StringFormat='{}{0:P0}'}"
-                                       FontSize="13" Foreground="#99FFFFFF"
-                                       VerticalAlignment="Center" Margin="0,0,12,0" Width="40" />
-                            <Slider Grid.Row="1" Grid.Column="1"
-                                    Value="{Binding BackgroundOpacity}"
-                                    Minimum="0.3" Maximum="1.0" TickFrequency="0.1"
+                    <Border Padding="20" CornerRadius="10"
+                            Background="{StaticResource CardBackground}"
+                            BorderBrush="{StaticResource CardBorder}" BorderThickness="1">
+                        <StackPanel Spacing="12">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <TextBlock Grid.Column="0" Text="背景透明度"
+                                           FontSize="13" FontWeight="SemiBold"
+                                           Foreground="#FFBFcbd9" />
+                                <TextBlock Grid.Column="1"
+                                           Text="{Binding BackgroundOpacity, StringFormat='{}{0:P0}'}"
+                                           FontSize="13" Foreground="#FFBFcbd9"
+                                           FontWeight="SemiBold" />
+                            </Grid>
+                            <Slider Value="{Binding BackgroundOpacity}"
+                                    Minimum="0.3" Maximum="1.0"
+                                    TickFrequency="0.1"
                                     IsSnapToTickEnabled="True" />
-                        </Grid>
+                        </StackPanel>
                     </Border>
                 </StackPanel>
-            </Border>
 
-            <!-- 🔄 更新设置 -->
-            <Border Padding="20" CornerRadius="8"
-                    Background="Transparent"
-                    BorderBrush="#66E6A23C" BorderThickness="0,0,0,1">
-                <StackPanel>
-                    <Grid ColumnDefinitions="Auto,*" Margin="0,0,0,16">
-                        <TextBlock Grid.Column="0" Text="🔄" FontSize="20"
-                                   VerticalAlignment="Center" Margin="0,0,10,0" />
-                        <TextBlock Grid.Column="1" Text="更新设置" FontSize="16" FontWeight="Bold"
-                                   Foreground="White" VerticalAlignment="Center" />
-                    </Grid>
+                <!-- ============ 更新 ============ -->
+                <StackPanel IsVisible="{Binding IsUpdatesVisible}" Spacing="16">
+                    <StackPanel Margin="0,0,0,8">
+                        <TextBlock Text="更新" FontSize="22" FontWeight="Bold"
+                                   Foreground="White" />
+                        <TextBlock Text="管理应用版本检测行为"
+                                   FontSize="12" Foreground="#88FFFFFF"
+                                   Margin="0,4,0,0" />
+                    </StackPanel>
 
-                    <Border Margin="10,0,0,0" Padding="12" CornerRadius="6"
-                            Background="#0DFFFFFF"
-                            BorderBrush="#22FFFFFF" BorderThickness="1">
+                    <Border Padding="20" CornerRadius="10"
+                            Background="{StaticResource CardBackground}"
+                            BorderBrush="{StaticResource CardBorder}" BorderThickness="1">
                         <Grid ColumnDefinitions="*,Auto">
-                            <TextBlock Grid.Column="0"
-                                       Text="🔔 自动检测版本更新"
-                                       VerticalAlignment="Center" FontSize="13"
-                                       Foreground="#FFBFcbd9" />
-                            <ToggleButton Grid.Column="1"
-                                          IsChecked="{Binding AutoCheckUpdates}" />
+                            <StackPanel Grid.Column="0" VerticalAlignment="Center">
+                                <TextBlock Text="自动检测版本更新"
+                                           FontSize="14" FontWeight="SemiBold"
+                                           Foreground="#FFBFcbd9" />
+                                <TextBlock Text="启动时检查是否有新版本可用"
+                                           FontSize="11" Foreground="#88FFFFFF"
+                                           Margin="0,4,0,0" />
+                            </StackPanel>
+                            <ToggleSwitch Grid.Column="1"
+                                          IsChecked="{Binding AutoCheckUpdates}"
+                                          OnContent="开" OffContent="关"
+                                          VerticalAlignment="Center" />
                         </Grid>
                     </Border>
                 </StackPanel>
-            </Border>
-        </StackPanel>
-    </ScrollViewer>
+
+                <!-- ============ 关于 ============ -->
+                <StackPanel IsVisible="{Binding IsAboutVisible}" Spacing="16">
+                    <StackPanel Margin="0,0,0,8">
+                        <TextBlock Text="关于" FontSize="22" FontWeight="Bold"
+                                   Foreground="White" />
+                        <TextBlock Text="应用信息与版本"
+                                   FontSize="12" Foreground="#88FFFFFF"
+                                   Margin="0,4,0,0" />
+                    </StackPanel>
+
+                    <Border Padding="24" CornerRadius="10"
+                            Background="{StaticResource CardBackground}"
+                            BorderBrush="{StaticResource CardBorder}" BorderThickness="1">
+                        <StackPanel Spacing="14">
+                            <StackPanel Orientation="Horizontal" Spacing="14">
+                                <Border Width="56" Height="56" CornerRadius="12"
+                                        Background="#FF1976D2">
+                                    <TextBlock Text="Z" FontSize="28" FontWeight="Bold"
+                                               Foreground="White"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center" />
+                                </Border>
+                                <StackPanel VerticalAlignment="Center" Spacing="2">
+                                    <TextBlock Text="{Binding AppName}"
+                                               FontSize="16" FontWeight="Bold"
+                                               Foreground="White" />
+                                    <TextBlock Text="{Binding AppVersion, StringFormat='版本 v{0}'}"
+                                               FontSize="12" Foreground="#88FFFFFF" />
+                                </StackPanel>
+                            </StackPanel>
+
+                            <TextBlock Text="{Binding AppDescription}"
+                                       FontSize="13" Foreground="#FFBFcbd9"
+                                       TextWrapping="Wrap" />
+
+                            <Border Height="1" Background="#22FFFFFF" />
+
+                            <Grid ColumnDefinitions="*,*">
+                                <StackPanel Grid.Column="0">
+                                    <TextBlock Text="技术栈" FontSize="11"
+                                               Foreground="#88FFFFFF" />
+                                    <TextBlock Text="Avalonia 11.2 · .NET 10"
+                                               FontSize="12" Foreground="#FFBFcbd9"
+                                               Margin="0,2,0,0" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="1">
+                                    <TextBlock Text="许可" FontSize="11"
+                                               Foreground="#88FFFFFF" />
+                                    <TextBlock Text="Copyright"
+                                               FontSize="12" Foreground="#FFBFcbd9"
+                                               Margin="0,2,0,0" />
+                                </StackPanel>
+                            </Grid>
+
+                            <TextBlock Text="{Binding Copyright}"
+                                       FontSize="11" Foreground="#66FFFFFF"
+                                       HorizontalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+            </Grid>
+        </ScrollViewer>
+    </Grid>
 </UserControl>

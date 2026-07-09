@@ -2,7 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:converters="clr-namespace:ZlinksPackageSystem.Desktop.Converters"
              x:Class="ZlinksPackageSystem.Desktop.App"
-             RequestedThemeVariant="Dark">
+                          RequestedThemeVariant="Dark">
     <Application.Styles>
         <FluentTheme />
         <Style Selector="Button">

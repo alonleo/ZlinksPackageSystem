@@ -4,16 +4,17 @@
         xmlns:vm="clr-namespace:ZlinksPackageSystem.Desktop.ViewModels"
         x:Class="ZlinksPackageSystem.Desktop.Views.MainWindow"
         Title="{Binding Title}"
-        Width="1200" Height="800"
-        MinWidth="900" MinHeight="600"
-        WindowStartupLocation="CenterScreen"
-        SystemDecorations="None"
-        CanResize="True"
-        Background="Transparent"
-        TransparencyLevelHint="None"
-        Padding="4"
-        PointerMoved="Window_PointerMoved"
-        PointerPressed="Window_PointerPressed">
+                Width="1200" Height="800"
+                MinWidth="900" MinHeight="600"
+                WindowStartupLocation="CenterScreen"
+                SystemDecorations="None"
+                CanResize="True"
+                Background="Transparent"
+                TransparencyLevelHint="None"
+                Padding="4"
+                Icon="/Assets/icon.png"
+                PointerMoved="Window_PointerMoved"
+                PointerPressed="Window_PointerPressed">
 
     <Window.DataTemplates>
         <DataTemplate DataType="{x:Type vm:LoginViewModel}">

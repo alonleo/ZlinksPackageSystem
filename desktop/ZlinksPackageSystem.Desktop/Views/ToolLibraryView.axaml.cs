@@ -13,24 +13,18 @@ namespace ZlinksPackageSystem.Desktop.Views
         }
 
         private void Card_PointerPressed(object? sender, PointerPressedEventArgs e)
+        {
+            if (sender is Border border && border.DataContext is ToolProject project
+                && DataContext is ToolLibraryViewModel vm)
+            {
+                var point = e.GetCurrentPoint(border);
+                if (point.Properties.IsLeftButtonPressed)
                 {
-                    if (sender is Border border && border.DataContext is ToolProject project
-                        && DataContext is ToolLibraryViewModel vm)
-                    {
-                        var point = e.GetCurrentPoint(border);
-                        if (point.Properties.IsLeftButtonPressed)
-                        {
-                            _ = vm.OpenProjectCommand.ExecuteAsync(project);
-                        }
-                    }
+                    // 正在运行的卡片不响应点击（避免误触）
+                    if (project.IsRunning) return;
+                    _ = vm.OpenProjectCommand.ExecuteAsync(project);
                 }
-
-                private void AddArgumentButton_Click(object? sender, Avalonia.Interactivity.RoutedEventArgs e)
-                {
-                    if (DataContext is ToolLibraryViewModel vm && vm.AddArgumentCommand.CanExecute(null))
-                    {
-                        vm.AddArgumentCommand.Execute(null);
-                    }
-                }
+            }
+        }
     }
 }

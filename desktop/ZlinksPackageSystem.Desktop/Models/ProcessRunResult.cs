@@ -11,5 +11,8 @@ namespace ZlinksPackageSystem.Desktop.Models
         public string StandardError { get; set; } = string.Empty;
         public string CommandLine { get; set; } = string.Empty;
         public long ElapsedMilliseconds { get; set; }
+
+        /// <summary>启动时填入的进程 ID，用于后续按 PID 杀进程</summary>
+        public int? ProcessId { get; set; }
     }
 }

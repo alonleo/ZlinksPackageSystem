@@ -1,8 +1,20 @@
 using System;
 using System.Collections.Generic;
+using System.Text.Json.Serialization;
 
 namespace ZlinksPackageSystem.Desktop.Models
 {
+    /// <summary>
+    /// 工具运行模式
+    /// </summary>
+    public enum ToolRunMode
+    {
+        /// <summary>通过检测到的运行时执行脚本</summary>
+        Script = 0,
+        /// <summary>直接启动本地可执行程序</summary>
+        LocalExecutable = 1
+    }
+
     /// <summary>
     /// 工具项目模型
     /// </summary>
@@ -18,22 +30,40 @@ namespace ZlinksPackageSystem.Desktop.Models
         public DateTime CreateTime { get; set; }
 
         // ===== 脚本执行相关 =====
-        /// <summary>编程语言：python / node / java / go / powershell / bash</summary>
+        /// <summary>运行模式（脚本 / 本地可执行程序）</summary>
+        public ToolRunMode RunMode { get; set; } = ToolRunMode.Script;
+
+        /// <summary>编程语言：python / node / java / go / powershell / bash / dotnet</summary>
         public string Language { get; set; } = string.Empty;
 
         /// <summary>解释器绝对路径，留空使用环境检测到的默认</summary>
         public string InterpreterPath { get; set; } = string.Empty;
 
-        /// <summary>脚本绝对路径</summary>
+        /// <summary>脚本绝对路径（脚本模式专用）</summary>
         public string ScriptPath { get; set; } = string.Empty;
 
-        /// <summary>工作目录，留空使用脚本所在目录</summary>
+        /// <summary>本地可执行程序绝对路径（本地可执行模式专用）</summary>
+        public string ExecutablePath { get; set; } = string.Empty;
+
+        /// <summary>工作目录，留空使用脚本/可执行文件所在目录</summary>
         public string WorkingDirectory { get; set; } = string.Empty;
 
         /// <summary>额外环境变量（KEY=VALUE，一行一个）</summary>
         public string EnvironmentVariables { get; set; } = string.Empty;
 
+        /// <summary>默认参数前缀（如 "--"、"/"），新参数默认使用</summary>
+        public string DefaultArgumentPrefix { get; set; } = "--";
+
         /// <summary>参数列表</summary>
         public List<ToolArgument> Arguments { get; set; } = new();
+
+        // ===== 运行时状态（不参与持久化）=====
+        /// <summary>是否正在运行</summary>
+        [JsonIgnore]
+        public bool IsRunning { get; set; }
+
+        /// <summary>当前运行进程的 PID</summary>
+        [JsonIgnore]
+        public int? ProcessId { get; set; }
     }
 }

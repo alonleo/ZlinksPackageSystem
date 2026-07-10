@@ -8,6 +8,12 @@
     <AssemblyName>ZlinksPackageSystem.Desktop</AssemblyName>
   </PropertyGroup>
 
+  <!-- 当被作为库引用时，禁用主项目自带的入口点与启动文件 -->
+  <PropertyGroup Condition="'$(BuildAsLibrary)' == 'true'">
+    <OutputType>Library</OutputType>
+    <DefineConstants>$(DefineConstants);AS_LIBRARY</DefineConstants>
+  </PropertyGroup>
+
   <!-- Exclude old WPF files (kept for reference) and vendor directory -->
   <ItemGroup>
     <Compile Remove="MaterialDesignInXamlToolkit\**\*.cs" />

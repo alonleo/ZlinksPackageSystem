@@ -27,6 +27,7 @@ public partial class App : Application
                                 services.AddSingleton<IDialogService, DialogService>();
                                 services.AddSingleton<IFilePickerService, FilePickerService>();
                                 services.AddSingleton<IRuntimeEnvironmentService, RuntimeEnvironmentService>();
+                                services.AddSingleton<IProcessManagerService, ProcessManagerService>();
 
                 // ViewModels
                 services.AddSingleton<MainViewModel>();

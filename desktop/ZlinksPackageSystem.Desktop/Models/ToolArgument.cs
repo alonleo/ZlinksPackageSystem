@@ -17,7 +17,7 @@ namespace ZlinksPackageSystem.Desktop.Models
     /// </summary>
     public class ToolArgument
     {
-        /// <summary>参数名（如 --output / -c / --env）</summary>
+        /// <summary>参数名（如 output / c / env，不含前缀）</summary>
         public string Name { get; set; } = string.Empty;
 
         /// <summary>默认值（RequireInput=false 时使用）</summary>
@@ -34,5 +34,11 @@ namespace ZlinksPackageSystem.Desktop.Models
 
         /// <summary>拼接顺序</summary>
         public int Order { get; set; }
+
+        /// <summary>true=使用工具级 DefaultArgumentPrefix；false=使用 Prefix 自定义</summary>
+        public bool UseDefaultPrefix { get; set; } = true;
+
+        /// <summary>自定义参数前缀（UseDefaultPrefix=false 时生效，如 "-"、"/"）</summary>
+        public string Prefix { get; set; } = string.Empty;
     }
 }

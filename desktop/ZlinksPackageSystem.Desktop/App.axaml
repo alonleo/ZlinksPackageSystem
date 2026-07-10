@@ -91,6 +91,8 @@
                         <converters:IntPositiveToBoolConverter x:Key="IntPositiveToBoolConverter" />
                         <converters:BoolToColorConverter x:Key="BoolToColorConverter" />
                         <converters:StringEmptyToDimConverter x:Key="StringEmptyToDimConverter" />
+                        <converters:EnumToIntConverter x:Key="EnumToIntConverter" />
+                        <converters:EnumEqualsConverter x:Key="EnumEqualsConverter" />
 
         </ResourceDictionary>
     </Application.Resources>

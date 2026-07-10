@@ -6,6 +6,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using ZlinksPackageSystem.Desktop.Models;
@@ -19,6 +20,7 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
         private readonly IDialogService _dialogService;
         private readonly IRuntimeEnvironmentService _runtimeEnvService;
         private readonly IFilePickerService _filePickerService;
+        private readonly IProcessManagerService _processManager;
 
         [ObservableProperty]
         private ObservableCollection<ToolProject> _projects = new();
@@ -32,77 +34,77 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
         [ObservableProperty]
         private bool _isEditing;
 
-        // 编辑表单字段 - 基础信息
-        [ObservableProperty]
-        private string _editName = string.Empty;
+        // ===== 编辑表单字段 - 基础信息 =====
+        [ObservableProperty] private string _editName = string.Empty;
+        [ObservableProperty] private string _editDescription = string.Empty;
+        [ObservableProperty] private string _editCategory = string.Empty;
+        [ObservableProperty] private string _editVersion = string.Empty;
+        [ObservableProperty] private string _editStatus = string.Empty;
+        [ObservableProperty] private string _editManager = string.Empty;
+
+        // ===== 编辑表单字段 - 运行模式 =====
+        [ObservableProperty] private ToolRunMode _editRunMode = ToolRunMode.Script;
+
+        /// <summary>给弹窗里下拉用的模式显示文案（与 RunModes 一一对应）</summary>
+        public IReadOnlyList<string> RunModeDisplayNames { get; } = new[]
+        {
+            "🚀 脚本模式（解释器+脚本）",
+            "📦 本地可执行程序"
+        };
+
+        // ===== 编辑表单字段 - 脚本执行 =====
+        [ObservableProperty] private string _editLanguage = "python";
+        [ObservableProperty] private string _editInterpreterPath = string.Empty;
+        [ObservableProperty] private string _editScriptPath = string.Empty;
+        [ObservableProperty] private string _editWorkingDirectory = string.Empty;
+        [ObservableProperty] private string _editEnvironmentVariables = string.Empty;
+
+        // ===== 编辑表单字段 - 本地可执行程序 =====
+        [ObservableProperty] private string _editExecutablePath = string.Empty;
+
+        // ===== 编辑表单字段 - 参数 =====
+        [ObservableProperty] private string _editDefaultArgumentPrefix = "--";
+        [ObservableProperty] private ObservableCollection<ToolArgument> _editArguments = new();
+
+        // ===== 运行时环境面板 =====
+        [ObservableProperty] private ObservableCollection<RuntimeEnvironment> _availableEnvironments = new();
+        [ObservableProperty] private bool _isDetectingEnvironments;
 
         [ObservableProperty]
-        private string _editDescription = string.Empty;
+        private RuntimeEnvironment? _selectedEnvironment;
 
-        [ObservableProperty]
-        private string _editCategory = string.Empty;
+        partial void OnSelectedEnvironmentChanged(RuntimeEnvironment? value)
+        {
+            if (value != null)
+                EditLanguage = value.Language;
+        }
 
-        [ObservableProperty]
-        private string _editVersion = string.Empty;
-
-        [ObservableProperty]
-        private string _editStatus = string.Empty;
-
-        [ObservableProperty]
-        private string _editManager = string.Empty;
-
-        // 编辑表单字段 - 脚本执行
-        [ObservableProperty]
-        private string _editLanguage = "python";
-
-        [ObservableProperty]
-        private string _editInterpreterPath = string.Empty;
-
-        [ObservableProperty]
-        private string _editScriptPath = string.Empty;
-
-        [ObservableProperty]
-        private string _editWorkingDirectory = string.Empty;
-
-        [ObservableProperty]
-        private string _editEnvironmentVariables = string.Empty;
-
-        [ObservableProperty]
-        private ObservableCollection<ToolArgument> _editArguments = new();
-
-        // 运行时环境面板
-                [ObservableProperty]
-                private ObservableCollection<RuntimeEnvironment> _availableEnvironments = new();
-
-                [ObservableProperty]
-                private bool _isDetectingEnvironments;
-
-                // 弹窗里语言下拉当前选中的环境（驱动 EditLanguage 同步）
-                [ObservableProperty]
-                private RuntimeEnvironment? _selectedEnvironment;
-
-                // SelectedEnvironment 变更时，同步到 EditLanguage
-                partial void OnSelectedEnvironmentChanged(RuntimeEnvironment? value)
-                {
-                    if (value != null)
-                        EditLanguage = value.Language;
-                }
+        // ===== 会话级状态：记住用户是否勾选了「不再询问」 =====
+        private bool _skipRunConfirmation;
 
         public ToolLibraryViewModel(
             IApiService apiService,
             IDialogService dialogService,
             IRuntimeEnvironmentService runtimeEnvService,
-            IFilePickerService filePickerService)
+            IFilePickerService filePickerService,
+            IProcessManagerService processManager)
         {
             Title = "工具库";
             _apiService = apiService;
             _dialogService = dialogService;
             _runtimeEnvService = runtimeEnvService;
             _filePickerService = filePickerService;
+            _processManager = processManager;
+
+            _processManager.ProcessExited += OnProcessExited;
+
             _ = LoadProjectsAsync();
             _ = DetectEnvironmentsOnStartupAsync();
         }
 
+        // =========================================================
+        // 加载 / 检测
+        // =========================================================
         [RelayCommand]
         private async Task LoadProjectsAsync()
         {
@@ -133,12 +135,13 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
         {
             Projects = new ObservableCollection<ToolProject>
             {
-                new() { Id = 1, Name = "APK 打包工具", Description = "Android APK 自动化打包、签名、对齐一站式工具", Category = "打包", Version = "v2.1.0", Status = "运行中", Manager = "张三", CreateTime = DateTime.Now.AddDays(-30), Language = "python", ScriptPath = @"C:\tools\apk_builder.py" },
-                new() { Id = 2, Name = "资源压缩器", Description = "图片/音频资源无损压缩，减小包体积", Category = "优化", Version = "v1.5.3", Status = "运行中", Manager = "李四", CreateTime = DateTime.Now.AddDays(-20), Language = "node", ScriptPath = @"C:\tools\compress.js" },
-                new() { Id = 3, Name = "渠道分包", Description = "多渠道自动分包与渠道号注入工具", Category = "分发", Version = "v3.0.0", Status = "维护中", Manager = "王五", CreateTime = DateTime.Now.AddDays(-15), Language = "java", ScriptPath = @"C:\tools\ChannelPackage.java" },
-                new() { Id = 4, Name = "崩溃分析", Description = "Crash 日志采集、符号化、趋势分析平台", Category = "监控", Version = "v1.8.2", Status = "运行中", Manager = "赵六", CreateTime = DateTime.Now.AddDays(-10), Language = "go", ScriptPath = @"C:\tools\crash_analyzer.go" },
-                new() { Id = 5, Name = "热更新平台", Description = "基于 IL2CPP 的热更新补丁生成与下发", Category = "更新", Version = "v2.3.1", Status = "运行中", Manager = "孙七", CreateTime = DateTime.Now.AddDays(-5), Language = "python", ScriptPath = @"C:\tools\hot_patch.py" },
-                new() { Id = 6, Name = "性能测试", Description = "游戏帧率、内存、CPU 性能自动化测试", Category = "测试", Version = "v1.2.0", Status = "维护中", Manager = "周八", CreateTime = DateTime.Now.AddDays(-3), Language = "python", ScriptPath = @"C:\tools\perf_test.py" }
+                new() { Id = 1, Name = "APK 打包工具", Description = "Android APK 自动化打包、签名、对齐一站式工具", Category = "打包", Version = "v2.1.0", Status = "未运行", Manager = "张三", CreateTime = DateTime.Now.AddDays(-30), Language = "python", ScriptPath = @"C:\tools\apk_builder.py", DefaultArgumentPrefix = "--" },
+                new() { Id = 2, Name = "资源压缩器", Description = "图片/音频资源无损压缩，减小包体积", Category = "优化", Version = "v1.5.3", Status = "未运行", Manager = "李四", CreateTime = DateTime.Now.AddDays(-20), Language = "node", ScriptPath = @"C:\tools\compress.js", DefaultArgumentPrefix = "--" },
+                new() { Id = 3, Name = "渠道分包", Description = "多渠道自动分包与渠道号注入工具", Category = "分发", Version = "v3.0.0", Status = "未运行", Manager = "王五", CreateTime = DateTime.Now.AddDays(-15), Language = "java", ScriptPath = @"C:\tools\ChannelPackage.java", DefaultArgumentPrefix = "--" },
+                new() { Id = 4, Name = "崩溃分析", Description = "Crash 日志采集、符号化、趋势分析平台", Category = "监控", Version = "v1.8.2", Status = "未运行", Manager = "赵六", CreateTime = DateTime.Now.AddDays(-10), Language = "go", ScriptPath = @"C:\tools\crash_analyzer.go", DefaultArgumentPrefix = "--" },
+                new() { Id = 5, Name = "热更新平台", Description = "基于 IL2CPP 的热更新补丁生成与下发", Category = "更新", Version = "v2.3.1", Status = "未运行", Manager = "孙七", CreateTime = DateTime.Now.AddDays(-5), Language = "python", ScriptPath = @"C:\tools\hot_patch.py", DefaultArgumentPrefix = "--" },
+                new() { Id = 6, Name = "性能测试", Description = "游戏帧率、内存、CPU 性能自动化测试", Category = "测试", Version = "v1.2.0", Status = "未运行", Manager = "周八", CreateTime = DateTime.Now.AddDays(-3), Language = "python", ScriptPath = @"C:\tools\perf_test.py", DefaultArgumentPrefix = "--" },
+                new() { Id = 7, Name = "ffmpeg 转码器", Description = "直接调用本地 ffmpeg.exe 批量转码", Category = "本地工具", Version = "v6.0", Status = "未运行", Manager = "吴九", CreateTime = DateTime.Now.AddDays(-1), RunMode = ToolRunMode.LocalExecutable, ExecutablePath = @"C:\tools\ffmpeg.exe", DefaultArgumentPrefix = "-" }
             };
         }
 
@@ -161,78 +164,89 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
         }
 
         [RelayCommand]
-                private async Task ReDetectEnvironmentsAsync()
-                {
-                    await DetectEnvironmentsOnStartupAsync();
-                    var availableCount = AvailableEnvironments.Count(e => e.IsAvailable);
-                    await _dialogService.ShowEnvironmentResultAsync(
-                        "环境检测完成",
-                        $"共检测 {AvailableEnvironments.Count} 种语言，可用 {availableCount} 种。",
-                        availableCount > 0);
-                }
-
-                [RelayCommand]
-                private async Task ReDetectSingleAsync(string? language)
-                {
-                    if (string.IsNullOrEmpty(language)) return;
-                    var env = await _runtimeEnvService.ReDetectAsync(language);
-                    var idx = -1;
-                    for (int i = 0; i < AvailableEnvironments.Count; i++)
-                    {
-                        if (AvailableEnvironments[i].Language == language) { idx = i; break; }
-                    }
-                    if (idx >= 0) AvailableEnvironments[idx] = env;
-                    var msg = env.IsAvailable
-                        ? $"{env.Icon}  {env.DisplayName}\n\n路径：{env.ExecutablePath}\n版本：{env.Version}"
-                        : $"{env.Icon}  {env.Language}\n\n未检测到该运行环境，请确认已安装并加入 PATH。";
-                    await _dialogService.ShowEnvironmentResultAsync("环境检测结果", msg, env.IsAvailable);
-                }
-
-        // ===== 新增/编辑弹窗 =====
+        private async Task ReDetectEnvironmentsAsync()
+        {
+            await DetectEnvironmentsOnStartupAsync();
+            var availableCount = AvailableEnvironments.Count(e => e.IsAvailable);
+            await _dialogService.ShowEnvironmentResultAsync(
+                "环境检测完成",
+                $"共检测 {AvailableEnvironments.Count} 种语言，可用 {availableCount} 种。",
+                availableCount > 0);
+        }
 
         [RelayCommand]
-                private void OpenAddDialog()
-                {
-                    EditName = string.Empty;
-                    EditDescription = string.Empty;
-                    EditCategory = string.Empty;
-                    EditVersion = string.Empty;
-                    EditStatus = "运行中";
-                    EditManager = string.Empty;
-                    EditLanguage = "python";
-                    SelectedEnvironment = AvailableEnvironments.FirstOrDefault(e => e.Language == "python")
-                                         ?? AvailableEnvironments.FirstOrDefault();
-                    EditInterpreterPath = string.Empty;
-                    EditScriptPath = string.Empty;
-                    EditWorkingDirectory = string.Empty;
-                    EditEnvironmentVariables = string.Empty;
-                    EditArguments = new ObservableCollection<ToolArgument>();
-                    SelectedProject = null;
-                    IsEditing = true;
-                }
+        private async Task ReDetectSingleAsync(string? language)
+        {
+            if (string.IsNullOrEmpty(language)) return;
+            var env = await _runtimeEnvService.ReDetectAsync(language);
+            var idx = -1;
+            for (int i = 0; i < AvailableEnvironments.Count; i++)
+            {
+                if (AvailableEnvironments[i].Language == language) { idx = i; break; }
+            }
+            if (idx >= 0) AvailableEnvironments[idx] = env;
+            var msg = env.IsAvailable
+                ? $"{env.Icon}  {env.DisplayName}\n\n路径：{env.ExecutablePath}\n版本：{env.Version}"
+                : $"{env.Icon}  {env.Language}\n\n未检测到该运行环境，请确认已安装并加入 PATH。";
+            await _dialogService.ShowEnvironmentResultAsync("环境检测结果", msg, env.IsAvailable);
+        }
 
-                [RelayCommand]
-                private void OpenEditDialog(ToolProject project)
-                {
-                    if (project == null) return;
-                    SelectedProject = project;
-                    EditName = project.Name;
-                    EditDescription = project.Description;
-                    EditCategory = project.Category;
-                    EditVersion = project.Version;
-                    EditStatus = project.Status;
-                    EditManager = project.Manager;
-                    EditLanguage = project.Language;
-                    SelectedEnvironment = AvailableEnvironments.FirstOrDefault(e => e.Language == project.Language);
-                    EditInterpreterPath = project.InterpreterPath;
-                    EditScriptPath = project.ScriptPath;
-                    EditWorkingDirectory = project.WorkingDirectory;
-                    EditEnvironmentVariables = project.EnvironmentVariables;
-                    EditArguments = project.Arguments != null
-                        ? new ObservableCollection<ToolArgument>(project.Arguments)
-                        : new ObservableCollection<ToolArgument>();
-                    IsEditing = true;
-                }
+        // =========================================================
+        // 新增 / 编辑弹窗
+        // =========================================================
+        [RelayCommand]
+        private void OpenAddDialog()
+        {
+            EditName = string.Empty;
+            EditDescription = string.Empty;
+            EditCategory = string.Empty;
+            EditVersion = string.Empty;
+            EditStatus = "未运行";
+            EditManager = string.Empty;
+
+            EditRunMode = ToolRunMode.Script;
+            EditLanguage = "python";
+            SelectedEnvironment = AvailableEnvironments.FirstOrDefault(e => e.Language == "python")
+                                 ?? AvailableEnvironments.FirstOrDefault();
+            EditInterpreterPath = string.Empty;
+            EditScriptPath = string.Empty;
+            EditExecutablePath = string.Empty;
+            EditWorkingDirectory = string.Empty;
+            EditEnvironmentVariables = string.Empty;
+
+            EditDefaultArgumentPrefix = "--";
+            EditArguments = new ObservableCollection<ToolArgument>();
+            SelectedProject = null;
+            IsEditing = true;
+        }
+
+        [RelayCommand]
+        private void OpenEditDialog(ToolProject project)
+        {
+            if (project == null) return;
+            SelectedProject = project;
+            EditName = project.Name;
+            EditDescription = project.Description;
+            EditCategory = project.Category;
+            EditVersion = project.Version;
+            EditStatus = project.Status;
+            EditManager = project.Manager;
+
+            EditRunMode = project.RunMode;
+            EditLanguage = project.Language;
+            SelectedEnvironment = AvailableEnvironments.FirstOrDefault(e => e.Language == project.Language);
+            EditInterpreterPath = project.InterpreterPath;
+            EditScriptPath = project.ScriptPath;
+            EditExecutablePath = project.ExecutablePath;
+            EditWorkingDirectory = project.WorkingDirectory;
+            EditEnvironmentVariables = project.EnvironmentVariables;
+
+            EditDefaultArgumentPrefix = string.IsNullOrEmpty(project.DefaultArgumentPrefix) ? "--" : project.DefaultArgumentPrefix;
+            EditArguments = project.Arguments != null
+                ? new ObservableCollection<ToolArgument>(project.Arguments)
+                : new ObservableCollection<ToolArgument>();
+            IsEditing = true;
+        }
 
         [RelayCommand]
         private async Task BrowseScriptAsync()
@@ -257,10 +271,21 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
         [RelayCommand]
         private async Task BrowseInterpreterAsync()
         {
-            // 解释器就是 .exe 或可执行文件
             var picked = await _filePickerService.PickFileAsync("选择解释器", "*");
             if (!string.IsNullOrEmpty(picked))
                 EditInterpreterPath = picked;
+        }
+
+        [RelayCommand]
+        private async Task BrowseExecutableAsync()
+        {
+            var picked = await _filePickerService.PickFileAsync("选择可执行程序", "*.exe");
+            if (!string.IsNullOrEmpty(picked))
+            {
+                EditExecutablePath = picked;
+                if (string.IsNullOrEmpty(EditWorkingDirectory))
+                    EditWorkingDirectory = Path.GetDirectoryName(picked) ?? string.Empty;
+            }
         }
 
         [RelayCommand]
@@ -268,8 +293,10 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
         {
             EditArguments.Add(new ToolArgument
             {
-                Name = $"--arg{EditArguments.Count + 1}",
+                Name = $"arg{EditArguments.Count + 1}",
                 RequireInput = false,
+                UseDefaultPrefix = true,
+                Prefix = string.Empty,
                 InputType = ToolArgumentInputType.Text,
                 Order = EditArguments.Count
             });
@@ -287,7 +314,6 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
         {
             if (string.IsNullOrWhiteSpace(EditName)) return;
 
-            // 收集参数列表
             var args = EditArguments.ToList();
 
             if (SelectedProject == null)
@@ -299,16 +325,19 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
                     Description = EditDescription,
                     Category = EditCategory,
                     Version = EditVersion,
-                    Status = EditStatus,
+                    Status = string.IsNullOrEmpty(EditStatus) ? "未运行" : EditStatus,
                     Manager = EditManager,
                     CreateTime = DateTime.Now,
+                    RunMode = EditRunMode,
                     Language = EditLanguage,
                     InterpreterPath = EditInterpreterPath,
                     ScriptPath = EditScriptPath,
+                    ExecutablePath = EditExecutablePath,
                     WorkingDirectory = string.IsNullOrWhiteSpace(EditWorkingDirectory)
-                        ? (string.IsNullOrEmpty(EditScriptPath) ? string.Empty : Path.GetDirectoryName(EditScriptPath) ?? string.Empty)
+                        ? ResolveDefaultWorkingDirectory()
                         : EditWorkingDirectory,
                     EnvironmentVariables = EditEnvironmentVariables,
+                    DefaultArgumentPrefix = string.IsNullOrEmpty(EditDefaultArgumentPrefix) ? "--" : EditDefaultArgumentPrefix,
                     Arguments = args
                 };
                 Projects.Add(newProject);
@@ -325,22 +354,37 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
                         Description = EditDescription,
                         Category = EditCategory,
                         Version = EditVersion,
-                        Status = EditStatus,
+                        Status = string.IsNullOrEmpty(EditStatus) ? "未运行" : EditStatus,
                         Manager = EditManager,
                         CreateTime = SelectedProject.CreateTime,
+                        RunMode = EditRunMode,
                         Language = EditLanguage,
                         InterpreterPath = EditInterpreterPath,
                         ScriptPath = EditScriptPath,
+                        ExecutablePath = EditExecutablePath,
                         WorkingDirectory = string.IsNullOrWhiteSpace(EditWorkingDirectory)
-                            ? (string.IsNullOrEmpty(EditScriptPath) ? string.Empty : Path.GetDirectoryName(EditScriptPath) ?? string.Empty)
+                            ? ResolveDefaultWorkingDirectory()
                             : EditWorkingDirectory,
                         EnvironmentVariables = EditEnvironmentVariables,
-                        Arguments = args
+                        DefaultArgumentPrefix = string.IsNullOrEmpty(EditDefaultArgumentPrefix) ? "--" : EditDefaultArgumentPrefix,
+                        Arguments = args,
+                        // 保留运行状态
+                        IsRunning = SelectedProject.IsRunning,
+                        ProcessId = SelectedProject.ProcessId
                     };
                 }
             }
 
             IsEditing = false;
+        }
+
+        private string ResolveDefaultWorkingDirectory()
+        {
+            if (EditRunMode == ToolRunMode.LocalExecutable && !string.IsNullOrEmpty(EditExecutablePath))
+                return Path.GetDirectoryName(EditExecutablePath) ?? string.Empty;
+            if (!string.IsNullOrEmpty(EditScriptPath))
+                return Path.GetDirectoryName(EditScriptPath) ?? string.Empty;
+            return string.Empty;
         }
 
         [RelayCommand]
@@ -353,6 +397,9 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
         private async Task DeleteProjectAsync(ToolProject project)
         {
             if (project == null) return;
+            // 若正在运行，先杀掉
+            if (project.IsRunning && project.ProcessId is int pid)
+                _processManager.Kill(pid);
             Projects.Remove(project);
             await Task.CompletedTask;
         }
@@ -361,71 +408,325 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
         private async Task OpenProjectAsync(ToolProject project)
         {
             if (project == null) return;
-            await _dialogService.ShowMessageAsync(project.Name, $"进入工具：{project.Name}\n版本：{project.Version}\n描述：{project.Description}");
+            // 运行中不响应点击
+            if (project.IsRunning) return;
+            await _dialogService.ShowMessageAsync(project.Name,
+                $"进入工具：{project.Name}\n版本：{project.Version}\n描述：{project.Description}");
         }
 
-        // ===== 运行工具 =====
+        // =========================================================
+        // 启动 / 停止
+        // =========================================================
 
-        /// <summary>
-        /// 评出最终命令行（用于预览），不真正执行
-        /// </summary>
-        public string BuildCommandPreview(ToolProject project, Dictionary<string, string>? userInputs = null)
+        [RelayCommand]
+        private async Task RunToolAsync(ToolProject project)
+        {
+            if (project == null) return;
+
+            if (project.IsRunning)
+            {
+                await _dialogService.ShowMessageAsync("提示", $"「{project.Name}」已经在运行中（PID: {project.ProcessId}）。");
+                return;
+            }
+
+            // 1) 校验
+            if (project.RunMode == ToolRunMode.Script)
+            {
+                if (string.IsNullOrEmpty(project.ScriptPath))
+                {
+                    await _dialogService.ShowMessageAsync("错误", "工具未配置脚本路径，请先编辑。");
+                    return;
+                }
+                if (!File.Exists(project.ScriptPath))
+                {
+                    await _dialogService.ShowMessageAsync("错误", $"脚本文件不存在：{project.ScriptPath}");
+                    return;
+                }
+
+                // 解释器（仅当不是直接执行脚本的语言时才强制需要）
+                bool interpreterIsScript = project.Language switch
+                {
+                    "powershell" or "bash" or "bat" or "cmd" => true,
+                    _ => false
+                };
+                if (!interpreterIsScript && string.IsNullOrWhiteSpace(project.InterpreterPath))
+                {
+                    var env = AvailableEnvironments.FirstOrDefault(e => e.Language == project.Language);
+                    if (env == null || !env.IsAvailable)
+                        env = await _runtimeEnvService.ReDetectAsync(project.Language);
+                    if (!env.IsAvailable)
+                    {
+                        await _dialogService.ShowMessageAsync("错误",
+                            $"未检测到 {project.Language} 运行环境。\n请确认该语言已安装后重试。");
+                        return;
+                    }
+                }
+            }
+            else // LocalExecutable
+            {
+                if (string.IsNullOrEmpty(project.ExecutablePath))
+                {
+                    await _dialogService.ShowMessageAsync("错误", "工具未配置可执行程序路径，请先编辑。");
+                    return;
+                }
+                if (!File.Exists(project.ExecutablePath))
+                {
+                    await _dialogService.ShowMessageAsync("错误", $"可执行文件不存在：{project.ExecutablePath}");
+                    return;
+                }
+            }
+
+            // 2) 准备 EditableArgument：仅 RequireInput=true 的才在弹窗里展示（按需求 4）
+            var queryableArgs = project.Arguments ?? new List<ToolArgument>();
+            var editable = queryableArgs
+                .OrderBy(a => a.Order)
+                .Select(a => new EditableArgument
+                {
+                    Source = a,
+                    UseDefaultPrefix = a.UseDefaultPrefix,
+                    Prefix = a.Prefix,
+                    Value = a.DefaultValue
+                })
+                .ToList();
+
+            // 3) 构造初始命令预览
+            var initialCmd = BuildCommandPreview(project, editable);
+
+            // 4) 启动确认弹窗（除非用户之前勾选了"不再询问"）
+            RunConfirmation? confirmation = null;
+            if (!_skipRunConfirmation)
+            {
+                confirmation = await _dialogService.ShowRunConfirmationAsync(project, initialCmd, editable);
+                if (confirmation == null) return; // 用户取消
+
+                if (confirmation.DoNotAskAgain)
+                {
+                    _skipRunConfirmation = true;
+                }
+            }
+
+            // 5) 用最终命令构造 ProcessStartInfo，启动进程
+            var (psi, finalCmd) = BuildProcessStartInfo(project, confirmation?.Arguments ?? editable);
+
+            var pid = _processManager.Start(psi);
+            if (pid == 0)
+            {
+                await _dialogService.ShowMessageAsync("错误", $"进程启动失败。\n命令：{finalCmd}");
+                return;
+            }
+
+            // 6) 标记项目为运行中
+            project.IsRunning = true;
+            project.ProcessId = pid;
+            project.Status = "运行中";
+        }
+
+        [RelayCommand]
+        private async Task StopToolAsync(ToolProject project)
+        {
+            if (project == null) return;
+            if (!project.IsRunning) return;
+            if (project.ProcessId is int pid)
+            {
+                _processManager.Kill(pid);
+                // ProcessExited 事件会负责把 IsRunning/Status 还原
+            }
+            await Task.CompletedTask;
+        }
+
+        private void OnProcessExited(int pid, int exitCode)
+        {
+            // 进程退出事件可能在工作线程触发，统一 marshal 到 UI 线程
+            Dispatcher.UIThread.Post(() =>
+            {
+                var p = Projects.FirstOrDefault(x => x.ProcessId == pid);
+                if (p == null) return;
+                p.IsRunning = false;
+                p.ProcessId = null;
+                p.Status = exitCode == 0 ? "已停止" : $"异常退出({exitCode})";
+            });
+        }
+
+        // =========================================================
+        // 命令行拼装 / 进程启动
+        // =========================================================
+        public string BuildCommandPreview(ToolProject project, IEnumerable<EditableArgument>? args = null)
         {
             if (project == null) return string.Empty;
 
-            // 选解释器
-            string interpreter;
-            if (!string.IsNullOrWhiteSpace(project.InterpreterPath))
-                interpreter = project.InterpreterPath;
+            string entry;
+            bool interpreterIsScript = false;
+            if (project.RunMode == ToolRunMode.LocalExecutable)
+            {
+                entry = project.ExecutablePath;
+            }
             else
             {
-                var env = AvailableEnvironments.FirstOrDefault(e => e.Language == project.Language && e.IsAvailable);
-                interpreter = env?.ExecutablePath ?? project.Language;
+                if (!string.IsNullOrWhiteSpace(project.InterpreterPath))
+                {
+                    entry = project.InterpreterPath;
+                }
+                else
+                {
+                    var env = AvailableEnvironments.FirstOrDefault(e => e.Language == project.Language && e.IsAvailable);
+                    entry = env?.ExecutablePath ?? project.Language;
+                }
+                interpreterIsScript = project.Language switch
+                {
+                    "powershell" or "bash" or "bat" or "cmd" => true,
+                    _ => false
+                };
             }
 
-            // 部分语言直接执行脚本（powershell、bash、cmd），不需要解释器前缀
-            bool interpreterIsScript = project.Language switch
-            {
-                "powershell" or "bash" or "bat" or "cmd" => true,
-                _ => false
-            };
-
             var sb = new StringBuilder();
-            sb.Append(QuoteIfNeeded(interpreter));
-            if (!interpreterIsScript && !string.IsNullOrEmpty(project.ScriptPath))
+            sb.Append(QuoteIfNeeded(entry));
+            if (project.RunMode == ToolRunMode.Script && !string.IsNullOrEmpty(project.ScriptPath))
                 sb.Append(' ').Append(QuoteIfNeeded(project.ScriptPath));
 
-            // 拼接参数
-            if (project.Arguments != null)
-            {
-                foreach (var arg in project.Arguments.OrderBy(a => a.Order))
+            var argSource = args?.ToList() ?? (project.Arguments ?? new List<ToolArgument>())
+                .OrderBy(a => a.Order)
+                .Select(a => new EditableArgument
                 {
-                    string value;
-                    if (arg.RequireInput)
-                    {
-                        if (userInputs != null && userInputs.TryGetValue(arg.Name, out var v))
-                            value = v;
-                        else
-                            value = arg.DefaultValue;
-                    }
-                    else
-                    {
-                        value = arg.DefaultValue;
-                    }
+                    Source = a,
+                    UseDefaultPrefix = a.UseDefaultPrefix,
+                    Prefix = a.Prefix,
+                    Value = a.DefaultValue
+                })
+                .ToList();
 
-                    sb.Append(' ').Append(QuoteIfNeeded(arg.Name));
-                    if (!string.IsNullOrEmpty(value))
-                    {
-                        // bool 单独处理
-                        if (arg.InputType == ToolArgumentInputType.Bool)
-                            sb.Append(' ').Append(value == "true" ? "true" : "false");
-                        else
-                            sb.Append(' ').Append(QuoteIfNeeded(value));
-                    }
+            foreach (var ea in argSource)
+            {
+                var prefix = ea.UseDefaultPrefix ? project.DefaultArgumentPrefix : ea.Prefix;
+                if (!string.IsNullOrEmpty(prefix)) sb.Append(' ').Append(QuoteIfNeeded(prefix));
+                if (!string.IsNullOrEmpty(ea.Source.Name)) sb.Append(' ').Append(QuoteIfNeeded(ea.Source.Name));
+                if (!string.IsNullOrEmpty(ea.Value))
+                {
+                    if (ea.Source.InputType == ToolArgumentInputType.Bool)
+                        sb.Append(' ').Append(ea.Value == "true" ? "true" : "false");
+                    else
+                        sb.Append(' ').Append(QuoteIfNeeded(ea.Value));
                 }
             }
 
             return sb.ToString();
+        }
+
+        /// <summary>
+        /// 构造 ProcessStartInfo（使用 ArgumentList 安全转义）。
+        /// 返回：(psi, 评出的命令行展示文本)
+        /// </summary>
+        private (ProcessStartInfo psi, string commandLine) BuildProcessStartInfo(
+            ToolProject project, IEnumerable<EditableArgument> args)
+        {
+            string entry;
+            bool interpreterIsScript = false;
+            if (project.RunMode == ToolRunMode.LocalExecutable)
+            {
+                entry = project.ExecutablePath;
+            }
+            else
+            {
+                if (!string.IsNullOrWhiteSpace(project.InterpreterPath))
+                    entry = project.InterpreterPath;
+                else
+                {
+                    var env = AvailableEnvironments.FirstOrDefault(e => e.Language == project.Language && e.IsAvailable);
+                    entry = env?.ExecutablePath ?? project.Language;
+                }
+                interpreterIsScript = project.Language switch
+                {
+                    "powershell" or "bash" or "bat" or "cmd" => true,
+                    _ => false
+                };
+            }
+
+            var psi = new ProcessStartInfo
+            {
+                FileName = entry,
+                WorkingDirectory = string.IsNullOrWhiteSpace(project.WorkingDirectory)
+                    ? ResolveWorkingDirectory(project)
+                    : project.WorkingDirectory,
+                UseShellExecute = false,
+                RedirectStandardOutput = false,
+                RedirectStandardError = false,
+                CreateNoWindow = false
+            };
+
+            // 脚本：先加脚本路径
+            if (project.RunMode == ToolRunMode.Script && !string.IsNullOrEmpty(project.ScriptPath))
+            {
+                if (interpreterIsScript)
+                {
+                    // powershell/bash：解释器 -File / bash <script>
+                    psi.ArgumentList.Add(project.ScriptPath);
+                }
+                else
+                {
+                    psi.ArgumentList.Add(project.ScriptPath);
+                }
+            }
+
+            // 参数
+            foreach (var ea in args)
+            {
+                var prefix = ea.UseDefaultPrefix ? project.DefaultArgumentPrefix : ea.Prefix;
+                if (!string.IsNullOrEmpty(prefix))
+                    psi.ArgumentList.Add(prefix);
+                if (!string.IsNullOrEmpty(ea.Source.Name))
+                    psi.ArgumentList.Add(ea.Source.Name);
+                if (!string.IsNullOrEmpty(ea.Value))
+                {
+                    if (ea.Source.InputType == ToolArgumentInputType.Bool)
+                        psi.ArgumentList.Add(ea.Value == "true" ? "true" : "false");
+                    else
+                        psi.ArgumentList.Add(ea.Value);
+                }
+            }
+
+            // 环境变量
+            if (!string.IsNullOrWhiteSpace(project.EnvironmentVariables))
+            {
+                foreach (var line in project.EnvironmentVariables.Split('\n', StringSplitOptions.RemoveEmptyEntries))
+                {
+                    var trimmed = line.Trim();
+                    if (string.IsNullOrEmpty(trimmed) || !trimmed.Contains('=')) continue;
+                    var idx = trimmed.IndexOf('=');
+                    var key = trimmed.Substring(0, idx).Trim();
+                    var val = trimmed.Substring(idx + 1).Trim();
+                    if (!string.IsNullOrEmpty(key))
+                        psi.Environment[key] = val;
+                }
+            }
+
+            // 评出命令行（用于 UI 展示）
+            var sb = new StringBuilder();
+            sb.Append(QuoteIfNeeded(entry));
+            if (project.RunMode == ToolRunMode.Script && !string.IsNullOrEmpty(project.ScriptPath))
+                sb.Append(' ').Append(QuoteIfNeeded(project.ScriptPath));
+            foreach (var ea in args)
+            {
+                var prefix = ea.UseDefaultPrefix ? project.DefaultArgumentPrefix : ea.Prefix;
+                if (!string.IsNullOrEmpty(prefix)) sb.Append(' ').Append(QuoteIfNeeded(prefix));
+                if (!string.IsNullOrEmpty(ea.Source.Name)) sb.Append(' ').Append(QuoteIfNeeded(ea.Source.Name));
+                if (!string.IsNullOrEmpty(ea.Value))
+                {
+                    if (ea.Source.InputType == ToolArgumentInputType.Bool)
+                        sb.Append(' ').Append(ea.Value == "true" ? "true" : "false");
+                    else
+                        sb.Append(' ').Append(QuoteIfNeeded(ea.Value));
+                }
+            }
+
+            return (psi, sb.ToString());
+        }
+
+        private static string ResolveWorkingDirectory(ToolProject project)
+        {
+            if (project.RunMode == ToolRunMode.LocalExecutable && !string.IsNullOrEmpty(project.ExecutablePath))
+                return Path.GetDirectoryName(project.ExecutablePath) ?? Environment.CurrentDirectory;
+            if (!string.IsNullOrEmpty(project.ScriptPath))
+                return Path.GetDirectoryName(project.ScriptPath) ?? Environment.CurrentDirectory;
+            return Environment.CurrentDirectory;
         }
 
         private static string QuoteIfNeeded(string s)
@@ -434,175 +735,6 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
             if (s.Contains(' ') || s.Contains('\t') || s.Contains('"'))
                 return "\"" + s.Replace("\"", "\\\"") + "\"";
             return s;
-        }
-
-        [RelayCommand]
-        private async Task RunToolAsync(ToolProject project)
-        {
-            if (project == null) return;
-            if (string.IsNullOrEmpty(project.ScriptPath))
-            {
-                await _dialogService.ShowMessageAsync("错误", "工具未配置脚本路径，请先编辑。");
-                return;
-            }
-
-            // 1. 检查脚本文件是否存在
-            if (!File.Exists(project.ScriptPath))
-            {
-                await _dialogService.ShowMessageAsync("错误", $"脚本文件不存在：{project.ScriptPath}");
-                return;
-            }
-
-            // 2. 检查运行时环境
-            var env = AvailableEnvironments.FirstOrDefault(e => e.Language == project.Language);
-            if (env == null || !env.IsAvailable)
-            {
-                env = await _runtimeEnvService.ReDetectAsync(project.Language);
-            }
-            if (!env.IsAvailable)
-            {
-                await _dialogService.ShowMessageAsync("错误",
-                    $"未检测到 {project.Language} 运行环境。\n请确认该语言已安装后重试。");
-                return;
-            }
-
-            // 3. 一次性表单收集需要入参的参数值
-            var requireInputArgs = project.Arguments?.Where(a => a.RequireInput).ToList() ?? new List<ToolArgument>();
-            Dictionary<string, string>? userInputs = null;
-            if (requireInputArgs.Count > 0)
-            {
-                userInputs = await _dialogService.PromptArgumentsAsync(requireInputArgs);
-                if (userInputs == null) return; // 用户取消
-            }
-
-            // 4. 评出最终命令并执行
-            var commandLine = BuildCommandPreview(project, userInputs);
-            var result = await ExecuteAsync(project, env, commandLine, userInputs);
-
-            // 5. 弹窗显示结果（不论成功失败）
-            await _dialogService.ShowOutputAsync(project.Name, result);
-        }
-
-        private async Task<ProcessRunResult> ExecuteAsync(
-            ToolProject project,
-            RuntimeEnvironment env,
-            string commandLine,
-            Dictionary<string, string>? userInputs)
-        {
-            var result = new ProcessRunResult { CommandLine = commandLine };
-            var sw = Stopwatch.StartNew();
-
-            try
-            {
-                // 选解释器
-                string interpreter;
-                if (!string.IsNullOrWhiteSpace(project.InterpreterPath))
-                    interpreter = project.InterpreterPath;
-                else
-                    interpreter = env.ExecutablePath;
-
-                bool interpreterIsScript = project.Language switch
-                {
-                    "powershell" or "bash" or "bat" or "cmd" => true,
-                    _ => false
-                };
-
-                var psi = new ProcessStartInfo
-                {
-                    FileName = interpreter,
-                    WorkingDirectory = string.IsNullOrWhiteSpace(project.WorkingDirectory)
-                        ? Path.GetDirectoryName(project.ScriptPath) ?? Environment.CurrentDirectory
-                        : project.WorkingDirectory,
-                    UseShellExecute = false,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    CreateNoWindow = true,
-                    StandardOutputEncoding = Encoding.UTF8,
-                    StandardErrorEncoding = Encoding.UTF8
-                };
-
-                // 拼参数
-                if (interpreterIsScript)
-                {
-                    psi.ArgumentList.Add(project.ScriptPath);
-                }
-                else
-                {
-                    psi.ArgumentList.Add(project.ScriptPath);
-                }
-
-                if (project.Arguments != null)
-                {
-                    foreach (var arg in project.Arguments.OrderBy(a => a.Order))
-                    {
-                        string value;
-                        if (arg.RequireInput && userInputs != null && userInputs.TryGetValue(arg.Name, out var v))
-                            value = v;
-                        else
-                            value = arg.DefaultValue;
-
-                        psi.ArgumentList.Add(arg.Name);
-                        if (!string.IsNullOrEmpty(value))
-                        {
-                            if (arg.InputType == ToolArgumentInputType.Bool)
-                                psi.ArgumentList.Add(value == "true" ? "true" : "false");
-                            else
-                                psi.ArgumentList.Add(value);
-                        }
-                    }
-                }
-
-                // 环境变量
-                if (!string.IsNullOrWhiteSpace(project.EnvironmentVariables))
-                {
-                    foreach (var line in project.EnvironmentVariables.Split('\n', StringSplitOptions.RemoveEmptyEntries))
-                    {
-                        var trimmed = line.Trim();
-                        if (string.IsNullOrEmpty(trimmed) || !trimmed.Contains('=')) continue;
-                        var idx = trimmed.IndexOf('=');
-                        var key = trimmed.Substring(0, idx).Trim();
-                        var val = trimmed.Substring(idx + 1).Trim();
-                        if (!string.IsNullOrEmpty(key))
-                            psi.Environment[key] = val;
-                    }
-                }
-
-                using var proc = new Process { StartInfo = psi, EnableRaisingEvents = false };
-                var stdout = new StringBuilder();
-                var stderr = new StringBuilder();
-                proc.OutputDataReceived += (_, e) => { if (e.Data != null) stdout.AppendLine(e.Data); };
-                proc.ErrorDataReceived += (_, e) => { if (e.Data != null) stderr.AppendLine(e.Data); };
-
-                if (!proc.Start())
-                {
-                    result.Success = false;
-                    result.ExitCode = -1;
-                    result.StandardError = "进程启动失败";
-                }
-                else
-                {
-                    proc.BeginOutputReadLine();
-                    proc.BeginErrorReadLine();
-                    await proc.WaitForExitAsync();
-                    result.ExitCode = proc.ExitCode;
-                    result.Success = proc.ExitCode == 0;
-                    result.StandardOutput = stdout.ToString();
-                    result.StandardError = stderr.ToString();
-                }
-            }
-            catch (Exception ex)
-            {
-                result.Success = false;
-                result.ExitCode = -1;
-                result.StandardError = $"执行异常: {ex.Message}";
-            }
-            finally
-            {
-                sw.Stop();
-                result.ElapsedMilliseconds = sw.ElapsedMilliseconds;
-            }
-
-            return result;
         }
     }
 }

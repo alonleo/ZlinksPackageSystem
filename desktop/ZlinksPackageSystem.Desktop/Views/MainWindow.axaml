@@ -4,9 +4,9 @@
         xmlns:vm="clr-namespace:ZlinksPackageSystem.Desktop.ViewModels"
         x:Class="ZlinksPackageSystem.Desktop.Views.MainWindow"
         Title="{Binding Title}"
-                Width="1200" Height="800"
-                MinWidth="900" MinHeight="600"
-                WindowStartupLocation="CenterScreen"
+                        Width="1200" Height="1050"
+                        MinWidth="1200" MinHeight="1050"
+                        WindowStartupLocation="CenterScreen"
                 SystemDecorations="None"
                 CanResize="True"
                 Background="Transparent"
@@ -28,6 +28,9 @@
         </DataTemplate>
         <DataTemplate DataType="{x:Type vm:ProductViewModel}">
             <local:ProductView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:ParameterViewModel}">
+            <local:ParameterView />
         </DataTemplate>
         <DataTemplate DataType="{x:Type vm:TestViewModel}">
             <local:TestView />
@@ -131,6 +134,7 @@
                     <MenuItem Header="🏠 首页" Command="{Binding NavigateToHomeCommand}" />
                     <MenuItem Header="🎮 游戏" Command="{Binding NavigateToGamesCommand}" />
                     <MenuItem Header="📦 产品" Command="{Binding NavigateToProductsCommand}" />
+                    <MenuItem Header="📋 参数" Command="{Binding NavigateToParametersCommand}" />
                     <MenuItem Header="🧪 测试" Command="{Binding NavigateToTestsCommand}" />
                     <MenuItem Header="🔧 工具库" Command="{Binding NavigateToToolLibraryCommand}" />
                     <MenuItem Header="🔔 消息中心" Command="{Binding NavigateToNotificationCommand}" />
@@ -141,8 +145,8 @@
 
                 <!-- Main Content -->
                 <ScrollViewer Grid.Row="2"
-                              VerticalScrollBarVisibility="Hidden"
-                              HorizontalScrollBarVisibility="Hidden">
+                              VerticalScrollBarVisibility="Disabled"
+                              HorizontalScrollBarVisibility="Disabled">
                     <ContentControl Content="{Binding CurrentViewModel}" />
                 </ScrollViewer>
             </Grid>

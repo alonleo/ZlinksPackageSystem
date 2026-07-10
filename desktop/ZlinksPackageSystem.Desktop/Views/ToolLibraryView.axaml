@@ -1,5 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="clr-namespace:ZlinksPackageSystem.Desktop.ViewModels"
+             xmlns:models="clr-namespace:ZlinksPackageSystem.Desktop.Models"
              x:Class="ZlinksPackageSystem.Desktop.Views.ToolLibraryView">
 
     <UserControl.Styles>
@@ -7,6 +9,7 @@
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderBrush" Value="#33FFFFFF" />
             <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Foreground" Value="#FFBFcbd9" />
         </Style>
         <Style Selector="Button:pointerover">
             <Setter Property="Background" Value="#1AFFFFFF" />
@@ -16,6 +19,7 @@
             <Setter Property="Background" Value="Transparent" />
             <Setter Property="BorderBrush" Value="#33FFFFFF" />
             <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Foreground" Value="#FFBFcbd9" />
         </Style>
         <Style Selector="TextBox:pointerover">
             <Setter Property="Background" Value="#1AFFFFFF" />
@@ -23,42 +27,117 @@
         <Style Selector="TextBox:focus">
             <Setter Property="BorderBrush" Value="#FF1976D2" />
         </Style>
+        <Style Selector="ComboBox">
+            <Setter Property="Foreground" Value="#FFBFcbd9" />
+        </Style>
+        <Style Selector="ComboBoxItem">
+            <Setter Property="Foreground" Value="#FFBFcbd9" />
+        </Style>
+        <Style Selector="DataGridCell">
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="#FFBFcbd9" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Padding" Value="6,4" />
+        </Style>
+        <Style Selector="DataGridRow:pointerover DataGridCell">
+            <Setter Property="Background" Value="#0DFFFFFF" />
+        </Style>
+        <Style Selector="DataGridRow:selected DataGridCell">
+            <Setter Property="Background" Value="#1A1976D2" />
+        </Style>
+        <Style Selector="DataGridColumnHeader">
+            <Setter Property="Background" Value="#22FFFFFF" />
+            <Setter Property="Foreground" Value="#FFBFcbd9" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Padding" Value="8,6" />
+        </Style>
     </UserControl.Styles>
 
-    <Grid Margin="20">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
-        </Grid.RowDefinitions>
+        <Grid>
+            <DockPanel Margin="20" LastChildFill="True">
 
-        <!-- Top Bar -->
-        <Grid Grid.Row="0" Margin="0,0,0,16" ColumnDefinitions="Auto,*,Auto">
+            <!-- 顶部条：标题 + 搜索 + 新建 -->
+            <Grid DockPanel.Dock="Top" Margin="0,0,0,16" ColumnDefinitions="Auto,*,Auto,Auto">
             <TextBlock Grid.Column="0" Text="🔧 工具库" FontSize="18" FontWeight="Bold"
                        Foreground="White" VerticalAlignment="Center" Margin="0,0,16,0" />
             <TextBox Grid.Column="1" Text="{Binding SearchText}"
                      Watermark="🔍 搜索工具名称..."
                      VerticalAlignment="Center" />
-            <Button Grid.Column="2" Content="＋ 新建工具"
+            <Button Grid.Column="2" Content="🔍"
+                    Margin="8,0,0,0" Width="38"
+                    Command="{Binding FilterProjectsCommand}"
+                    VerticalAlignment="Center" />
+            <Button Grid.Column="3" Content="＋ 新建工具"
                     Command="{Binding OpenAddDialogCommand}"
-                    Margin="16,0,0,0" Width="110"
-                    BorderBrush="#FF1976D2" Foreground="#FF1976D2" />
+                    Margin="8,0,0,0" Width="110"
+                    BorderBrush="#FF1976D2" Foreground="#FF1976D2"
+                    VerticalAlignment="Center" />
         </Grid>
 
-        <!-- Card Grid -->
-        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Hidden">
-            <ItemsControl ItemsSource="{Binding Projects}">
+        <!-- 可用运行环境面板 -->
+                <Border DockPanel.Dock="Top" Margin="0,0,0,14" Padding="12,10"
+                        Background="#0DFFFFFF" CornerRadius="8"
+                        BorderBrush="#22FFFFFF" BorderThickness="1">
+                    <Grid RowDefinitions="Auto,Auto">
+                        <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+                            <TextBlock Grid.Column="0" Text="🖥️ 可用运行环境（启动时已自动检测）"
+                                       FontSize="13" FontWeight="SemiBold" Foreground="White"
+                                       VerticalAlignment="Center" />
+                            <Button Grid.Column="1" Content="🔄 重新检测全部"
+                                    Command="{Binding ReDetectEnvironmentsCommand}"
+                                    FontSize="11" Padding="10,4" />
+                        </Grid>
+                        <ItemsControl Grid.Row="1" ItemsSource="{Binding AvailableEnvironments}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel Orientation="Horizontal" />
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                                            <DataTemplate DataType="models:RuntimeEnvironment">
+                                                                <Border Margin="0,0,6,6" Padding="8,5" CornerRadius="4"
+                                                                        Background="#15FFFFFF" BorderBrush="#33FFFFFF" BorderThickness="1">
+                                                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                                                        <TextBlock Text="{Binding Icon}" FontSize="14"
+                                                                                   VerticalAlignment="Center" />
+                                                                        <Ellipse Width="8" Height="8" VerticalAlignment="Center"
+                                                                                 Fill="{Binding IsAvailable, Converter={StaticResource BoolToColorConverter}}" />
+                                                                        <TextBlock Text="{Binding DisplayName}" FontSize="11"
+                                                                                   Foreground="#FFBFcbd9" VerticalAlignment="Center" />
+                                                                        <TextBlock FontSize="10" VerticalAlignment="Center"
+                                                                                   Foreground="{Binding ExecutablePath, Converter={StaticResource StringEmptyToDimConverter}}">
+                                                                            <Run Text="{Binding ExecutablePath}" />
+                                                                        </TextBlock>
+                                                                        <Button Content="🔄" Padding="4,1" FontSize="9"
+                                                                                ToolTip.Tip="重新检测此环境"
+                                                                                Command="{Binding DataContext.ReDetectSingleCommand, RelativeSource={RelativeSource FindAncestor, AncestorType=UserControl}}"
+                                                                                CommandParameter="{Binding Language}" />
+                                                                    </StackPanel>
+                                                                </Border>
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </Grid>
+                </Border>
+
+                <!-- 卡片滚动区 - 始终占据剩余空间，超出时自动出现滚动条 -->
+                <ScrollViewer VerticalScrollBarVisibility="Auto"
+                              HorizontalScrollBarVisibility="Disabled"
+                              Background="Transparent">
+            <ItemsControl ItemsSource="{Binding Projects}"
+                          HorizontalAlignment="Stretch">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
-                        <WrapPanel />
+                        <WrapPanel Orientation="Horizontal" />
                     </ItemsPanelTemplate>
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                        <Border Width="280" Margin="0,0,14,14" Padding="0"
-                                CornerRadius="10" Background="#1AFFFFFF"
-                                BorderBrush="#22FFFFFF" BorderThickness="1">
+                    <DataTemplate DataType="models:ToolProject">
+                        <Border Width="270" Margin="0,0,14,14" Padding="0"
+                                                        CornerRadius="10" Background="#1AFFFFFF"
+                                                        BorderBrush="#22FFFFFF" BorderThickness="1">
                             <Grid RowDefinitions="Auto,Auto,Auto,Auto">
-                                <!-- Card Header -->
+                                <!-- 卡片标题栏 -->
                                 <Border Grid.Row="0" Padding="14,12" CornerRadius="10,10,0,0"
                                         Background="#1A1976D2"
                                         PointerPressed="Card_PointerPressed">
@@ -77,13 +156,13 @@
                                     </Grid>
                                 </Border>
 
-                                <!-- Description -->
+                                <!-- 描述 -->
                                 <TextBlock Grid.Row="1" Text="{Binding Description}"
                                            FontSize="12" Foreground="#99BFcbd9"
                                            TextWrapping="Wrap" Margin="14,10,14,6"
                                            MaxHeight="40" TextTrimming="CharacterEllipsis" />
 
-                                <!-- Meta Info -->
+                                <!-- 元信息 -->
                                 <StackPanel Grid.Row="2" Margin="14,0,14,8">
                                     <TextBlock FontSize="11" Foreground="#66FFFFFF">
                                         <Run Text="版本: " /><Run Text="{Binding Version}" />
@@ -91,17 +170,25 @@
                                     </TextBlock>
                                     <TextBlock Text="{Binding CreateTime, StringFormat='📅 {0:yyyy-MM-dd}'}"
                                                FontSize="11" Foreground="#44FFFFFF" Margin="0,2,0,0" />
+                                    <TextBlock FontSize="11" Foreground="#44FFFFFF" Margin="0,2,0,0">
+                                        <Run Text="🐍 语言: " /><Run Text="{Binding Language}" />
+                                    </TextBlock>
                                 </StackPanel>
 
-                                <!-- Actions -->
-                                <Grid Grid.Row="3" Margin="14,0,14,12" ColumnDefinitions="Auto,Auto">
-                                    <Button Grid.Column="0" Content="✏ 编辑" FontSize="11"
+                                <!-- 操作按钮 -->
+                                <Grid Grid.Row="3" Margin="14,0,14,12" ColumnDefinitions="Auto,Auto,Auto,*">
+                                    <Button Grid.Column="0" Content="▶ 运行" FontSize="11"
+                                            BorderBrush="#FF52C41A" Foreground="#FF52C41A"
+                                            Command="{Binding DataContext.RunToolCommand, RelativeSource={RelativeSource FindAncestor, AncestorType=ItemsControl}}"
+                                            CommandParameter="{Binding}" />
+                                    <Button Grid.Column="1" Content="✏ 编辑" FontSize="11"
                                             BorderBrush="#FF1976D2" Foreground="#FF1976D2"
+                                            Margin="6,0,0,0"
                                             Command="{Binding DataContext.OpenEditDialogCommand, RelativeSource={RelativeSource FindAncestor, AncestorType=ItemsControl}}"
                                             CommandParameter="{Binding}" />
-                                    <Button Grid.Column="1" Content="🗑 删除" FontSize="11"
+                                    <Button Grid.Column="2" Content="🗑 删除" FontSize="11"
                                             BorderBrush="#FFF56C6C" Foreground="#FFF56C6C"
-                                            Margin="8,0,0,0"
+                                            Margin="6,0,0,0"
                                             Command="{Binding DataContext.DeleteProjectCommand, RelativeSource={RelativeSource FindAncestor, AncestorType=ItemsControl}}"
                                             CommandParameter="{Binding}" />
                                 </Grid>
@@ -111,46 +198,175 @@
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
         </ScrollViewer>
+    </DockPanel>
 
-        <!-- Edit Overlay -->
-        <Border Grid.Row="0" Grid.RowSpan="2"
-                IsVisible="{Binding IsEditing}"
-                Background="#80000000"
-                VerticalAlignment="Stretch" HorizontalAlignment="Stretch">
-            <Border VerticalAlignment="Center" HorizontalAlignment="Center"
-                    Width="420" Padding="24" CornerRadius="12"
-                    Background="#F01e1e2e"
-                    BorderBrush="#33FFFFFF" BorderThickness="1">
-                <StackPanel Spacing="12">
-                    <TextBlock Text="工具信息" FontSize="16" FontWeight="Bold"
-                               Foreground="White" />
+    <!-- 新建/编辑工具弹窗 -->
+    <Border IsVisible="{Binding IsEditing}"
+            Background="#80000000"
+            VerticalAlignment="Stretch" HorizontalAlignment="Stretch">
+        <Border VerticalAlignment="Center" HorizontalAlignment="Center"
+                        Width="640" Padding="22" CornerRadius="12"
+                        Background="#F01e1e2e"
+                        BorderBrush="#33FFFFFF" BorderThickness="1">
+                    <StackPanel Spacing="10">
 
-                    <TextBox Text="{Binding EditName}" Watermark="🔧 工具名称" />
-                    <TextBox Text="{Binding EditDescription}" Watermark="📝 描述信息" Height="60"
+                                        <!-- 弹窗标题 -->
+                                        <TextBlock Text="📝 工具信息" FontSize="16" FontWeight="Bold" Foreground="White" />
+
+                                        <Separator />
+
+                                        <!-- ============ 工具信息 ============ -->
+                                        <TextBlock Text="📋 基本信息" FontSize="13" FontWeight="SemiBold" Foreground="White" />
+
+                    <Grid ColumnDefinitions="*,*">
+                        <TextBox Grid.Column="0" Text="{Binding EditName}" Watermark="🔧 工具名称 *" Margin="0,0,4,0" />
+                        <TextBox Grid.Column="1" Text="{Binding EditVersion}" Watermark="🏷 版本号" Margin="4,0,0,0" />
+                    </Grid>
+
+                    <TextBox Text="{Binding EditDescription}" Watermark="📝 描述信息" Height="50"
                              AcceptsReturn="True" TextWrapping="Wrap" />
-                    <Grid ColumnDefinitions="*,*">
-                        <TextBox Grid.Column="0" Text="{Binding EditCategory}"
-                                 Watermark="📂 分类" Margin="0,0,6,0" />
-                        <TextBox Grid.Column="1" Text="{Binding EditVersion}"
-                                 Watermark="🏷 版本号" Margin="6,0,0,0" />
+
+                    <Grid ColumnDefinitions="*,*,*">
+                        <TextBox Grid.Column="0" Text="{Binding EditCategory}" Watermark="📂 分类" Margin="0,0,4,0" />
+                        <TextBox Grid.Column="1" Text="{Binding EditStatus}" Watermark="📊 状态" Margin="4,0,4,0" />
+                        <TextBox Grid.Column="2" Text="{Binding EditManager}" Watermark="👤 负责人" Margin="4,0,0,0" />
                     </Grid>
-                    <Grid ColumnDefinitions="*,*">
-                        <TextBox Grid.Column="0" Text="{Binding EditStatus}"
-                                 Watermark="📊 状态" Margin="0,0,6,0" />
-                        <TextBox Grid.Column="1" Text="{Binding EditManager}"
-                                 Watermark="👤 负责人" Margin="6,0,0,0" />
+
+                    <Separator />
+
+                    <!-- ============ 脚本执行配置 ============ -->
+                    <TextBlock Text="🚀 脚本执行配置" FontSize="13" FontWeight="SemiBold" Foreground="White" />
+
+                    <!-- 语言选择 -->
+                                        <StackPanel Spacing="4">
+                                            <TextBlock Text="编程语言 *（下拉中列出已检测到的运行环境）" FontSize="11" Foreground="#99BFcbd9" />
+                                            <ComboBox HorizontalAlignment="Stretch"
+                                                      ItemsSource="{Binding AvailableEnvironments}"
+                                                      SelectedItem="{Binding SelectedEnvironment, Mode=TwoWay}">
+                                                <ComboBox.ItemTemplate>
+                                                                                <DataTemplate DataType="models:RuntimeEnvironment">
+                                                                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                                                                        <TextBlock Text="{Binding Icon}" FontSize="13" VerticalAlignment="Center" />
+                                                                                        <Ellipse Width="6" Height="6" VerticalAlignment="Center"
+                                                                                                 Fill="{Binding IsAvailable, Converter={StaticResource BoolToColorConverter}}" />
+                                                                                        <TextBlock Text="{Binding DisplayName}" VerticalAlignment="Center" />
+                                                                                    </StackPanel>
+                                                                                </DataTemplate>
+                                                                            </ComboBox.ItemTemplate>
+                                            </ComboBox>
+                                        </StackPanel>
+
+                    <!-- 解释器路径 -->
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBox Grid.Column="0" Text="{Binding EditInterpreterPath}"
+                                 Watermark="解释器路径（留空使用自动检测）" Margin="0,0,6,0" />
+                        <Button Grid.Column="1" Content="📁 浏览" Width="80"
+                                Command="{Binding BrowseInterpreterCommand}" />
                     </Grid>
-                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right"
-                                Margin="0,8,0,0" Spacing="10">
+
+                    <!-- 脚本路径 -->
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBox Grid.Column="0" Text="{Binding EditScriptPath}"
+                                 Watermark="脚本路径（如 C:\tools\build.py）*" Margin="0,0,6,0" />
+                        <Button Grid.Column="1" Content="📁 浏览" Width="80"
+                                Command="{Binding BrowseScriptCommand}" />
+                    </Grid>
+
+                    <!-- 工作目录 -->
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBox Grid.Column="0" Text="{Binding EditWorkingDirectory}"
+                                 Watermark="工作目录（留空使用脚本所在目录）" Margin="0,0,6,0" />
+                        <Button Grid.Column="1" Content="📁 浏览" Width="80"
+                                Command="{Binding BrowseWorkingDirectoryCommand}" />
+                    </Grid>
+
+                    <!-- 环境变量 -->
+                    <StackPanel Spacing="4">
+                        <TextBlock Text="🌍 环境变量（KEY=VALUE，一行一个，可选）"
+                                   FontSize="11" Foreground="#99BFcbd9" />
+                        <TextBox Text="{Binding EditEnvironmentVariables}"
+                                 Watermark="例：&#xA;PYTHONIOENCODING=utf-8&#xA;DEBUG=1"
+                                 Height="60" AcceptsReturn="True" TextWrapping="Wrap"
+                                 FontFamily="Consolas, Courier New, monospace" />
+                    </StackPanel>
+
+                    <Separator />
+
+                    <!-- ============ 参数列表 ============ -->
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBlock Grid.Column="0" Text="🎛️ 运行参数" FontSize="13" FontWeight="SemiBold"
+                                   Foreground="White" VerticalAlignment="Center" />
+                        <Button Grid.Column="1" Content="＋ 添加参数"
+                                                                                Command="{Binding DataContext.AddArgumentCommand, RelativeSource={RelativeSource FindAncestor, AncestorType=UserControl}}"
+                                                                                Click="AddArgumentButton_Click"
+                                                                                BorderBrush="#FF52C41A" Foreground="#FF52C41A"
+                                                                                FontSize="11" Padding="8,4" />
+                    </Grid>
+
+                    <Border Background="#0DFFFFFF" CornerRadius="6" Padding="6"
+                            BorderBrush="#22FFFFFF" BorderThickness="1"
+                            MinHeight="60" MaxHeight="200">
+                        <DataGrid ItemsSource="{Binding EditArguments}"
+                                                          AutoGenerateColumns="False"
+                                                          GridLinesVisibility="Horizontal"
+                                                          HeadersVisibility="Column"
+                                                          Background="Transparent">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="参数名" Binding="{Binding Name, Mode=TwoWay}" Width="*" />
+                                <DataGridTemplateColumn Header="类型" Width="80">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <ComboBox SelectedItem="{Binding InputType, Mode=TwoWay}"
+                                                      HorizontalAlignment="Stretch" FontSize="11">
+                                                <ComboBoxItem Content="Text" />
+                                                <ComboBoxItem Content="Number" />
+                                                <ComboBoxItem Content="Bool" />
+                                                <ComboBoxItem Content="File" />
+                                                <ComboBoxItem Content="Directory" />
+                                            </ComboBox>
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTemplateColumn Header="询问" Width="55">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <CheckBox IsChecked="{Binding RequireInput, Mode=TwoWay}"
+                                                      HorizontalAlignment="Center" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                                <DataGridTextColumn Header="默认值" Binding="{Binding DefaultValue, Mode=TwoWay}" Width="*" />
+                                <DataGridTextColumn Header="顺序" Binding="{Binding Order, Mode=TwoWay}" Width="50" />
+                                <DataGridTemplateColumn Header="操作" Width="45">
+                                    <DataGridTemplateColumn.CellTemplate>
+                                        <DataTemplate>
+                                            <Button Content="🗑" Padding="4,2" FontSize="10"
+                                                    BorderBrush="#FFF56C6C" Foreground="#FFF56C6C"
+                                                    Command="{Binding DataContext.RemoveArgumentCommand, RelativeSource={RelativeSource FindAncestor, AncestorType=UserControl}}"
+                                                    CommandParameter="{Binding}" />
+                                        </DataTemplate>
+                                    </DataGridTemplateColumn.CellTemplate>
+                                </DataGridTemplateColumn>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </Border>
+
+                    <TextBlock Text="勾选「询问」后，运行时会弹出一次性表单让用户填值。"
+                               FontSize="10" Foreground="#66FFFFFF" />
+
+                    <Separator />
+
+                    <!-- 操作按钮 -->
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,6,0,0" Spacing="10">
                         <Button Content="取消" Width="80"
                                 Command="{Binding CancelEditCommand}" />
-                        <Button Content="保存" Width="80"
+                        <Button Content="💾 保存" Width="100"
                                 Background="#FF1976D2" BorderBrush="#FF1976D2"
                                 Foreground="White"
                                 Command="{Binding SaveProjectCommand}" />
                     </StackPanel>
-                </StackPanel>
-            </Border>
-        </Border>
-    </Grid>
-</UserControl>
+                                    </StackPanel>
+                                </Border>
+                            </Border>
+                        </Grid>
+                    </UserControl>

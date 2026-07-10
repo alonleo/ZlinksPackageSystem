@@ -171,6 +171,12 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
         }
 
         [RelayCommand]
+        private void NavigateToParameters()
+        {
+            CurrentViewModel = _serviceProvider.GetRequiredService<ParameterViewModel>();
+        }
+
+        [RelayCommand]
         private void NavigateToTests()
         {
             CurrentViewModel = _serviceProvider.GetRequiredService<TestViewModel>();

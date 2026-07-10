@@ -22,10 +22,11 @@ public partial class App : Application
             .ConfigureServices((context, services) =>
             {
                 // Services
-                services.AddSingleton<IApiService, ApiService>();
-                services.AddSingleton<IAuthService, AuthService>();
-                services.AddSingleton<IDialogService, DialogService>();
-                services.AddSingleton<IFilePickerService, FilePickerService>();
+                                services.AddSingleton<IApiService, ApiService>();
+                                services.AddSingleton<IAuthService, AuthService>();
+                                services.AddSingleton<IDialogService, DialogService>();
+                                services.AddSingleton<IFilePickerService, FilePickerService>();
+                                services.AddSingleton<IRuntimeEnvironmentService, RuntimeEnvironmentService>();
 
                 // ViewModels
                 services.AddSingleton<MainViewModel>();
@@ -33,6 +34,7 @@ public partial class App : Application
                 services.AddTransient<HomeViewModel>();
                 services.AddTransient<GameListViewModel>();
                 services.AddTransient<ProductViewModel>();
+                services.AddTransient<ParameterViewModel>();
                 services.AddTransient<TestViewModel>();
                 services.AddTransient<ToolLibraryViewModel>();
                 services.AddTransient<NotificationViewModel>();
@@ -43,6 +45,7 @@ public partial class App : Application
                 services.AddTransient<HomeView>();
                 services.AddTransient<GameListView>();
                 services.AddTransient<ProductView>();
+                services.AddTransient<ParameterView>();
                 services.AddTransient<TestView>();
                 services.AddTransient<ToolLibraryView>();
                 services.AddTransient<NotificationView>();

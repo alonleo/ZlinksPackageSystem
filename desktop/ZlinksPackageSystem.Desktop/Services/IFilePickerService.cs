@@ -6,5 +6,8 @@ namespace ZlinksPackageSystem.Desktop.Services
     {
         Task<string?> PickImageFileAsync();
         Task<string?> PickFontFileAsync();
+        Task<string?> PickScriptFileAsync();
+        Task<string?> PickDirectoryAsync();
+        Task<string?> PickFileAsync(string title, string pattern);
     }
 }

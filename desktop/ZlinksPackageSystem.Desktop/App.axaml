@@ -88,7 +88,9 @@
             <converters:ReadToBackgroundConverter x:Key="ReadToBackgroundConverter" />
             <converters:ReadToOpacityConverter x:Key="ReadToOpacityConverter" />
             <converters:UrgencyToColorConverter x:Key="UrgencyToColorConverter" />
-            <converters:IntPositiveToBoolConverter x:Key="IntPositiveToBoolConverter" />
+                        <converters:IntPositiveToBoolConverter x:Key="IntPositiveToBoolConverter" />
+                        <converters:BoolToColorConverter x:Key="BoolToColorConverter" />
+                        <converters:StringEmptyToDimConverter x:Key="StringEmptyToDimConverter" />
 
         </ResourceDictionary>
     </Application.Resources>

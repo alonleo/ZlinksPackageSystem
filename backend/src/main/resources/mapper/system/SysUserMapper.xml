@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zlinks.package_system.mapper.system.SysUserMapper">
+
+    <resultMap id="userResult" type="com.zlinks.package_system.entity.system.SysUser">
+        <id     property="userId"     column="user_id"     />
+        <result property="deptId"     column="dept_id"     />
+        <result property="userName"   column="user_name"   />
+        <result property="nickName"   column="nick_name"   />
+        <result property="email"      column="email"       />
+        <result property="phonenumber" column="phonenumber" />
+        <result property="sex"        column="sex"         />
+        <result property="avatar"     column="avatar"      />
+        <result property="password"   column="password"    />
+        <result property="status"     column="status"      />
+        <result property="loginIp"    column="login_ip"    />
+        <result property="loginDate"  column="login_date"  />
+        <result property="createBy"   column="create_by"   />
+        <result property="createTime" column="create_time" />
+        <result property="updateBy"   column="update_by"   />
+        <result property="updateTime" column="update_time" />
+        <result property="remark"     column="remark"      />
+        <result property="isDeleted"  column="is_deleted"  />
+        <association property="dept" javaType="com.zlinks.package_system.entity.system.SysDept">
+            <id     property="deptId"   column="d_dept_id"   />
+            <result property="deptName" column="d_dept_name" />
+            <result property="leader"   column="d_leader"    />
+        </association>
+        <collection property="roles" ofType="com.zlinks.package_system.entity.system.SysRole">
+            <id     property="roleId"   column="r_role_id"   />
+            <result property="roleName" column="r_role_name" />
+            <result property="roleKey"  column="r_role_key"  />
+        </collection>
+    </resultMap>
+
+    <select id="selectUserPage" resultMap="userResult">
+        SELECT DISTINCT u.user_id, u.dept_id, u.user_name, u.nick_name, u.email, u.phonenumber,
+               u.sex, u.avatar, u.password, u.status, u.login_ip, u.login_date,
+               u.create_by, u.create_time, u.update_by, u.update_time, u.remark, u.is_deleted,
+               d.dept_id AS d_dept_id, d.dept_name AS d_dept_name, d.leader AS d_leader
+        FROM sys_user u
+        LEFT JOIN sys_dept d ON u.dept_id = d.dept_id AND d.del_flag = '0'
+        <where>
+            u.is_deleted = 0
+            <if test="ew != null and ew.sqlSegment != null and ew.sqlSegment != ''">
+                AND ${ew.sqlSegment}
+            </if>
+        </where>
+    </select>
+
+    <select id="selectUserWithDetail" resultMap="userResult">
+        SELECT u.user_id, u.dept_id, u.user_name, u.nick_name, u.email, u.phonenumber,
+               u.sex, u.avatar, u.password, u.status, u.login_ip, u.login_date,
+               u.create_by, u.create_time, u.update_by, u.update_time, u.remark, u.is_deleted,
+               d.dept_id AS d_dept_id, d.dept_name AS d_dept_name, d.leader AS d_leader,
+               r.role_id AS r_role_id, r.role_name AS r_role_name, r.role_key AS r_role_key
+        FROM sys_user u
+        LEFT JOIN sys_dept d ON u.dept_id = d.dept_id AND d.del_flag = '0'
+        LEFT JOIN sys_user_role ur ON u.user_id = ur.user_id
+        LEFT JOIN sys_role r ON ur.role_id = r.role_id AND r.del_flag = '0'
+        WHERE u.user_id = #{userId} AND u.is_deleted = 0
+    </select>
+
+    <select id="selectAllocatedUserPage" resultType="com.zlinks.package_system.entity.system.SysUser">
+        SELECT DISTINCT u.user_id, u.dept_id, u.user_name, u.nick_name, u.email, u.phonenumber,
+               u.sex, u.avatar, u.password, u.status, u.login_ip, u.login_date,
+               u.create_by, u.create_time, u.update_by, u.update_time, u.remark, u.is_deleted
+        FROM sys_user u
+        INNER JOIN sys_user_role ur ON u.user_id = ur.user_id
+        <where>
+            ur.role_id = #{roleId} AND u.is_deleted = 0
+            <if test="ew != null and ew.sqlSegment != null and ew.sqlSegment != ''">
+                AND ${ew.sqlSegment}
+            </if>
+        </where>
+    </select>
+
+    <select id="selectUnallocatedUserPage" resultType="com.zlinks.package_system.entity.system.SysUser">
+        SELECT DISTINCT u.user_id, u.dept_id, u.user_name, u.nick_name, u.email, u.phonenumber,
+               u.sex, u.avatar, u.password, u.status, u.login_ip, u.login_date,
+               u.create_by, u.create_time, u.update_by, u.update_time, u.remark, u.is_deleted
+        FROM sys_user u
+        <where>
+            u.is_deleted = 0
+            AND NOT EXISTS (SELECT 1 FROM sys_user_role ur WHERE ur.user_id = u.user_id AND ur.role_id = #{roleId})
+            <if test="ew != null and ew.sqlSegment != null and ew.sqlSegment != ''">
+                AND ${ew.sqlSegment}
+            </if>
+        </where>
+    </select>
+
+    <select id="selectByUsername" resultMap="userResult">
+        SELECT u.user_id, u.dept_id, u.user_name, u.nick_name, u.email, u.phonenumber,
+               u.sex, u.avatar, u.password, u.status, u.login_ip, u.login_date,
+               u.create_by, u.create_time, u.update_by, u.update_time, u.remark, u.is_deleted,
+               d.dept_id AS d_dept_id, d.dept_name AS d_dept_name, d.leader AS d_leader,
+               r.role_id AS r_role_id, r.role_name AS r_role_name, r.role_key AS r_role_key
+        FROM sys_user u
+        LEFT JOIN sys_dept d ON u.dept_id = d.dept_id AND d.del_flag = '0'
+        LEFT JOIN sys_user_role ur ON u.user_id = ur.user_id
+        LEFT JOIN sys_role r ON ur.role_id = r.role_id AND r.del_flag = '0'
+        WHERE u.user_name = #{userName} AND u.is_deleted = 0
+    </select>
+
+    <update id="updateLoginInfo">
+        UPDATE sys_user SET login_ip = #{ip}, login_date = #{loginDate}
+        WHERE user_id = #{userId}
+    </update>
+
+</mapper>

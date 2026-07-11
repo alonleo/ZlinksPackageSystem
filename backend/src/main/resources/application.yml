@@ -4,11 +4,10 @@ server:
     context-path: /
 
 spring:
-  sql:
-    init:
-        mode:always
   application:
     name: zlinks-package-system
+  profiles:
+    active: h2
   datasource:
     type: com.alibaba.druid.pool.DruidDataSource
     driver-class-name: org.postgresql.Driver
@@ -39,6 +38,20 @@ spring:
         enabled: true
         url-pattern: /*
         exclusions: "*.js,*.gif,*.jpg,*.bmp,*.png,*.css,*.ico,/druid/*"
+
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      password:
+      database: 0
+      timeout: 10s
+      lettuce:
+        pool:
+          max-active: 8
+          max-wait: -1
+          max-idle: 8
+          min-idle: 0
 
   jackson:
     date-format: yyyy-MM-dd HH:mm:ss

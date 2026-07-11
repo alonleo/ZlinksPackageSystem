@@ -57,14 +57,12 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
         [ObservableProperty] private string _editInterpreterPath = string.Empty;
         [ObservableProperty] private string _editScriptPath = string.Empty;
         [ObservableProperty] private string _editWorkingDirectory = string.Empty;
-        [ObservableProperty] private string _editEnvironmentVariables = string.Empty;
+
+        // ===== 编辑表单字段 - 参数列表 =====
+        [ObservableProperty] private ObservableCollection<ParameterRow> _editParameters = new();
 
         // ===== 编辑表单字段 - 本地可执行程序 =====
         [ObservableProperty] private string _editExecutablePath = string.Empty;
-
-        // ===== 编辑表单字段 - 参数 =====
-        [ObservableProperty] private string _editDefaultArgumentPrefix = "--";
-        [ObservableProperty] private ObservableCollection<ToolArgument> _editArguments = new();
 
         // ===== 运行时环境面板 =====
         [ObservableProperty] private ObservableCollection<RuntimeEnvironment> _availableEnvironments = new();
@@ -212,10 +210,9 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
             EditScriptPath = string.Empty;
             EditExecutablePath = string.Empty;
             EditWorkingDirectory = string.Empty;
-            EditEnvironmentVariables = string.Empty;
 
-            EditDefaultArgumentPrefix = "--";
-            EditArguments = new ObservableCollection<ToolArgument>();
+            EditParameters.Clear();
+
             SelectedProject = null;
             IsEditing = true;
         }
@@ -239,12 +236,9 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
             EditScriptPath = project.ScriptPath;
             EditExecutablePath = project.ExecutablePath;
             EditWorkingDirectory = project.WorkingDirectory;
-            EditEnvironmentVariables = project.EnvironmentVariables;
 
-            EditDefaultArgumentPrefix = string.IsNullOrEmpty(project.DefaultArgumentPrefix) ? "--" : project.DefaultArgumentPrefix;
-            EditArguments = project.Arguments != null
-                ? new ObservableCollection<ToolArgument>(project.Arguments)
-                : new ObservableCollection<ToolArgument>();
+            EditParameters.Clear();
+
             IsEditing = true;
         }
 
@@ -289,32 +283,23 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
         }
 
         [RelayCommand]
-        private void AddArgument()
+        private void AddParameter()
         {
-            EditArguments.Add(new ToolArgument
-            {
-                Name = $"arg{EditArguments.Count + 1}",
-                RequireInput = false,
-                UseDefaultPrefix = true,
-                Prefix = string.Empty,
-                InputType = ToolArgumentInputType.Text,
-                Order = EditArguments.Count
-            });
+            // 默认以 "--" 作为前缀，用户随时可改
+            EditParameters.Add(new ParameterRow());
         }
 
         [RelayCommand]
-        private void RemoveArgument(ToolArgument? arg)
+        private void RemoveParameter(ParameterRow? row)
         {
-            if (arg == null) return;
-            EditArguments.Remove(arg);
+            if (row == null) return;
+            EditParameters.Remove(row);
         }
 
         [RelayCommand]
         private void SaveProject()
         {
             if (string.IsNullOrWhiteSpace(EditName)) return;
-
-            var args = EditArguments.ToList();
 
             if (SelectedProject == null)
             {
@@ -336,9 +321,6 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
                     WorkingDirectory = string.IsNullOrWhiteSpace(EditWorkingDirectory)
                         ? ResolveDefaultWorkingDirectory()
                         : EditWorkingDirectory,
-                    EnvironmentVariables = EditEnvironmentVariables,
-                    DefaultArgumentPrefix = string.IsNullOrEmpty(EditDefaultArgumentPrefix) ? "--" : EditDefaultArgumentPrefix,
-                    Arguments = args
                 };
                 Projects.Add(newProject);
             }
@@ -365,9 +347,6 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
                         WorkingDirectory = string.IsNullOrWhiteSpace(EditWorkingDirectory)
                             ? ResolveDefaultWorkingDirectory()
                             : EditWorkingDirectory,
-                        EnvironmentVariables = EditEnvironmentVariables,
-                        DefaultArgumentPrefix = string.IsNullOrEmpty(EditDefaultArgumentPrefix) ? "--" : EditDefaultArgumentPrefix,
-                        Arguments = args,
                         // 保留运行状态
                         IsRunning = SelectedProject.IsRunning,
                         ProcessId = SelectedProject.ProcessId

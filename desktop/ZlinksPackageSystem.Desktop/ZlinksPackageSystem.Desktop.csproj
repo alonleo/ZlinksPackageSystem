@@ -17,6 +17,7 @@
   <!-- Exclude old WPF files (kept for reference) and vendor directory -->
   <ItemGroup>
     <Compile Remove="MaterialDesignInXamlToolkit\**\*.cs" />
+    <Compile Remove="SmokeTest\**\*.cs" />
     <Compile Remove="App.xaml.cs" />
     <Compile Remove="Views\MainWindow.xaml.cs" />
     <Compile Remove="Views\LoginView.xaml.cs" />
@@ -25,6 +26,9 @@
     <Compile Remove="Views\ProductView.xaml.cs" />
     <Compile Remove="Views\TestView.xaml.cs" />
     <Compile Remove="Views\ToolLibraryView.xaml.cs" />
+    <Compile Remove="Views\ParameterView.xaml.cs" />
+    <Compile Remove="Views\NotificationView.xaml.cs" />
+    <Compile Remove="Views\SettingsView.xaml.cs" />
     <AvaloniaResource Remove="**/*.xaml" />
     <Content Remove="**/*.xaml" />
     <None Remove="**/*.xaml" />

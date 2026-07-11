@@ -196,7 +196,7 @@ CREATE TABLE IF NOT EXISTS `notification` (
 );
 
 -- 操作日志表
-CREATE TABLE IF NOT EXISTS `operation_log` (
+CREATE TABLE IF NOT EXISTS operation_log (
     `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
     `user_id` BIGINT,
     `username` VARCHAR(50),
@@ -207,4 +207,168 @@ CREATE TABLE IF NOT EXISTS `operation_log` (
     `create_time` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     `update_time` TIMESTAMP,
     `is_deleted` TINYINT DEFAULT 0
+);
+
+-- ============================================================
+-- RuoYi RBAC 表 (Agent 1)
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS sys_dept (
+    dept_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    parent_id BIGINT DEFAULT 0,
+    ancestors VARCHAR(500) DEFAULT '',
+    dept_name VARCHAR(30) NOT NULL,
+    order_num INT DEFAULT 0,
+    leader VARCHAR(20),
+    phone VARCHAR(11),
+    email VARCHAR(50),
+    status CHAR(1) DEFAULT '0',
+    del_flag CHAR(1) DEFAULT '0',
+    create_by VARCHAR(64) DEFAULT '',
+    create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    update_by VARCHAR(64) DEFAULT '',
+    update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    remark VARCHAR(500)
+);
+
+CREATE TABLE IF NOT EXISTS sys_post (
+    post_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    post_code VARCHAR(64) NOT NULL,
+    post_name VARCHAR(50) NOT NULL,
+    post_sort INT DEFAULT 0,
+    status CHAR(1) DEFAULT '0',
+    create_by VARCHAR(64) DEFAULT '',
+    create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    update_by VARCHAR(64) DEFAULT '',
+    update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    remark VARCHAR(500)
+);
+
+CREATE TABLE IF NOT EXISTS sys_user (
+    user_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    dept_id BIGINT,
+    user_name VARCHAR(30) NOT NULL,
+    nick_name VARCHAR(30) NOT NULL,
+    email VARCHAR(50) DEFAULT '',
+    phonenumber VARCHAR(11) DEFAULT '',
+    sex CHAR(1) DEFAULT '0',
+    avatar VARCHAR(255) DEFAULT '',
+    password VARCHAR(100) DEFAULT '',
+    status CHAR(1) DEFAULT '0',
+    login_ip VARCHAR(128) DEFAULT '',
+    login_date TIMESTAMP,
+    is_deleted SMALLINT DEFAULT 0,
+    create_by VARCHAR(64) DEFAULT '',
+    create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    update_by VARCHAR(64) DEFAULT '',
+    update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    remark VARCHAR(500)
+);
+
+CREATE TABLE IF NOT EXISTS sys_role (
+    role_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    role_name VARCHAR(30) NOT NULL,
+    role_key VARCHAR(100) NOT NULL,
+    role_sort INT DEFAULT 0,
+    data_scope CHAR(1) DEFAULT '1',
+    menu_check_strictly SMALLINT DEFAULT 1,
+    dept_check_strictly SMALLINT DEFAULT 1,
+    status CHAR(1) DEFAULT '0',
+    del_flag CHAR(1) DEFAULT '0',
+    create_by VARCHAR(64) DEFAULT '',
+    create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    update_by VARCHAR(64) DEFAULT '',
+    update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    remark VARCHAR(500)
+);
+
+CREATE TABLE IF NOT EXISTS sys_menu (
+    menu_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    menu_name VARCHAR(50) NOT NULL,
+    parent_id BIGINT DEFAULT 0,
+    order_num INT DEFAULT 0,
+    path VARCHAR(200) DEFAULT '',
+    component VARCHAR(255),
+    query VARCHAR(255),
+    is_frame CHAR(1) DEFAULT '1',
+    is_cache CHAR(1) DEFAULT '0',
+    menu_type CHAR(1) DEFAULT '',
+    visible CHAR(1) DEFAULT '0',
+    status CHAR(1) DEFAULT '0',
+    perms VARCHAR(100),
+    icon VARCHAR(100) DEFAULT '#',
+    create_by VARCHAR(64) DEFAULT '',
+    create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    update_by VARCHAR(64) DEFAULT '',
+    update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    remark VARCHAR(500)
+);
+
+CREATE TABLE IF NOT EXISTS sys_user_role (
+    user_id BIGINT NOT NULL,
+    role_id BIGINT NOT NULL,
+    PRIMARY KEY (user_id, role_id)
+);
+
+CREATE TABLE IF NOT EXISTS sys_role_menu (
+    role_id BIGINT NOT NULL,
+    menu_id BIGINT NOT NULL,
+    PRIMARY KEY (role_id, menu_id)
+);
+
+CREATE TABLE IF NOT EXISTS sys_config (
+    config_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    config_name VARCHAR(100) DEFAULT '',
+    config_key VARCHAR(100) DEFAULT '',
+    config_value VARCHAR(500) DEFAULT '',
+    config_type CHAR(1) DEFAULT 'N',
+    is_builtin CHAR(1) DEFAULT 'N',
+    create_by VARCHAR(64) DEFAULT '',
+    create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    update_by VARCHAR(64) DEFAULT '',
+    update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    remark VARCHAR(500)
+);
+
+CREATE TABLE IF NOT EXISTS sys_notice (
+    notice_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    notice_title VARCHAR(50) NOT NULL,
+    notice_type CHAR(1) NOT NULL,
+    notice_content CLOB,
+    status CHAR(1) DEFAULT '0',
+    create_by VARCHAR(64) DEFAULT '',
+    create_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    update_by VARCHAR(64) DEFAULT '',
+    update_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    remark VARCHAR(255)
+);
+
+CREATE TABLE IF NOT EXISTS sys_oper_log (
+    oper_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    title VARCHAR(50) DEFAULT '',
+    business_type INT DEFAULT 0,
+    method VARCHAR(100) DEFAULT '',
+    request_method VARCHAR(10) DEFAULT '',
+    operator_type INT DEFAULT 0,
+    oper_name VARCHAR(50) DEFAULT '',
+    dept_name VARCHAR(50) DEFAULT '',
+    oper_url VARCHAR(255) DEFAULT '',
+    oper_ip VARCHAR(128) DEFAULT '',
+    oper_param VARCHAR(2000) DEFAULT '',
+    json_result VARCHAR(2000) DEFAULT '',
+    status INT DEFAULT 0,
+    error_msg VARCHAR(2000) DEFAULT '',
+    oper_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS sys_logininfor (
+    info_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_name VARCHAR(50) DEFAULT '',
+    ipaddr VARCHAR(128) DEFAULT '',
+    login_location VARCHAR(255) DEFAULT '',
+    browser VARCHAR(50) DEFAULT '',
+    os VARCHAR(50) DEFAULT '',
+    status CHAR(1) DEFAULT '0',
+    msg VARCHAR(255) DEFAULT '',
+    login_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );

@@ -23,8 +23,12 @@
         <Style Selector="TextBox:focus">
             <Setter Property="BorderBrush" Value="#FF1976D2" />
         </Style>
+        <Style Selector="DataGridRow">
+            <Setter Property="Height" Value="48" />
+        </Style>
         <Style Selector="DataGridCell">
             <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Padding" Value="6,4" />
         </Style>
         <Style Selector="DataGridRow:pointerover DataGridCell">
             <Setter Property="Background" Value="#0DFFFFFF" />

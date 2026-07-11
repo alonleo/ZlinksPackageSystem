@@ -10,6 +10,7 @@ import com.zlinks.package_system.security.UserDetailsImpl;
 import com.zlinks.package_system.service.system.ISysMenuService;
 import com.zlinks.package_system.service.system.ISysRoleService;
 import com.zlinks.package_system.service.system.ISysUserService;
+import com.zlinks.package_system.service.monitor.ISysLogininforService;
 import com.zlinks.package_system.util.JwtUtil;
 import com.zlinks.package_system.util.RedisUtils;
 import com.zlinks.package_system.util.Result;
@@ -44,21 +45,33 @@ import java.util.stream.Collectors;
 public class RuoYiAuthController {
 
     private final AuthenticationManager authenticationManager;
-    private final ISysUserService userService;
-    private final ISysRoleService roleService;
-    private final ISysMenuService menuService;
-    private final JwtUtil jwtUtil;
-    private final RedisUtils redisUtils;
+        private final ISysUserService userService;
+        private final ISysRoleService roleService;
+        private final ISysMenuService menuService;
+        private final JwtUtil jwtUtil;
+        private final RedisUtils redisUtils;
+        private final ISysLogininforService logininforService;
 
     @Operation(summary = "RuoYi 风格登录")
-    @PostMapping("/api/login")
-    public Result<Map<String, Object>> login(@RequestBody LoginBody body) {
-        // 1. 调 Spring Security 认证 (会自动调用 UserDetailsServiceImpl 加载 SysUser + permissions)
-        Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(body.getUsername(), body.getPassword()));
+        @PostMapping("/api/login")
+        public Result<Map<String, Object>> login(@RequestBody LoginBody body) {
+            try {
+                return doLogin(body);
+            } catch (org.springframework.security.core.userdetails.UsernameNotFoundException
+                     | org.springframework.security.authentication.BadCredentialsException
+                     | org.springframework.security.authentication.DisabledException ex) {
+                logininforService.recordLogininfor(body.getUsername(), "1", ex.getClass().getSimpleName() + ":" + ex.getMessage());
+                return Result.error("账号或密码错误");
+            }
+        }
 
-        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
-        String token = jwtUtil.generateToken(userDetails.getUserId(), userDetails.getUsername());
+        private Result<Map<String, Object>> doLogin(LoginBody body) {
+            // 1. 调 Spring Security 认证 (会自动调用 UserDetailsServiceImpl 加载 SysUser + permissions)
+            Authentication authentication = authenticationManager.authenticate(
+                    new UsernamePasswordAuthenticationToken(body.getUsername(), body.getPassword()));
+
+            UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+            String token = jwtUtil.generateToken(userDetails.getUserId(), userDetails.getUsername());
 
         // 2. 把 LoginUser 缓存到 Redis
         SysUser user = userService.findByUsername(userDetails.getUsername());
@@ -97,9 +110,10 @@ public class RuoYiAuthController {
         userService.updateLoginInfo(userDetails.getUserId(), ServletUtils.getClientIp());
 
         Map<String, Object> rsp = new HashMap<>();
-        rsp.put("token", token);
-        return Result.success(rsp);
-    }
+                rsp.put("token", token);
+                logininforService.recordLogininfor(body.getUsername(), "0", "登录成功");
+                return Result.success(rsp);
+            }
 
     @Operation(summary = "获取当前用户信息 (含角色 / 权限)")
     @GetMapping("/api/getInfo")

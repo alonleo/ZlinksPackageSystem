@@ -62,9 +62,18 @@ public class LoginUser implements Serializable {
     private Long expireTime;
 
     /** 登录 IP */
-    private String ipaddr;
+        private String ipaddr;
 
-    public static LoginUser createEmpty() {
+        /** 登录地点 */
+        private String loginLocation;
+
+        /** 浏览器 */
+        private String browser;
+
+        /** 操作系统 */
+        private String os;
+
+        public static LoginUser createEmpty() {
         return LoginUser.builder()
                 .roles(new HashSet<>())
                 .permissions(new HashSet<>())

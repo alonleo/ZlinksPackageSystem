@@ -1,6 +1,7 @@
 package com.zlinks.package_system.entity.monitor;
 
 import com.baomidou.mybatisplus.annotation.IdType;
+import com.baomidou.mybatisplus.annotation.TableField;
 import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableName;
 import com.fasterxml.jackson.annotation.JsonFormat;
@@ -8,6 +9,7 @@ import lombok.Data;
 
 import java.io.Serializable;
 import java.time.LocalDateTime;
+import java.util.Map;
 
 @Data
 @TableName("sys_oper_log")
@@ -31,5 +33,9 @@ public class SysOperLog implements Serializable {
     private String errorMsg;
 
     @JsonFormat(pattern = "yyyy-MM-dd HH:mm:ss")
-    private LocalDateTime operTime;
-}
+        private LocalDateTime operTime;
+
+        /** 非数据库字段 - 用于接收前端查询参数 */
+        @TableField(exist = false)
+        private Map<String, Object> params;
+    }

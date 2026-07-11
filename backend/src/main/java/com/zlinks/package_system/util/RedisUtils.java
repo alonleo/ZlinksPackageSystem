@@ -1,13 +1,14 @@
 package com.zlinks.package_system.util;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.connection.RedisConnection;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.core.Cursor;
 import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.data.redis.core.ScanOptions;
 import org.springframework.stereotype.Component;
 
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -176,11 +177,86 @@ public class RedisUtils {
     }
 
     public long setRemove(String key, Object... values) {
-        try {
-            Long count = redisTemplate.opsForSet().remove(key, values);
-            return count == null ? 0L : count;
-        } catch (Exception e) {
-            return 0L;
+            try {
+                Long count = redisTemplate.opsForSet().remove(key, values);
+                return count == null ? 0L : count;
+            } catch (Exception e) {
+                return 0L;
+            }
+        }
+
+        // ============================= Extras ============================
+
+        /** KEYS pattern - 仅调试用，生产环境应该用 SCAN */
+        public Set<String> keys(String pattern) {
+            try {
+                return redisTemplate.keys(pattern);
+            } catch (Exception e) {
+                return Collections.emptySet();
+            }
+        }
+
+        /** SCAN 替代 KEYS，避免阻塞 */
+        public Set<String> scan(String pattern) {
+            Set<String> result = new LinkedHashSet<>();
+            try {
+                ScanOptions opts = ScanOptions.scanOptions().match(pattern).count(100).build();
+                try (Cursor<byte[]> cursor = redisTemplate.executeWithStickyConnection(conn -> conn.scan(opts))) {
+                    while (cursor != null && cursor.hasNext()) {
+                        result.add(new String(cursor.next()));
+                    }
+                }
+            } catch (Exception e) {
+                return result;
+            }
+            return result;
+        }
+
+        public long deletePattern(String pattern) {
+            Set<String> keys = scan(pattern);
+            if (keys == null || keys.isEmpty()) return 0L;
+            return deleteObject(keys);
+        }
+
+        public List<Object> multiGet(Collection<String> keys) {
+            try {
+                return redisTemplate.opsForValue().multiGet(keys);
+            } catch (Exception e) {
+                return Collections.emptyList();
+            }
+        }
+
+        public Map<String, Object> getRedisInfo() {
+            Map<String, Object> info = new LinkedHashMap<>();
+            try {
+                Properties p = redisTemplate.execute((org.springframework.data.redis.core.RedisCallback<Properties>) RedisConnection::info);
+                if (p != null) {
+                    for (String name : p.stringPropertyNames()) {
+                        info.put(name, p.getProperty(name));
+                    }
+                }
+            } catch (Exception ignored) {}
+            return info;
+        }
+
+        public long getDbSize() {
+            try {
+                Long size = redisTemplate.execute((org.springframework.data.redis.core.RedisCallback<Long>) RedisConnection::dbSize);
+                return size == null ? 0L : size;
+            } catch (Exception e) {
+                return 0L;
+            }
+        }
+
+        public boolean flushDb() {
+            try {
+                redisTemplate.execute((org.springframework.data.redis.core.RedisCallback<Boolean>) conn -> {
+                    conn.flushDb();
+                    return true;
+                });
+                return true;
+            } catch (Exception e) {
+                return false;
+            }
         }
     }
-}

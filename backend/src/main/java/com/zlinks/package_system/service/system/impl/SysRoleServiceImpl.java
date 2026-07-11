@@ -25,14 +25,15 @@ public class SysRoleServiceImpl extends ServiceImpl<SysRoleMapper, SysRole> impl
     private final SysRoleMenuMapper roleMenuMapper;
 
     @Override
-        public com.baomidou.mybatisplus.core.metadata.IPage<SysRole> selectRolePage(Page<SysRole> page, SysRole query) {
-        LambdaQueryWrapper<SysRole> w = new LambdaQueryWrapper<>();
-        if (StringUtils.hasText(query.getRoleName())) w.like(SysRole::getRoleName, query.getRoleName());
-        if (StringUtils.hasText(query.getRoleKey())) w.like(SysRole::getRoleKey, query.getRoleKey());
-        if (StringUtils.hasText(query.getStatus())) w.eq(SysRole::getStatus, query.getStatus());
-        w.orderByAsc(SysRole::getRoleSort);
-        return baseMapper.selectRolePage(page, w);
-    }
+            public com.baomidou.mybatisplus.core.metadata.IPage<SysRole> selectRolePage(Page<SysRole> page, SysRole query) {
+            LambdaQueryWrapper<SysRole> w = new LambdaQueryWrapper<>();
+            w.eq(SysRole::getDelFlag, "0");
+            if (StringUtils.hasText(query.getRoleName())) w.like(SysRole::getRoleName, query.getRoleName());
+            if (StringUtils.hasText(query.getRoleKey())) w.like(SysRole::getRoleKey, query.getRoleKey());
+            if (StringUtils.hasText(query.getStatus())) w.eq(SysRole::getStatus, query.getStatus());
+            w.orderByAsc(SysRole::getRoleSort);
+            return page(page, w);
+        }
 
     @Override
     public List<SysRole> selectRolesByUserId(Long userId) {

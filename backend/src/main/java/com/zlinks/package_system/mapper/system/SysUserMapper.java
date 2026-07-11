@@ -26,16 +26,18 @@ public interface SysUserMapper extends BaseMapper<SysUser> {
     SysUser selectUserWithDetail(@Param("userId") Long userId);
 
     /**
-     * 查询已分配某角色的用户 (分页)
-     */
-    IPage<SysUser> selectAllocatedUserPage(Page<SysUser> page,
-                                           @Param(Constants.WRAPPER) Wrapper<SysUser> queryWrapper);
+         * 查询已分配某角色的用户 (分页)
+         */
+        IPage<SysUser> selectAllocatedUserPage(Page<SysUser> page,
+                                               @Param("roleId") Long roleId,
+                                               @Param(Constants.WRAPPER) Wrapper<SysUser> queryWrapper);
 
-    /**
-     * 查询未分配某角色的用户 (分页)
-     */
-    IPage<SysUser> selectUnallocatedUserPage(Page<SysUser> page,
-                                             @Param(Constants.WRAPPER) Wrapper<SysUser> queryWrapper);
+        /**
+         * 查询未分配某角色的用户 (分页)
+         */
+        IPage<SysUser> selectUnallocatedUserPage(Page<SysUser> page,
+                                                 @Param("roleId") Long roleId,
+                                                 @Param(Constants.WRAPPER) Wrapper<SysUser> queryWrapper);
 
     /**
      * 按用户名查询 (含部门、角色)

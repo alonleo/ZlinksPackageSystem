@@ -1,9 +1,7 @@
 package com.zlinks.package_system.entity;
 
 import com.baomidou.mybatisplus.annotation.FieldFill;
-import com.baomidou.mybatisplus.annotation.IdType;
 import com.baomidou.mybatisplus.annotation.TableField;
-import com.baomidou.mybatisplus.annotation.TableId;
 import com.baomidou.mybatisplus.annotation.TableLogic;
 import com.fasterxml.jackson.annotation.JsonFormat;
 import lombok.Data;
@@ -14,17 +12,20 @@ import java.time.LocalDateTime;
 /**
  * 实体基类
  * <p>
- * 兼容旧业务实体 (User/Game/Product/...): 通用 id + is_deleted
- * 兼容新 RuoYi 实体 (SysUser/SysRole/...): 业务 id 由各实体自身管理 (userId/roleId/...)
+ * 提供审计字段 (createBy / createTime / updateBy / updateTime / remark / isDeleted).
+ * <p>
+ * 注意: 不再在基类上声明 @TableId("id") 以避免与子类的 @TableId(userId/roleId/...) 冲突.
+ * 旧业务实体 (User/Game/...) 使用字段名 `id` 时, MyBatis-Plus 会按默认约定 (字段名 id) 识别为主键.
+ * 新 RuoYi 实体使用各自专属 ID 字段 (userId/roleId/menuId/deptId/postId).
  */
 @Data
 public abstract class BaseEntity implements Serializable {
 
     private static final long serialVersionUID = 1L;
 
-    /** 通用主键 - 旧业务实体使用 (新 RuoYi 实体不使用此字段, 由自身 userId/roleId 等替代) */
-    @TableId(value = "id", type = IdType.AUTO)
-    private Long id;
+    /** 通用主键 - 旧业务实体使用. 默认为 exist=false 以避免与 Sys* 实体表冲突. 旧实体需要时, 须在本类中重新声明该字段并标注 @TableId. */
+        @com.baomidou.mybatisplus.annotation.TableField(exist = false)
+        private Long id;
 
     /** 创建者 */
     @TableField(value = "create_by", fill = FieldFill.INSERT)

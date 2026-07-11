@@ -288,7 +288,7 @@ public class NotificationController {
     private Long getCurrentUserId() {
         var auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth != null && auth.getPrincipal() instanceof UserDetailsImpl userDetails) {
-            return userDetails.getId();
+            return userDetails.getUserId();
         }
         throw new BusinessException("未登录");
     }

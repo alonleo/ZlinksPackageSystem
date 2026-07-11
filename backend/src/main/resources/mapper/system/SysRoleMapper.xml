@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zlinks.package_system.mapper.system.SysRoleMapper">
+
+    <select id="selectRolePage" resultType="com.zlinks.package_system.entity.system.SysRole">
+        SELECT role_id, role_name, role_key, role_sort, data_scope,
+               menu_check_strictly, dept_check_strictly, status, del_flag,
+               create_by, create_time, update_by, update_time, remark
+        FROM sys_role
+        <where>
+            del_flag = '0'
+            <if test="ew != null and ew.sqlSegment != null and ew.sqlSegment != ''">
+                AND ${ew.sqlSegment}
+            </if>
+        </where>
+        ORDER BY role_sort
+    </select>
+
+    <select id="selectRolesByUserId" resultType="com.zlinks.package_system.entity.system.SysRole">
+        SELECT r.role_id, r.role_name, r.role_key, r.role_sort, r.data_scope, r.status
+        FROM sys_role r
+        INNER JOIN sys_user_role ur ON r.role_id = ur.role_id
+        WHERE r.del_flag = '0' AND ur.user_id = #{userId}
+    </select>
+
+</mapper>

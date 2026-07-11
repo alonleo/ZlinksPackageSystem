@@ -55,7 +55,7 @@ public class LogInterceptor implements HandlerInterceptor {
 
             var auth = SecurityContextHolder.getContext().getAuthentication();
             if (auth != null && auth.getPrincipal() instanceof UserDetailsImpl userDetails) {
-                log.setUserId(userDetails.getId());
+                log.setUserId(userDetails.getUserId());
                 log.setUsername(userDetails.getUsername());
             }
 

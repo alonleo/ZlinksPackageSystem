@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.zlinks.package_system.mapper.system.SysMenuMapper">
+
+    <select id="selectMenuList" resultType="com.zlinks.package_system.entity.system.SysMenu">
+            SELECT menu_id, menu_name, parent_id, order_num, path, component, query,
+                   is_frame, is_cache, menu_type, visible, status,
+                   IFNULL(perms,'') AS perms, icon,
+                   create_by, create_time, update_by, update_time, remark
+            FROM sys_menu
+            <where>
+                <if test="ew != null and ew.sqlSegment != null and ew.sqlSegment != ''">
+                    ${ew.sqlSegment}
+                </if>
+            </where>
+        </select>
+
+    <select id="selectMenusByUser" resultType="com.zlinks.package_system.entity.system.SysMenu">
+        SELECT DISTINCT m.menu_id, m.menu_name, m.parent_id, m.path, m.component, m.visible,
+               IFNULL(m.perms,'') AS perms, m.menu_type, m.icon, m.order_num, m.is_frame, m.is_cache, m.status
+        FROM sys_menu m
+        LEFT JOIN sys_role_menu rm ON m.menu_id = rm.menu_id
+        LEFT JOIN sys_user_role ur ON rm.role_id = ur.role_id
+        LEFT JOIN sys_role r ON r.role_id = ur.role_id AND r.del_flag='0'
+        WHERE m.status='0' AND (ur.user_id=#{userId} OR r.role_key='admin')
+        ORDER BY m.parent_id, m.order_num
+    </select>
+
+    <select id="selectMenuIdsByRoleId" resultType="java.lang.Long">
+        SELECT menu_id FROM sys_role_menu WHERE role_id = #{roleId}
+    </select>
+
+    <select id="selectMenusByRoleId" resultType="com.zlinks.package_system.entity.system.SysMenu">
+        SELECT m.menu_id, m.menu_name, m.parent_id, m.path, m.component, m.visible,
+               IFNULL(m.perms,'') AS perms, m.menu_type, m.icon, m.order_num, m.is_frame, m.is_cache, m.status
+        FROM sys_menu m
+        INNER JOIN sys_role_menu rm ON m.menu_id = rm.menu_id
+        WHERE rm.role_id=#{roleId} AND m.status='0'
+        ORDER BY m.parent_id, m.order_num
+    </select>
+
+    <select id="selectMenusByRoleIds" resultType="com.zlinks.package_system.entity.system.SysMenu">
+        SELECT DISTINCT m.menu_id, m.menu_name, m.parent_id, m.path, m.component, m.visible,
+               IFNULL(m.perms,'') AS perms, m.menu_type, m.icon, m.order_num, m.is_frame, m.is_cache, m.status
+        FROM sys_menu m
+        INNER JOIN sys_role_menu rm ON m.menu_id = rm.menu_id
+        WHERE m.status='0'
+          AND rm.role_id IN
+          <foreach collection="roleIds" item="rid" open="(" separator="," close=")">#{rid}</foreach>
+        ORDER BY m.parent_id, m.order_num
+    </select>
+
+    <select id="countChildren" resultType="int">
+        SELECT COUNT(*) FROM sys_menu WHERE parent_id = #{menuId}
+    </select>
+
+</mapper>

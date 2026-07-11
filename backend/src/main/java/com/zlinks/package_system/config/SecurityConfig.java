@@ -38,12 +38,13 @@ public class SecurityConfig {
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
             .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers(
-                        "/api/auth/login",
-                        "/api/auth/register",
-                        "/api/auth/info",
-                        "/api/getInfo",
-                        "/api/getRouters",
+                            .requestMatchers(
+                                    "/api/auth/login",
+                                    "/api/auth/register",
+                                    "/api/auth/info",
+                                    "/api/login",
+                                    "/api/getInfo",
+                                    "/api/getRouters",
                         "/",
                         "/favicon.ico",
                         "/doc.html",

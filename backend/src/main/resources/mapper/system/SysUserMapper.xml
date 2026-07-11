@@ -34,19 +34,20 @@
     </resultMap>
 
     <select id="selectUserPage" resultMap="userResult">
-        SELECT DISTINCT u.user_id, u.dept_id, u.user_name, u.nick_name, u.email, u.phonenumber,
-               u.sex, u.avatar, u.password, u.status, u.login_ip, u.login_date,
-               u.create_by, u.create_time, u.update_by, u.update_time, u.remark, u.is_deleted,
-               d.dept_id AS d_dept_id, d.dept_name AS d_dept_name, d.leader AS d_leader
-        FROM sys_user u
-        LEFT JOIN sys_dept d ON u.dept_id = d.dept_id AND d.del_flag = '0'
-        <where>
-            u.is_deleted = 0
-            <if test="ew != null and ew.sqlSegment != null and ew.sqlSegment != ''">
-                AND ${ew.sqlSegment}
-            </if>
-        </where>
-    </select>
+            SELECT DISTINCT u.user_id, u.dept_id, u.user_name, u.nick_name, u.email, u.phonenumber,
+                   u.sex, u.avatar, u.password, u.status, u.login_ip, u.login_date,
+                   u.create_by, u.create_time, u.update_by, u.update_time, u.remark, u.is_deleted,
+                   d.dept_id AS d_dept_id, d.dept_name AS d_dept_name, d.leader AS d_leader
+            FROM sys_user u
+            LEFT JOIN sys_dept d ON u.dept_id = d.dept_id AND d.del_flag = '0'
+            <where>
+                u.is_deleted = 0
+                <if test="ew != null and ew.sqlSegment != null and ew.sqlSegment != ''">
+                    AND ${ew.sqlSegment}
+                </if>
+            </where>
+            ORDER BY u.create_time DESC
+        </select>
 
     <select id="selectUserWithDetail" resultMap="userResult">
         SELECT u.user_id, u.dept_id, u.user_name, u.nick_name, u.email, u.phonenumber,

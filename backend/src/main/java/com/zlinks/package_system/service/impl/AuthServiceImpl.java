@@ -42,7 +42,7 @@ public class AuthServiceImpl implements AuthService {
         SecurityContextHolder.getContext().setAuthentication(authentication);
         UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
 
-        return jwtUtil.generateToken(userDetails.getId(), userDetails.getUsername());
+        return jwtUtil.generateToken(userDetails.getUserId(), userDetails.getUsername());
     }
 
     @Override
@@ -66,7 +66,7 @@ public class AuthServiceImpl implements AuthService {
         }
 
         UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
-        User user = userService.getById(userDetails.getId());
+        User user = userService.getById(userDetails.getUserId());
 
         List<UserGroup> ugs = userGroupService.list(
                 new LambdaQueryWrapper<UserGroup>().eq(UserGroup::getUserId, user.getId()));

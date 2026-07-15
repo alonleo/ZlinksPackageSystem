@@ -1,4 +1,5 @@
 import axios from 'axios'
+import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import router from '@/router'
 
@@ -35,7 +36,13 @@ api.interceptors.response.use(
       if (status === 401) {
         userStore.logout()
         router.push({ name: 'login' })
+      } else if (status === 403) {
+        ElMessage.error('您没有该操作权限')
+      } else if (status >= 500) {
+        ElMessage.error(error.response.data?.msg ?? '服务异常')
       }
+    } else {
+      ElMessage.error('网络异常,请稍后重试')
     }
     return Promise.reject(error)
   }

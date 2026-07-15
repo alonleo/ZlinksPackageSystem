@@ -8,7 +8,7 @@ import com.zlinks.package_system.mapper.system.SysDeptMapper;
 import com.zlinks.package_system.service.system.ISysDeptService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -19,10 +19,9 @@ public class SysDeptServiceImpl extends ServiceImpl<SysDeptMapper, SysDept> impl
 
     @Override
     public List<SysDept> selectDeptList(SysDept query) {
-        LambdaQueryWrapper<SysDept> w = new LambdaQueryWrapper<>();
-        if (StringUtils.hasText(query.getDeptName())) w.like(SysDept::getDeptName, query.getDeptName());
-        if (StringUtils.hasText(query.getStatus())) w.eq(SysDept::getStatus, query.getStatus());
-        w.orderByAsc(SysDept::getParentId).orderByAsc(SysDept::getOrderNum);
+LambdaQueryWrapper<SysDept> w = new LambdaQueryWrapper<>();
+        if (StringUtils.isNotBlank(query.getDeptName())) w.like(SysDept::getDeptName, query.getDeptName());
+        if (StringUtils.isNotBlank(query.getStatus())) w.eq(SysDept::getStatus, query.getStatus());
         return baseMapper.selectDeptList(w);
     }
 

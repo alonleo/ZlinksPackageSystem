@@ -19,7 +19,7 @@ public class Product extends BaseEntity {
     private Long copyrightId;
     private Long gameId;
     private Long companyId;
-    private String platform;
+    private Long platformId;
     private String packageName;
     private String sdkVersion;
     private String apkVersion;
@@ -36,4 +36,7 @@ public class Product extends BaseEntity {
 
     @TableField(exist = false)
     private String companyName;
+
+    @TableField(exist = false)
+    private String platformName;
 }

@@ -6,11 +6,10 @@
         SELECT post_id, post_code, post_name, post_sort, status,
                create_by, create_time, update_by, update_time, remark
         FROM sys_post
-        <where>
-            <if test="ew != null and ew.sqlSegment != null and ew.sqlSegment != ''">
-                ${ew.sqlSegment}
-            </if>
-        </where>
+        WHERE 1=1
+        <if test="ew != null and ew.sqlSegment != null and ew.sqlSegment != ''">
+            AND ${ew.sqlSegment}
+        </if>
         ORDER BY post_sort
     </select>
 

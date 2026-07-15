@@ -6,7 +6,8 @@ export interface Product {
   gameName: string
   companyId: number
   companyName: string
-  platform: string
+  platformId: number
+  platformName: string
   packageName: string
   sdkVersion: string
   apkVersion: string

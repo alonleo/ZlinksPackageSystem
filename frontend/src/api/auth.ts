@@ -1,5 +1,5 @@
 import api from '@/api'
-import type { User } from '@/types/user'
+import type { User, UserInfoResponse } from '@/types/user'
 
 export interface LoginRequest {
   username: string
@@ -12,19 +12,13 @@ export interface LoginResponse {
   data: string
 }
 
-export interface UserInfoResponse {
-  code: number
-  message: string
-  data: User
-}
-
 export const authApi = {
   login(data: LoginRequest): Promise<LoginResponse> {
     return api.post('/auth/login', data)
   },
 
   getUserInfo(): Promise<UserInfoResponse> {
-    return api.get('/auth/info')
+    return api.get('/getInfo')
   },
 
   register(user: Partial<User>): Promise<any> {

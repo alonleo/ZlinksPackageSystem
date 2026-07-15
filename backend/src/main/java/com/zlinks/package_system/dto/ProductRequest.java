@@ -13,7 +13,7 @@ public class ProductRequest {
 
     private Long companyId;
 
-    private String platform;
+    private Long platformId;
 
     private String packageName;
 

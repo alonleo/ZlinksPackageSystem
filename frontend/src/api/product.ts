@@ -8,13 +8,18 @@ interface ListParams {
   copyrightId?: number
   gameId?: number
   companyId?: number
-  platform?: string
+  platformId?: number
   batch?: string
   status?: string
 }
 
+export interface PlatformOption {
+  id: number
+  name: string
+}
+
 export interface ProductOptions {
-  platforms: string[]
+  platforms: any[]
   batches: string[]
   statuses: string[]
 }
@@ -54,6 +59,10 @@ export const productApi = {
 
   getCompanies(): Promise<{ data: { id: number; companyName: string }[] }> {
     return api.get('/products/companies')
+  },
+
+  getPlatforms(): Promise<{ data: { id: number; platformName: string }[] }> {
+    return api.get('/products/platforms')
   },
 
   getOptions(): Promise<{ data: ProductOptions }> {

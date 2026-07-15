@@ -1,7 +1,8 @@
 export interface Company {
   id: number
   companyName: string
-  platform: string
+  platformId: number
+  platformName: string
   account: string
   password: string
   remark: string

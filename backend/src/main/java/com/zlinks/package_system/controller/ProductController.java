@@ -10,10 +10,12 @@ import com.zlinks.package_system.dto.ProductRequest;
 import com.zlinks.package_system.entity.Company;
 import com.zlinks.package_system.entity.Copyright;
 import com.zlinks.package_system.entity.Game;
+import com.zlinks.package_system.entity.Platform;
 import com.zlinks.package_system.entity.Product;
 import com.zlinks.package_system.service.CompanyService;
 import com.zlinks.package_system.service.CopyrightService;
 import com.zlinks.package_system.service.GameService;
+import com.zlinks.package_system.service.PlatformService;
 import com.zlinks.package_system.service.ProductService;
 import com.zlinks.package_system.util.BusinessException;
 import com.zlinks.package_system.util.PageResult;
@@ -54,6 +56,7 @@ public class ProductController {
     private final CopyrightService copyrightService;
     private final GameService gameService;
     private final CompanyService companyService;
+    private final PlatformService platformService;
     private final ObjectMapper objectMapper;
 
     @Operation(summary = "获取产品统计")
@@ -70,7 +73,7 @@ public class ProductController {
             @RequestParam(required = false) Long copyrightId,
             @RequestParam(required = false) Long gameId,
             @RequestParam(required = false) Long companyId,
-            @RequestParam(required = false) String platform,
+            @RequestParam(required = false) Long platformId,
             @RequestParam(required = false) String batch,
             @RequestParam(required = false) String status) {
 
@@ -78,7 +81,7 @@ public class ProductController {
         wrapper.eq(copyrightId != null, Product::getCopyrightId, copyrightId);
         wrapper.eq(gameId != null, Product::getGameId, gameId);
         wrapper.eq(companyId != null, Product::getCompanyId, companyId);
-        wrapper.eq(StringUtils.hasText(platform), Product::getPlatform, platform);
+        wrapper.eq(platformId != null, Product::getPlatformId, platformId);
         wrapper.eq(StringUtils.hasText(batch), Product::getBatch, batch);
         wrapper.eq(StringUtils.hasText(status), Product::getStatus, status);
         wrapper.orderByDesc(Product::getCreateTime);
@@ -88,11 +91,13 @@ public class ProductController {
         Map<Long, String> copyrightNameMap = buildCopyrightNameMap(page.getRecords());
         Map<Long, String> gameNameMap = buildGameNameMap(page.getRecords());
         Map<Long, String> companyNameMap = buildCompanyNameMap(page.getRecords());
+        Map<Long, String> platformNameMap = buildPlatformNameMap(page.getRecords());
 
         page.getRecords().forEach(p -> {
             p.setCopyrightName(copyrightNameMap.get(p.getCopyrightId()));
             p.setGameName(gameNameMap.get(p.getGameId()));
             p.setCompanyName(companyNameMap.get(p.getCompanyId()));
+            p.setPlatformName(platformNameMap.get(p.getPlatformId()));
         });
 
         PageResult<Product> pageResult = new PageResult<>(page.getRecords(), page.getTotal(), page.getSize(), page.getCurrent());
@@ -101,10 +106,17 @@ public class ProductController {
 
     @Operation(summary = "获取筛选项")
     @GetMapping("/options")
-    public Result<Map<String, List<String>>> getOptions() {
+    public Result<Map<String, List<?>>> getOptions() {
         List<Product> all = productService.list();
-        Map<String, List<String>> options = new LinkedHashMap<>();
-        options.put("platforms", all.stream().map(Product::getPlatform).filter(s -> StringUtils.hasText(s)).distinct().sorted().collect(Collectors.toList()));
+        Map<String, List<?>> options = new LinkedHashMap<>();
+        List<Map<String, Object>> platformList = platformService.list().stream()
+                .map(p -> {
+                    Map<String, Object> m = new LinkedHashMap<>();
+                    m.put("id", p.getId());
+                    m.put("name", p.getPlatformName());
+                    return m;
+                }).collect(Collectors.toList());
+        options.put("platforms", platformList);
         options.put("batches", all.stream().map(Product::getBatch).filter(s -> StringUtils.hasText(s)).distinct().sorted().collect(Collectors.toList()));
         options.put("statuses", all.stream().map(Product::getStatus).filter(s -> StringUtils.hasText(s)).distinct().sorted().collect(Collectors.toList()));
         return Result.success(options);
@@ -128,7 +140,7 @@ public class ProductController {
         product.setCopyrightId(request.getCopyrightId());
         product.setGameId(request.getGameId());
         product.setCompanyId(request.getCompanyId());
-        product.setPlatform(request.getPlatform());
+        product.setPlatformId(request.getPlatformId());
         product.setPackageName(request.getPackageName());
         product.setSdkVersion(request.getSdkVersion());
         product.setApkVersion(request.getApkVersion());
@@ -152,7 +164,7 @@ public class ProductController {
         product.setCopyrightId(request.getCopyrightId());
         product.setGameId(request.getGameId());
         product.setCompanyId(request.getCompanyId());
-        product.setPlatform(request.getPlatform());
+        product.setPlatformId(request.getPlatformId());
         product.setPackageName(request.getPackageName());
         product.setSdkVersion(request.getSdkVersion());
         product.setApkVersion(request.getApkVersion());
@@ -187,6 +199,8 @@ public class ProductController {
                 .collect(Collectors.toMap(Game::getGameName, Game::getId));
         Map<String, Long> companyNameMap = companyService.list().stream()
                 .collect(Collectors.toMap(Company::getCompanyName, Company::getId));
+        Map<String, Long> platformNameMap = platformService.list().stream()
+                .collect(Collectors.toMap(Platform::getPlatformName, Platform::getId));
 
         List<Product> list = new ArrayList<>();
         for (ProductExcelDTO dto : excelList) {
@@ -197,7 +211,7 @@ public class ProductController {
             p.setCopyrightId(copyrightNameMap.get(dto.getCopyrightName()));
             p.setGameId(gameNameMap.get(dto.getGameName()));
             p.setCompanyId(companyNameMap.get(dto.getCompanyName()));
-            p.setPlatform(dto.getPlatform());
+            p.setPlatformId(platformNameMap.get(dto.getPlatformName()));
             p.setPackageName(dto.getPackageName());
             p.setSdkVersion(dto.getSdkVersion());
             p.setApkVersion(dto.getApkVersion());
@@ -225,6 +239,7 @@ public class ProductController {
         Map<Long, String> copyrightNameMap = buildCopyrightNameMap(list);
         Map<Long, String> gameNameMap = buildGameNameMap(list);
         Map<Long, String> companyNameMap = buildCompanyNameMap(list);
+        Map<Long, String> platformNameMap = buildPlatformNameMap(list);
 
         List<ProductExcelDTO> exportList = new ArrayList<>();
         for (Product p : list) {
@@ -232,7 +247,7 @@ public class ProductController {
             dto.setCopyrightName(copyrightNameMap.get(p.getCopyrightId()));
             dto.setGameName(gameNameMap.get(p.getGameId()));
             dto.setCompanyName(companyNameMap.get(p.getCompanyId()));
-            dto.setPlatform(p.getPlatform());
+            dto.setPlatformName(platformNameMap.get(p.getPlatformId()));
             dto.setPackageName(p.getPackageName());
             dto.setSdkVersion(p.getSdkVersion());
             dto.setApkVersion(p.getApkVersion());
@@ -270,7 +285,7 @@ public class ProductController {
             sample.setCopyrightName("");
             sample.setGameName("");
             sample.setCompanyName("");
-            sample.setPlatform("");
+            sample.setPlatformName("");
             sample.setPackageName("");
             sample.setSdkVersion("");
             sample.setApkVersion("");
@@ -329,14 +344,22 @@ public class ProductController {
         return Result.success(companyService.list());
     }
 
+    @Operation(summary = "获取平台列表")
+    @GetMapping("/platforms")
+    public Result<List<Platform>> getPlatforms() {
+        return Result.success(platformService.list());
+    }
+
     private void fillNames(List<Product> products) {
         Map<Long, String> copyrightNameMap = buildCopyrightNameMap(products);
         Map<Long, String> gameNameMap = buildGameNameMap(products);
         Map<Long, String> companyNameMap = buildCompanyNameMap(products);
+        Map<Long, String> platformNameMap = buildPlatformNameMap(products);
         products.forEach(p -> {
             p.setCopyrightName(copyrightNameMap.get(p.getCopyrightId()));
             p.setGameName(gameNameMap.get(p.getGameId()));
             p.setCompanyName(companyNameMap.get(p.getCompanyId()));
+            p.setPlatformName(platformNameMap.get(p.getPlatformId()));
         });
     }
 
@@ -356,5 +379,11 @@ public class ProductController {
         List<Long> ids = products.stream().map(Product::getCompanyId).filter(id -> id != null).distinct().collect(Collectors.toList());
         if (ids.isEmpty()) return Map.of();
         return companyService.listByIds(ids).stream().collect(Collectors.toMap(Company::getId, Company::getCompanyName));
+    }
+
+    private Map<Long, String> buildPlatformNameMap(List<Product> products) {
+        List<Long> ids = products.stream().map(Product::getPlatformId).filter(id -> id != null).distinct().collect(Collectors.toList());
+        if (ids.isEmpty()) return Map.of();
+        return platformService.listByIds(ids).stream().collect(Collectors.toMap(Platform::getId, Platform::getPlatformName));
     }
 }

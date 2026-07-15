@@ -9,3 +9,13 @@ export interface User {
   createTime: string
   updateTime: string
 }
+
+export interface UserInfoResponse {
+  code: number
+  message: string
+  data: {
+    user: User
+    roles: string[]
+    permissions: string[]
+  }
+}

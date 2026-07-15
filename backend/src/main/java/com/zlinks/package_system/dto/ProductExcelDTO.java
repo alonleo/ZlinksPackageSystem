@@ -16,7 +16,7 @@ public class ProductExcelDTO {
     private String companyName;
 
     @ExcelProperty("平台")
-    private String platform;
+    private String platformName;
 
     @ExcelProperty("包名")
     private String packageName;

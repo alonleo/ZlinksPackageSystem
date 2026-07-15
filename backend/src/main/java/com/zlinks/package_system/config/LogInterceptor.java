@@ -26,6 +26,7 @@ public class LogInterceptor implements HandlerInterceptor {
             Map.entry("companies", "公司管理"),
             Map.entry("sign-files", "签名管理"),
             Map.entry("copyrights", "软著管理"),
+            Map.entry("platforms", "平台管理"),
             Map.entry("notifications", "通知管理"),
             Map.entry("permission-groups", "权限管理"),
             Map.entry("operation-logs", "日志管理")

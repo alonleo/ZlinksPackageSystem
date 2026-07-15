@@ -26,6 +26,20 @@ CREATE TABLE IF NOT EXISTS `game` (
     PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='游戏表';
 
+-- 平台表
+CREATE TABLE IF NOT EXISTS `platform` (
+    `id` BIGINT NOT NULL AUTO_INCREMENT,
+    `platform_name` VARCHAR(100) NOT NULL COMMENT '平台名称',
+    `platform_code` VARCHAR(50) COMMENT '平台编码',
+    `sort_order` INT DEFAULT 0 COMMENT '排序',
+    `status` VARCHAR(20) DEFAULT 'active' COMMENT '状态',
+    `remark` TEXT COMMENT '备注信息',
+    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建日期',
+    `update_time` DATETIME ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    `is_deleted` TINYINT DEFAULT 0 COMMENT '逻辑删除',
+    PRIMARY KEY (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='平台表';
+
 -- 软著表
 CREATE TABLE IF NOT EXISTS `copyright` (
     `id` BIGINT NOT NULL AUTO_INCREMENT,
@@ -43,7 +57,7 @@ CREATE TABLE IF NOT EXISTS `copyright` (
 CREATE TABLE IF NOT EXISTS `company` (
     `id` BIGINT NOT NULL AUTO_INCREMENT,
     `company_name` VARCHAR(100) NOT NULL COMMENT '公司名',
-    `platform` VARCHAR(50) COMMENT '平台',
+    `platform_id` BIGINT COMMENT '平台ID',
     `account` VARCHAR(100) COMMENT '账号',
     `password` VARCHAR(100) COMMENT '密码',
     `remark` TEXT COMMENT '备注信息',
@@ -152,7 +166,7 @@ CREATE TABLE IF NOT EXISTS `product` (
     `copyright_id` BIGINT COMMENT '软著ID',
     `game_id` BIGINT COMMENT '游戏ID',
     `company_id` BIGINT COMMENT '公司ID',
-    `platform` VARCHAR(50) COMMENT '平台',
+    `platform_id` BIGINT COMMENT '平台ID',
     `package_name` VARCHAR(100) COMMENT '包名',
     `sdk_version` VARCHAR(50) COMMENT 'SDK版本',
     `apk_version` VARCHAR(50) COMMENT 'APK版本',

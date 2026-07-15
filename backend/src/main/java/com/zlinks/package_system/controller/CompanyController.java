@@ -7,7 +7,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.zlinks.package_system.dto.CompanyExcelDTO;
 import com.zlinks.package_system.dto.CompanyRequest;
 import com.zlinks.package_system.entity.Company;
+import com.zlinks.package_system.entity.Platform;
 import com.zlinks.package_system.service.CompanyService;
+import com.zlinks.package_system.service.PlatformService;
 import com.zlinks.package_system.util.BusinessException;
 import com.zlinks.package_system.util.PageResult;
 import com.zlinks.package_system.util.Result;
@@ -33,6 +35,8 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Tag(name = "公司管理")
 @RestController
@@ -41,6 +45,7 @@ import java.util.List;
 public class CompanyController {
 
     private final CompanyService companyService;
+    private final PlatformService platformService;
     private final ObjectMapper objectMapper;
 
     @Operation(summary = "获取公司列表")
@@ -48,13 +53,16 @@ public class CompanyController {
     public Result<PageResult<Company>> list(
             @RequestParam(defaultValue = "1") Integer current,
             @RequestParam(defaultValue = "10") Integer size,
-            @RequestParam(required = false) String companyName) {
+            @RequestParam(required = false) String companyName,
+            @RequestParam(required = false) Long platformId) {
 
         LambdaQueryWrapper<Company> wrapper = new LambdaQueryWrapper<>();
         wrapper.like(StringUtils.hasText(companyName), Company::getCompanyName, companyName);
+        wrapper.eq(platformId != null, Company::getPlatformId, platformId);
         wrapper.orderByDesc(Company::getCreateTime);
 
         Page<Company> page = companyService.page(new Page<>(current, size), wrapper);
+        fillPlatformNames(page.getRecords());
         PageResult<Company> pageResult = new PageResult<>(page.getRecords(), page.getTotal(), page.getSize(), page.getCurrent());
         return Result.success(pageResult);
     }
@@ -66,6 +74,7 @@ public class CompanyController {
         if (company == null) {
             throw new BusinessException("公司不存在");
         }
+        fillPlatformNames(List.of(company));
         return Result.success(company);
     }
 
@@ -74,7 +83,7 @@ public class CompanyController {
     public Result<Company> create(@Valid @RequestBody CompanyRequest request) {
         Company company = new Company();
         company.setCompanyName(request.getCompanyName());
-        company.setPlatform(request.getPlatform());
+        company.setPlatformId(request.getPlatformId());
         company.setAccount(request.getAccount());
         company.setPassword(request.getPassword());
         company.setRemark(request.getRemark());
@@ -92,7 +101,7 @@ public class CompanyController {
         }
 
         company.setCompanyName(request.getCompanyName());
-        company.setPlatform(request.getPlatform());
+        company.setPlatformId(request.getPlatformId());
         company.setAccount(request.getAccount());
         company.setPassword(request.getPassword());
         company.setRemark(request.getRemark());
@@ -124,7 +133,9 @@ public class CompanyController {
             }
             Company company = new Company();
             company.setCompanyName(dto.getCompanyName());
-            company.setPlatform(dto.getPlatform());
+            company.setPlatformId(platformService.list().stream()
+                    .filter(p -> p.getPlatformName().equals(dto.getPlatformName()))
+                    .findFirst().map(Platform::getId).orElse(null));
             company.setAccount(dto.getAccount());
             company.setPassword(dto.getPassword());
             company.setRemark(dto.getRemark());
@@ -145,11 +156,14 @@ public class CompanyController {
         List<Company> companies = companyService.list(new LambdaQueryWrapper<Company>()
                 .orderByDesc(Company::getCreateTime));
 
+        Map<Long, String> platformNameMap = platformService.list().stream()
+                .collect(Collectors.toMap(Platform::getId, Platform::getPlatformName));
+
         List<CompanyExcelDTO> exportList = new ArrayList<>();
         for (Company company : companies) {
             CompanyExcelDTO dto = new CompanyExcelDTO();
             dto.setCompanyName(company.getCompanyName());
-            dto.setPlatform(company.getPlatform());
+            dto.setPlatformName(platformNameMap.get(company.getPlatformId()));
             dto.setAccount(company.getAccount());
             dto.setPassword(company.getPassword());
             dto.setRemark(company.getRemark());
@@ -181,7 +195,7 @@ public class CompanyController {
         if ("json".equals(format)) {
             CompanyExcelDTO sample = new CompanyExcelDTO();
             sample.setCompanyName("");
-            sample.setPlatform("");
+            sample.setPlatformName("");
             sample.setAccount("");
             sample.setPassword("");
             sample.setRemark("");
@@ -206,5 +220,19 @@ public class CompanyController {
         }
         companyService.removeById(id);
         return Result.success();
+    }
+
+    @Operation(summary = "获取平台列表")
+    @GetMapping("/platforms")
+    public Result<List<Platform>> getPlatforms() {
+        return Result.success(platformService.list());
+    }
+
+    private void fillPlatformNames(List<Company> companies) {
+        List<Long> ids = companies.stream().map(Company::getPlatformId).filter(id -> id != null).distinct().collect(Collectors.toList());
+        if (ids.isEmpty()) return;
+        Map<Long, String> nameMap = platformService.listByIds(ids).stream()
+                .collect(Collectors.toMap(Platform::getId, Platform::getPlatformName));
+        companies.forEach(c -> c.setPlatformName(nameMap.get(c.getPlatformId())));
     }
 }

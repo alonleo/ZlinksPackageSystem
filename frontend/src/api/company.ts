@@ -44,4 +44,8 @@ export const companyApi = {
   downloadTemplate(format: 'xlsx' | 'json' = 'xlsx'): Promise<Blob> {
     return api.get('/companies/template', { params: { format }, responseType: 'blob' })
   },
+
+  getPlatforms(): Promise<{ data: { id: number; platformName: string }[] }> {
+    return api.get('/companies/platforms')
+  },
 }

@@ -111,16 +111,22 @@ public class DataInitializer implements CommandLineRunner {
 
     private void initMenus() {
         // M=目录 C=菜单 F=按钮
-        // 顶级目录: 系统管理 (menu_id=1)
+        // 顶级目录: 系统管理 (menu_id=1) — 作为按钮权限的 parent 保留
         SysMenu sysDir = newMenu("系统管理", 0L, 1, "system", null, "M", "0", "0", "system", null);
         menuService.save(sysDir);
 
-        SysMenu userMenu = newMenu("用户管理", sysDir.getMenuId(), 1, "user", "system/user/index", "C", "0", "0", "user", "system:user:list");
-        SysMenu roleMenu = newMenu("角色管理", sysDir.getMenuId(), 2, "role", "system/role/index", "C", "0", "0", "peoples", "system:role:list");
-        SysMenu menuMenu = newMenu("菜单管理", sysDir.getMenuId(), 3, "menu", "system/menu/index", "C", "0", "0", "tree-table", "system:menu:list");
-        SysMenu deptMenu = newMenu("部门管理", sysDir.getMenuId(), 4, "dept", "system/dept/index", "C", "0", "0", "tree", "system:dept:list");
-        SysMenu postMenu = newMenu("岗位管理", sysDir.getMenuId(), 5, "post", "system/post/index", "C", "0", "0", "post", "system:post:list");
-        for (SysMenu m : Arrays.asList(userMenu, roleMenu, menuMenu, deptMenu, postMenu)) {
+        // 用户/角色/菜单/参数/通知 5 项提升为顶级菜单 (parentId=0)
+        SysMenu userMenu = newMenu("用户管理", 0L, 2, "user", "system/user/index", "C", "0", "0", "user", "system:user:list");
+        SysMenu roleMenu = newMenu("角色管理", 0L, 3, "role", "system/role/index", "C", "0", "0", "peoples", "system:role:list");
+        SysMenu menuMenu = newMenu("菜单管理", 0L, 4, "menu", "system/menu/index", "C", "0", "0", "tree-table", "system:menu:list");
+        SysMenu configMenu = newMenu("参数设置", 0L, 5, "config", "system/config/index", "C", "0", "0", "list", "system:config:list");
+        SysMenu noticeMenu = newMenu("通知管理", 0L, 6, "notice", "system/notice/index", "C", "0", "0", "message", "system:notice:list");
+
+        // 部门/岗位按钮保留挂在 sysDir 上 (后端完整保留，前端无入口)
+        SysMenu deptMenu = newMenu("部门管理", sysDir.getMenuId(), 1, "dept", "system/dept/index", "C", "0", "0", "tree", "system:dept:list");
+        SysMenu postMenu = newMenu("岗位管理", sysDir.getMenuId(), 2, "post", "system/post/index", "C", "0", "0", "post", "system:post:list");
+
+        for (SysMenu m : Arrays.asList(userMenu, roleMenu, menuMenu, configMenu, noticeMenu, deptMenu, postMenu)) {
             menuService.save(m);
             savedMenus.add(m);
         }
@@ -150,21 +156,74 @@ public class DataInitializer implements CommandLineRunner {
         addButton(menuMenu, "菜单修改", "system:menu:edit", 3);
         addButton(menuMenu, "菜单删除", "system:menu:remove", 4);
 
-        // 部门管理按钮
+        // 参数设置按钮
+        addButton(configMenu, "参数查询", "system:config:query", 1);
+        addButton(configMenu, "参数新增", "system:config:add", 2);
+        addButton(configMenu, "参数修改", "system:config:edit", 3);
+        addButton(configMenu, "参数删除", "system:config:remove", 4);
+
+        // 通知管理按钮
+        addButton(noticeMenu, "公告查询", "system:notice:query", 1);
+        addButton(noticeMenu, "公告新增", "system:notice:add", 2);
+        addButton(noticeMenu, "公告修改", "system:notice:edit", 3);
+        addButton(noticeMenu, "公告删除", "system:notice:remove", 4);
+
+        // 部门管理按钮（后端保留，前端入口已删除）
         addButton(deptMenu, "部门查询", "system:dept:query", 1);
         addButton(deptMenu, "部门新增", "system:dept:add", 2);
         addButton(deptMenu, "部门修改", "system:dept:edit", 3);
         addButton(deptMenu, "部门删除", "system:dept:remove", 4);
 
-        // 岗位管理按钮
+        // 岗位管理按钮（后端保留，前端入口已删除）
         addButton(postMenu, "岗位查询", "system:post:query", 1);
         addButton(postMenu, "岗位新增", "system:post:add", 2);
         addButton(postMenu, "岗位修改", "system:post:edit", 3);
         addButton(postMenu, "岗位删除", "system:post:remove", 4);
 
-        // 监控目录占位 (Agent 3 会补充具体菜单)
+        // 监控目录 (顶级目录)
         SysMenu monitorDir = newMenu("系统监控", 0L, 2, "monitor", null, "M", "0", "0", "monitor", null);
         menuService.save(monitorDir);
+        savedMenus.add(monitorDir);
+
+        // 监控子菜单: 服务监控 / 在线用户 / 定时任务 / 数据监控(Druid) / 缓存监控 / 登录日志 / 操作日志
+        SysMenu serverMenu = newMenu("服务监控", monitorDir.getMenuId(), 1, "server", "system/monitor/server/index", "C", "0", "0", "cpu", "monitor:server:list");
+        SysMenu onlineMenu = newMenu("在线用户", monitorDir.getMenuId(), 2, "online", "system/monitor/online/index", "C", "0", "0", "online", "monitor:online:list");
+        SysMenu jobMenu = newMenu("定时任务", monitorDir.getMenuId(), 3, "job", "system/monitor/job/index", "C", "0", "0", "timer", "monitor:job:list");
+        SysMenu druidMenu = newMenu("数据监控", monitorDir.getMenuId(), 4, "druid", "system/monitor/druid/index", "C", "0", "0", "data-analysis", "monitor:druid:list");
+        SysMenu cacheMenu = newMenu("缓存监控", monitorDir.getMenuId(), 5, "cache", "system/monitor/cache/index", "C", "0", "0", "histogram", "monitor:cache:list");
+        SysMenu logininforMenu = newMenu("登录日志", monitorDir.getMenuId(), 6, "logininfor", "system/monitor/logininfor/index", "C", "0", "0", "document", "monitor:logininfor:list");
+        SysMenu operlogMenu = newMenu("操作日志", monitorDir.getMenuId(), 7, "operlog", "system/monitor/operlog/index", "C", "0", "0", "form", "monitor:operlog:list");
+        for (SysMenu m : Arrays.asList(serverMenu, onlineMenu, jobMenu, druidMenu, cacheMenu, logininforMenu, operlogMenu)) {
+            menuService.save(m);
+            savedMenus.add(m);
+        }
+
+        // 各监控页按钮权限 (按 RuoYi 习惯)
+        addButton(serverMenu, "服务查询", "monitor:server:query", 1);
+
+        addButton(onlineMenu, "在线查询", "monitor:online:query", 1);
+        addButton(onlineMenu, "强退用户", "monitor:online:forceLogout", 2);
+
+        addButton(jobMenu, "任务查询", "monitor:job:query", 1);
+        addButton(jobMenu, "任务新增", "monitor:job:add", 2);
+        addButton(jobMenu, "任务修改", "monitor:job:edit", 3);
+        addButton(jobMenu, "任务删除", "monitor:job:remove", 4);
+        addButton(jobMenu, "状态修改", "monitor:job:changeStatus", 5);
+        addButton(jobMenu, "任务导出", "monitor:job:export", 6);
+
+        addButton(druidMenu, "数据查询", "monitor:druid:query", 1);
+
+        addButton(cacheMenu, "缓存查询", "monitor:cache:list", 1);
+        addButton(cacheMenu, "缓存删除", "monitor:cache:remove", 2);
+
+        addButton(logininforMenu, "登录查询", "monitor:logininfor:query", 1);
+        addButton(logininforMenu, "登录删除", "monitor:logininfor:remove", 2);
+        addButton(logininforMenu, "账户解锁", "monitor:logininfor:unlock", 3);
+        addButton(logininforMenu, "日志导出", "monitor:logininfor:export", 4);
+
+        addButton(operlogMenu, "操作查询", "monitor:operlog:query", 1);
+        addButton(operlogMenu, "操作删除", "monitor:operlog:remove", 2);
+        addButton(operlogMenu, "日志导出", "monitor:operlog:export", 3);
 
         log.info("初始化默认菜单完成, 共 {} 个节点", savedMenus.size());
     }

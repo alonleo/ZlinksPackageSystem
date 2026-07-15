@@ -6,6 +6,8 @@ import { authApi } from '@/api/auth'
 export const useUserStore = defineStore('user', () => {
   const token = ref<string>(localStorage.getItem('token') || '')
   const user = ref<User | null>(null)
+  const permissions = ref<string[]>([])
+  const roles = ref<string[]>([])
 
   const isAuthenticated = computed(() => !!token.value)
   const currentUser = computed(() => user.value)
@@ -20,7 +22,9 @@ export const useUserStore = defineStore('user', () => {
   async function fetchUserInfo() {
     try {
       const response = await authApi.getUserInfo()
-      user.value = response.data
+      user.value = response.data.user
+      roles.value = response.data.roles ?? []
+      permissions.value = response.data.permissions ?? []
     } catch (error) {
       logout()
     }
@@ -29,6 +33,8 @@ export const useUserStore = defineStore('user', () => {
   function logout() {
     token.value = ''
     user.value = null
+    roles.value = []
+    permissions.value = []
     localStorage.removeItem('token')
   }
 
@@ -40,6 +46,8 @@ export const useUserStore = defineStore('user', () => {
   return {
     token,
     user,
+    permissions,
+    roles,
     isAuthenticated,
     currentUser,
     login,

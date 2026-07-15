@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
-import { notificationApi } from '@/api/notification'
+import { noticeApi } from '@/api/system/menu'
+import type { SysNotice } from '@/types/system'
 
 const logs = ref([
   { id: 1, content: '用户 admin 登录了系统', time: '2024-01-15 10:30:00' },
@@ -8,15 +9,21 @@ const logs = ref([
   { id: 3, content: '新增软著《游戏管理系统V1.0》', time: '2024-01-14 16:45:00' },
 ])
 
-const announcements = ref<{ id: number; title: string; content: string; time: string }[]>([])
+interface Announcement {
+  id: number
+  title: string
+  content: string
+  time: string
+}
+const announcements = ref<Announcement[]>([])
 
 const fetchAnnouncements = async () => {
   try {
-    const response = await notificationApi.getAnnouncements()
-    announcements.value = response.data.map(n => ({
-      id: n.id,
-      title: n.title,
-      content: n.content || '',
+    const { data } = await noticeApi.list({ current: 1, size: 5 })
+    announcements.value = data.records.map((n: SysNotice) => ({
+      id: n.noticeId ?? 0,
+      title: n.noticeTitle,
+      content: n.noticeContent || '',
       time: n.createTime?.substring(0, 10) || '',
     }))
   } catch (error) {
@@ -28,7 +35,7 @@ const quickLinks = ref([
   { id: 1, title: '游戏管理', icon: 'Monitor', path: '/games' },
   { id: 2, title: '产品管理', icon: 'Goods', path: '/products' },
   { id: 3, title: '测试管理', icon: 'Connection', path: '/tests' },
-  { id: 4, title: '用户管理', icon: 'User', path: '/users' },
+  { id: 4, title: '用户管理', icon: 'User', path: '/system/user' },
 ])
 
 onMounted(() => fetchAnnouncements())

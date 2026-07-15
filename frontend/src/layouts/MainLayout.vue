@@ -20,6 +20,9 @@ import {
   ArrowDown,
   Close,
   Tickets,
+  Menu as IconMenu,
+  Tools,
+  Setting,
 } from '@element-plus/icons-vue'
 import { ElMessageBox } from 'element-plus'
 
@@ -42,13 +45,27 @@ const menuItems = [
   { index: '/games', icon: Monitor, title: '游戏管理' },
   { index: '/products', icon: Goods, title: '产品管理' },
   { index: '/tests', icon: Connection, title: '测试管理' },
-  { index: '/users', icon: User, title: '用户管理' },
-  { index: '/permissions', icon: Lock, title: '权限管理' },
-  { index: '/companies', icon: OfficeBuilding, title: '公司管理' },
+  { index: '/system/user', icon: User, title: '用户管理' },
+  { index: '/system/role', icon: Lock, title: '角色管理' },
+  { index: '/system/menu', icon: IconMenu, title: '菜单管理' },
+  { index: '/system/config', icon: Tools, title: '参数设置' },
+  { index: '/notice', icon: Bell, title: '通知管理' },
   { index: '/sign-files', icon: Key, title: '签名管理' },
   { index: '/copyrights', icon: Document, title: '软著管理' },
-  { index: '/notifications', icon: Bell, title: '通知管理' },
-  { index: '/operation-logs', icon: Tickets, title: '日志管理' },
+  { index: '/platforms', icon: Setting, title: '平台管理' },
+  { index: '/companies', icon: OfficeBuilding, title: '公司管理' },
+  { index: '/operation-logs', icon: Tickets, title: '操作日志' },
+  { index: '/permissions', icon: Lock, title: '权限管理' },
+]
+
+const monitorItems = [
+  { index: '/system/monitor/server', title: '服务监控' },
+  { index: '/system/monitor/online', title: '在线用户' },
+  { index: '/system/monitor/job', title: '定时任务' },
+  { index: '/system/monitor/druid', title: '数据监控' },
+  { index: '/system/monitor/cache', title: '缓存监控' },
+  { index: '/system/monitor/logininfor', title: '登录日志' },
+  { index: '/system/monitor/operlog', title: '操作日志' },
 ]
 
 const handleMenuSelect = (index: string) => {
@@ -112,6 +129,19 @@ const handleCloseAll = async () => {
           <el-icon><component :is="item.icon" /></el-icon>
           <template #title>{{ item.title }}</template>
         </el-menu-item>
+        <el-sub-menu index="monitor">
+          <template #title>
+            <el-icon><Monitor /></el-icon>
+            <span>系统监控</span>
+          </template>
+          <el-menu-item
+            v-for="item in monitorItems"
+            :key="item.index"
+            :index="item.index"
+          >
+            {{ item.title }}
+          </el-menu-item>
+        </el-sub-menu>
       </el-menu>
     </el-aside>
     <el-container>

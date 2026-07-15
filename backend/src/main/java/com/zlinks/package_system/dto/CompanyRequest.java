@@ -9,7 +9,7 @@ public class CompanyRequest {
     @NotBlank(message = "公司名称不能为空")
     private String companyName;
 
-    private String platform;
+    private Long platformId;
 
     private String account;
 

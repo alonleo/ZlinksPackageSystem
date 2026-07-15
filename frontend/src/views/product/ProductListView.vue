@@ -1,58 +1,50 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, reactive } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
+import { Search, Refresh, Plus, Edit, Delete, Box, Upload, Download, ArrowDown } from '@element-plus/icons-vue'
 import { productApi } from '@/api/product'
 import type { ProductOptions } from '@/api/product'
 import type { Product } from '@/types/product'
-import { ElMessage, ElMessageBox } from 'element-plus'
-import { Plus, Search, Upload, Download, Document, Box, ArrowDown } from '@element-plus/icons-vue'
+
+interface NameId { id: number; copyrightName?: string; gameName?: string; companyName?: string; platformName?: string }
 
 const loading = ref(false)
-const saving = ref(false)
-const deleting = ref(false)
-const packing = ref(false)
-const importing = ref(false)
 const exporting = ref(false)
-const formRef = ref()
+const importing = ref(false)
 const fileInput = ref<HTMLInputElement>()
-
-const copyrights = ref<{ id: number; copyrightName: string }[]>([])
-const games = ref<{ id: number; gameName: string }[]>([])
-const companies = ref<{ id: number; companyName: string }[]>([])
-const filterOptions = ref<ProductOptions>({ platforms: [], batches: [], statuses: [] })
-
-const form = ref<Partial<Product>>({
-  copyrightId: undefined,
-  gameId: undefined,
-  companyId: undefined,
-  platform: '',
-  packageName: '',
-  sdkVersion: '',
-  apkVersion: '',
-  batch: '',
-  packageMode: '',
-  status: 'pending',
-  remark: '',
-})
-const selectedId = ref<number | null>(null)
-const isEditing = ref(false)
-
 const list = ref<Product[]>([])
 const total = ref(0)
 const currentPage = ref(1)
 const pageSize = ref(10)
+const open = ref(false)
+const title = ref('')
+const ids = ref<number[]>([])
+const single = ref(true)
+const multiple = ref(true)
+
+const copyrights = ref<NameId[]>([])
+const games = ref<NameId[]>([])
+const companies = ref<NameId[]>([])
+const platforms = ref<NameId[]>([])
+const filterOptions = ref<ProductOptions>({ platforms: [], batches: [], statuses: [] })
+
 const searchForm = ref({
   copyrightId: undefined as number | undefined,
   gameId: undefined as number | undefined,
   companyId: undefined as number | undefined,
-  platform: '',
-  batch: '',
-  status: '',
+  platformId: undefined as number | undefined,
+  batch: '', status: '',
 })
 
-const isNew = computed(() => selectedId.value === null && isEditing.value)
+const form = reactive<Partial<Product>>({
+  copyrightId: undefined, gameId: undefined, companyId: undefined,
+  platformId: undefined as number | undefined,
+  packageName: '', sdkVersion: '', apkVersion: '',
+  batch: '', packageMode: '', status: 'pending', remark: '',
+})
 
-const statusLabels: Record<string, string> = {
-  pending: '待处理', processing: '处理中', completed: '已完成',
+const rules = {
+  packageName: [{ required: true, message: '请输入包名', trigger: 'blur' }],
 }
 
 const fetchList = async () => {
@@ -62,136 +54,90 @@ const fetchList = async () => {
     if (searchForm.value.copyrightId) params.copyrightId = searchForm.value.copyrightId
     if (searchForm.value.gameId) params.gameId = searchForm.value.gameId
     if (searchForm.value.companyId) params.companyId = searchForm.value.companyId
-    if (searchForm.value.platform) params.platform = searchForm.value.platform
+    if (searchForm.value.platformId) params.platformId = searchForm.value.platformId
     if (searchForm.value.batch) params.batch = searchForm.value.batch
     if (searchForm.value.status) params.status = searchForm.value.status
-    const response = await productApi.getList(params)
-    list.value = response.data.records
-    total.value = response.data.total
-  } catch (error) {
-    console.error('获取产品列表失败:', error)
-  } finally {
-    loading.value = false
-  }
+    const { data } = await productApi.getList(params)
+    list.value = data.records; total.value = data.total
+  } catch { ElMessage.error('获取产品列表失败') }
+  finally { loading.value = false }
 }
 
 const fetchOptions = async () => {
   try {
-    const [cRes, gRes, coRes, optRes] = await Promise.all([
+    const [cRes, gRes, coRes, pRes, optRes] = await Promise.all([
       productApi.getCopyrights(), productApi.getGames(),
-      productApi.getCompanies(), productApi.getOptions(),
+      productApi.getCompanies(), productApi.getPlatforms(),
+      productApi.getOptions(),
     ])
     copyrights.value = cRes.data
     games.value = gRes.data
     companies.value = coRes.data
+    platforms.value = pRes.data as NameId[]
     filterOptions.value = optRes.data
-  } catch (error) {
-    console.error('获取下拉选项失败:', error)
-  }
+  } catch { /* ignore */ }
 }
 
 const handleSearch = () => { currentPage.value = 1; fetchList() }
 const handleReset = () => {
-  searchForm.value = { copyrightId: undefined, gameId: undefined, companyId: undefined, platform: '', batch: '', status: '' }
+  searchForm.value = { copyrightId: undefined, gameId: undefined, companyId: undefined, platformId: undefined, batch: '', status: '' }
   handleSearch()
 }
-const handleSizeChange = (val: number) => { pageSize.value = val; fetchList() }
-const handleCurrentChange = (val: number) => { currentPage.value = val; fetchList() }
-
-const handleCreate = () => {
-  selectedId.value = null
-  isEditing.value = true
-  form.value = { copyrightId: undefined, gameId: undefined, companyId: undefined, platform: '', packageName: '', sdkVersion: '', apkVersion: '', batch: '', packageMode: '', status: 'pending', remark: '' }
+const handleSelectionChange = (rows: any[]) => {
+  ids.value = rows.map((r: any) => r.id).filter(Boolean) as number[]
+  single.value = rows.length !== 1; multiple.value = !rows.length
 }
 
-const handleSelect = async (row: Product) => {
-  selectedId.value = row.id
-  isEditing.value = true
-  form.value = {
-    copyrightId: row.copyrightId,
-    gameId: row.gameId,
-    companyId: row.companyId,
-    platform: row.platform || '',
-    packageName: row.packageName || '',
-    sdkVersion: row.sdkVersion || '',
-    apkVersion: row.apkVersion || '',
-    batch: row.batch || '',
-    packageMode: row.packageMode || '',
-    status: row.status || 'pending',
-    remark: row.remark || '',
-  }
+const resetForm = () => {
+  form.id = undefined; form.copyrightId = undefined; form.gameId = undefined
+  form.companyId = undefined; form.platformId = undefined
+  form.packageName = ''
+  form.sdkVersion = ''; form.apkVersion = ''; form.batch = ''
+  form.packageMode = ''; form.status = 'pending'; form.remark = ''
 }
 
-const getErrorMessage = (error: any): string => {
-  return error?.response?.data?.message || error?.message || '操作失败'
-}
-
-const handleSave = async () => {
-  if (!formRef.value) return
-  await formRef.value.validate(async (valid: boolean) => {
-    if (valid) {
-      saving.value = true
-      try {
-        if (isNew.value) {
-          await productApi.create(form.value)
-          ElMessage.success('创建成功')
-        } else {
-          await productApi.update(selectedId.value!, form.value)
-          ElMessage.success('更新成功')
-        }
-        handleCancel()
-        fetchList()
-      } catch (error: any) {
-        ElMessage.error(getErrorMessage(error))
-      } finally {
-        saving.value = false
-      }
-    }
-  })
-}
-
-const handleCancel = () => {
-  isEditing.value = false
-  selectedId.value = null
-  form.value = { copyrightId: undefined, gameId: undefined, companyId: undefined, platform: '', packageName: '', sdkVersion: '', apkVersion: '', batch: '', packageMode: '', status: 'pending', remark: '' }
-}
-
-const handleDeleteCurrent = async () => {
-  if (!selectedId.value) return
+const handleAdd = () => { resetForm(); title.value = '添加产品'; open.value = true }
+const handleUpdate = async (row?: any) => {
+  const id = row?.id ?? ids.value[0]
+  if (!id) return
   try {
-    await ElMessageBox.confirm('确定要删除该产品吗？', '提示', {
-      confirmButtonText: '确定', cancelButtonText: '取消', type: 'warning',
-    })
-    deleting.value = true
-    await productApi.delete(selectedId.value)
-    ElMessage.success('删除成功')
-    handleCancel()
-    fetchList()
-  } catch (error) {
-    if (error !== 'cancel') ElMessage.error('删除失败')
-  } finally {
-    deleting.value = false
-  }
+    const { data } = await productApi.getById(id)
+    Object.assign(form, data)
+    title.value = '修改产品'; open.value = true
+  } catch { ElMessage.error('获取产品详情失败') }
 }
 
-const handlePackage = async () => {
-  if (!selectedId.value) return
+const handleSubmit = async () => {
   try {
-    await ElMessageBox.confirm('确定要对该产品进行打包吗？', '提示', {
-      confirmButtonText: '确定', cancelButtonText: '取消', type: 'info',
-    })
-    packing.value = true
-    await productApi.triggerPackage(selectedId.value)
+    form.id ? await productApi.update(form.id, form) : await productApi.create(form)
+    ElMessage.success(form.id ? '修改成功' : '新增成功')
+    open.value = false; fetchList()
+  } catch { ElMessage.error('操作失败') }
+}
+
+const handleDelete = async (row?: any) => {
+  const productIds: number[] = row?.id ? [row.id] : ids.value
+  if (!productIds.length) return
+  try {
+    await ElMessageBox.confirm('是否确认删除选中的产品?', '提示', { type: 'warning' })
+    for (const id of productIds) await productApi.delete(id)
+    ElMessage.success('删除成功'); fetchList()
+  } catch { /* cancelled */ }
+}
+
+const handlePackage = async (row: any) => {
+  try {
+    await ElMessageBox.confirm(`确认要打包产品"${row.copyrightName || row.packageName}"吗?`, '提示', { type: 'info' })
+    await productApi.triggerPackage(row.id)
     ElMessage.success('打包任务已提交')
-  } catch (error) {
-    if (error !== 'cancel') ElMessage.error('打包失败')
-  } finally {
-    packing.value = false
-  }
+  } catch { /* cancelled */ }
+}
+
+const statusLabels: Record<string, string> = {
+  pending: '待处理', processing: '处理中', completed: '已完成',
 }
 
 const handleImport = () => { fileInput.value?.click() }
-
 const handleFileChange = async (event: Event) => {
   const target = event.target as HTMLInputElement
   const file = target.files?.[0]
@@ -201,8 +147,8 @@ const handleFileChange = async (event: Event) => {
     const res = await productApi.importFile(file)
     ElMessage.success(res.data)
     fetchList()
-  } catch (error: any) {
-    ElMessage.error(error?.response?.data?.message || '导入失败')
+  } catch (e: any) {
+    ElMessage.error(e?.response?.data?.message || '导入失败')
   } finally {
     importing.value = false
     target.value = ''
@@ -210,290 +156,155 @@ const handleFileChange = async (event: Event) => {
 }
 
 const handleExportCommand = async (command: string) => {
-  if (command === 'xlsx' || command === 'json') {
-    exporting.value = true
-    try {
-      const ext = command === 'json' ? 'json' : 'xlsx'
-      const blob = await productApi.exportFile(command)
-      downloadBlob(blob, `产品数据.${ext}`)
-      ElMessage.success('导出成功')
-    } catch { ElMessage.error('导出失败') }
-    finally { exporting.value = false }
-  } else if (command === 'template-xlsx') {
-    try {
-      const blob = await productApi.downloadTemplate('xlsx')
-      downloadBlob(blob, '产品导入模板.xlsx')
-      ElMessage.success('模板下载成功')
-    } catch { ElMessage.error('模板下载失败') }
-  }
+  if (command !== 'xlsx' && command !== 'json' && command !== 'template-xlsx') return
+  exporting.value = true
+  try {
+    const blob = command === 'template-xlsx'
+      ? await productApi.downloadTemplate('xlsx')
+      : await productApi.exportFile(command as 'xlsx' | 'json')
+    const ext = command === 'json' ? 'json' : 'xlsx'
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = command === 'template-xlsx' ? `产品导入模板.${ext}` : `产品数据.${ext}`
+    link.click()
+    window.URL.revokeObjectURL(url)
+    ElMessage.success('导出成功')
+  } catch { ElMessage.error('导出失败') }
+  finally { exporting.value = false }
 }
 
-const downloadBlob = (blob: Blob, filename: string) => {
-  const url = window.URL.createObjectURL(blob)
-  const link = document.createElement('a')
-  link.href = url
-  link.download = filename
-  link.click()
-  window.URL.revokeObjectURL(url)
-}
-
-onMounted(() => { fetchList(); fetchOptions() })
+onMounted(async () => {
+  await fetchList()
+  await fetchOptions()
+})
 </script>
 
 <template>
   <div class="product-container">
-    <div class="search-card">
-      <div class="card-header">
-        <span>筛选条件</span>
-      </div>
-      <el-form :model="searchForm" inline style="margin-top: 12px">
+    <el-card>
+      <el-form :model="searchForm" inline class="search-form">
         <el-form-item label="软著">
-          <el-select v-model="searchForm.copyrightId" placeholder="请选择软著" clearable filterable>
+          <el-select v-model="searchForm.copyrightId" placeholder="请选择软著" clearable filterable style="width:160px">
             <el-option v-for="c in copyrights" :key="c.id" :label="c.copyrightName" :value="c.id" />
           </el-select>
         </el-form-item>
         <el-form-item label="游戏">
-          <el-select v-model="searchForm.gameId" placeholder="请选择游戏" clearable filterable>
+          <el-select v-model="searchForm.gameId" placeholder="请选择游戏" clearable filterable style="width:160px">
             <el-option v-for="g in games" :key="g.id" :label="g.gameName" :value="g.id" />
           </el-select>
         </el-form-item>
         <el-form-item label="公司">
-          <el-select v-model="searchForm.companyId" placeholder="请选择公司" clearable filterable>
+          <el-select v-model="searchForm.companyId" placeholder="请选择公司" clearable filterable style="width:160px">
             <el-option v-for="c in companies" :key="c.id" :label="c.companyName" :value="c.id" />
           </el-select>
         </el-form-item>
         <el-form-item label="平台">
-          <el-select v-model="searchForm.platform" placeholder="请选择平台" clearable>
-            <el-option v-for="p in filterOptions.platforms" :key="p" :label="p" :value="p" />
+          <el-select v-model="searchForm.platformId" placeholder="请选择" clearable style="width:120px">
+            <el-option v-for="p in platforms" :key="p.id" :label="p.platformName" :value="p.id" />
           </el-select>
         </el-form-item>
         <el-form-item label="批次">
-          <el-select v-model="searchForm.batch" placeholder="请选择批次" clearable>
+          <el-select v-model="searchForm.batch" placeholder="请选择" clearable style="width:120px">
             <el-option v-for="b in filterOptions.batches" :key="b" :label="b" :value="b" />
           </el-select>
         </el-form-item>
         <el-form-item label="状态">
-          <el-select v-model="searchForm.status" placeholder="请选择状态" clearable>
+          <el-select v-model="searchForm.status" placeholder="请选择" clearable style="width:120px">
             <el-option v-for="s in filterOptions.statuses" :key="s" :label="statusLabels[s] || s" :value="s" />
           </el-select>
         </el-form-item>
         <el-form-item>
           <el-button type="primary" :icon="Search" @click="handleSearch">搜索</el-button>
-          <el-button @click="handleReset">重置</el-button>
-          <el-button type="primary" :icon="Plus" @click="handleCreate">新增产品</el-button>
-          <el-button :icon="Upload" :loading="importing" @click="handleImport">导入数据</el-button>
-          <el-dropdown trigger="click" @command="handleExportCommand">
-            <el-button :icon="Download" :loading="exporting">
-              导出数据<el-icon class="el-icon--right"><ArrowDown /></el-icon>
-            </el-button>
-            <template #dropdown>
-              <el-dropdown-menu>
-                <el-dropdown-item command="xlsx">导出 Excel (.xlsx)</el-dropdown-item>
-                <el-dropdown-item command="json">导出 JSON (.json)</el-dropdown-item>
-                <el-dropdown-item command="template-xlsx" divided>下载导入模板 (.xlsx)</el-dropdown-item>
-              </el-dropdown-menu>
-            </template>
-          </el-dropdown>
+          <el-button :icon="Refresh" @click="handleReset">重置</el-button>
         </el-form-item>
       </el-form>
-    </div>
-
-    <div class="content-row">
-      <div class="detail-panel">
-        <el-card class="detail-card">
-          <template #header>
-            <div class="card-header">
-              <span>{{ isNew ? '新增产品' : isEditing ? '编辑产品' : '产品详情' }}</span>
-              <div v-if="isEditing" class="header-actions">
-                <el-button type="primary" :loading="saving" @click="handleSave">保存</el-button>
-                <el-button v-if="!isNew" type="success" :loading="packing" :icon="Box" @click="handlePackage">打包</el-button>
-                <el-button v-if="!isNew" type="danger" :loading="deleting" @click="handleDeleteCurrent">删除</el-button>
-                <el-button @click="handleCancel">取消</el-button>
-              </div>
-            </div>
+      <div class="toolbar">
+        <el-button type="primary" :icon="Plus" @click="handleAdd">新增</el-button>
+        <el-button type="success" :icon="Edit" :disabled="single" @click="handleUpdate()">修改</el-button>
+        <el-button type="danger" :icon="Delete" :disabled="multiple" @click="handleDelete()">删除</el-button>
+        <el-button :icon="Upload" :loading="importing" @click="handleImport">导入数据</el-button>
+        <el-dropdown trigger="click" @command="handleExportCommand">
+          <el-button :icon="Download" :loading="exporting">
+            导出数据<el-icon class="el-icon--right"><ArrowDown /></el-icon>
+          </el-button>
+          <template #dropdown>
+            <el-dropdown-menu>
+              <el-dropdown-item command="xlsx">导出 Excel (.xlsx)</el-dropdown-item>
+              <el-dropdown-item command="json">导出 JSON (.json)</el-dropdown-item>
+              <el-dropdown-item command="template-xlsx" divided>下载导入模板 (.xlsx)</el-dropdown-item>
+            </el-dropdown-menu>
           </template>
-          <div v-if="!isEditing" class="empty-detail">
-            <el-icon class="empty-icon"><Document /></el-icon>
-            <p>请选择一条记录或点击新增</p>
-          </div>
-          <el-form v-else ref="formRef" :model="form" label-width="80px" class="detail-form">
-            <el-form-item label="软著" prop="copyrightId">
-              <el-select v-model="form.copyrightId" placeholder="请选择软著" filterable style="width: 100%">
-                <el-option v-for="c in copyrights" :key="c.id" :label="c.copyrightName" :value="c.id" />
-              </el-select>
-            </el-form-item>
-            <el-form-item label="游戏">
-              <el-select v-model="form.gameId" placeholder="请选择游戏" filterable style="width: 100%">
-                <el-option v-for="g in games" :key="g.id" :label="g.gameName" :value="g.id" />
-              </el-select>
-            </el-form-item>
-            <el-form-item label="公司">
-              <el-select v-model="form.companyId" placeholder="请选择公司" filterable style="width: 100%">
-                <el-option v-for="c in companies" :key="c.id" :label="c.companyName" :value="c.id" />
-              </el-select>
-            </el-form-item>
-            <el-form-item label="平台">
-              <el-select v-model="form.platform" placeholder="请选择平台" style="width: 100%">
-                <el-option v-for="p in filterOptions.platforms" :key="p" :label="p" :value="p" />
-              </el-select>
-            </el-form-item>
-            <el-form-item label="包名">
-              <el-input v-model="form.packageName" placeholder="请输入包名" />
-            </el-form-item>
-            <el-form-item label="SDK版本">
-              <el-input v-model="form.sdkVersion" placeholder="请输入SDK版本" />
-            </el-form-item>
-            <el-form-item label="APK版本">
-              <el-input v-model="form.apkVersion" placeholder="请输入APK版本" />
-            </el-form-item>
-            <el-form-item label="批次">
-              <el-input v-model="form.batch" placeholder="请输入批次" />
-            </el-form-item>
-            <el-form-item label="打包模式">
-              <el-input v-model="form.packageMode" placeholder="请输入打包模式" />
-            </el-form-item>
-            <el-form-item label="状态">
-              <el-select v-model="form.status" style="width: 100%">
-                <el-option v-for="s in filterOptions.statuses" :key="s" :label="statusLabels[s] || s" :value="s" />
-              </el-select>
-            </el-form-item>
-            <el-form-item label="备注">
-              <el-input v-model="form.remark" type="textarea" :rows="2" placeholder="请输入备注信息" />
-            </el-form-item>
-          </el-form>
-        </el-card>
+        </el-dropdown>
       </div>
-
-      <div class="list-panel">
-        <el-card class="list-card">
-          <template #header>
-            <span>产品列表</span>
+      <el-table v-loading="loading" :data="list" border @selection-change="handleSelectionChange">
+        <el-table-column type="selection" width="50" align="center" />
+        <el-table-column prop="id" label="编号" width="80" align="center" />
+        <el-table-column prop="copyrightName" label="产品名称" min-width="160" show-overflow-tooltip />
+        <el-table-column prop="gameName" label="游戏" min-width="120" show-overflow-tooltip />
+        <el-table-column prop="companyName" label="公司" min-width="120" show-overflow-tooltip />
+        <el-table-column prop="platformName" label="平台" width="100" show-overflow-tooltip />
+        <el-table-column prop="packageName" label="包名" min-width="120" show-overflow-tooltip />
+        <el-table-column prop="batch" label="批次" width="100" show-overflow-tooltip />
+        <el-table-column label="状态" width="90" align="center"><template #default="{ row }">{{ statusLabels[row.status || ''] || row.status }}</template></el-table-column>
+        <el-table-column prop="createTime" label="创建时间" min-width="160" />
+        <el-table-column label="操作" width="180" align="center" fixed="right">
+          <template #default="{ row }">
+            <el-tooltip content="打包"><el-button link type="success" :icon="Box" @click="handlePackage(row)" /></el-tooltip>
+            <el-button link type="primary" :icon="Edit" @click="handleUpdate(row)" />
+            <el-button link type="danger" :icon="Delete" @click="handleDelete(row)" />
           </template>
-          <el-table v-loading="loading" :data="list" border highlight-current-row
-            @row-click="handleSelect" style="width: 100%">
-            <el-table-column prop="copyrightName" label="产品名称" min-width="160" />
-            <el-table-column prop="remark" label="备注" min-width="200" show-overflow-tooltip />
-          </el-table>
-          <div class="pagination-wrap">
-            <el-pagination
-              v-model:current-page="currentPage" v-model:page-size="pageSize"
-              :page-sizes="[10, 20, 50, 100]" :total="total"
-              layout="total, sizes, prev, pager, next, jumper" small
-              @size-change="handleSizeChange" @current-change="handleCurrentChange"
-            />
-          </div>
-        </el-card>
-      </div>
-    </div>
+        </el-table-column>
+      </el-table>
+      <div class="pagination"><el-pagination v-model:current-page="currentPage" v-model:page-size="pageSize" :page-sizes="[10, 20, 50, 100]" :total="total" layout="total, sizes, prev, pager, next, jumper" @size-change="fetchList" @current-change="fetchList" /></div>
+    </el-card>
+
+    <el-dialog :title="title" v-model="open" width="620px" append-to-body>
+      <el-form :model="form" :rules="rules" label-width="100px">
+        <el-row>
+          <el-col :span="12"><el-form-item label="软著">
+            <el-select v-model="form.copyrightId" placeholder="请选择软著" filterable style="width:100%">
+              <el-option v-for="c in copyrights" :key="c.id" :label="c.copyrightName" :value="c.id" />
+            </el-select>
+          </el-form-item></el-col>
+          <el-col :span="12"><el-form-item label="游戏">
+            <el-select v-model="form.gameId" placeholder="请选择游戏" filterable style="width:100%">
+              <el-option v-for="g in games" :key="g.id" :label="g.gameName" :value="g.id" />
+            </el-select>
+          </el-form-item></el-col>
+          <el-col :span="12"><el-form-item label="公司">
+            <el-select v-model="form.companyId" placeholder="请选择公司" filterable style="width:100%">
+              <el-option v-for="c in companies" :key="c.id" :label="c.companyName" :value="c.id" />
+            </el-select>
+          </el-form-item></el-col>
+          <el-col :span="12"><el-form-item label="平台">
+            <el-select v-model="form.platformId" placeholder="请选择" style="width:100%">
+              <el-option v-for="p in platforms" :key="p.id" :label="p.platformName" :value="p.id" />
+            </el-select>
+          </el-form-item></el-col>
+          <el-col :span="12"><el-form-item label="包名" prop="packageName"><el-input v-model="form.packageName" /></el-form-item></el-col>
+          <el-col :span="12"><el-form-item label="SDK版本"><el-input v-model="form.sdkVersion" /></el-form-item></el-col>
+          <el-col :span="12"><el-form-item label="APK版本"><el-input v-model="form.apkVersion" /></el-form-item></el-col>
+          <el-col :span="12"><el-form-item label="批次"><el-input v-model="form.batch" /></el-form-item></el-col>
+          <el-col :span="12"><el-form-item label="打包模式"><el-input v-model="form.packageMode" /></el-form-item></el-col>
+          <el-col :span="12"><el-form-item label="状态">
+            <el-select v-model="form.status" style="width:100%">
+              <el-option v-for="s in filterOptions.statuses" :key="s" :label="statusLabels[s] || s" :value="s" />
+            </el-select>
+          </el-form-item></el-col>
+          <el-col :span="24"><el-form-item label="备注"><el-input v-model="form.remark" type="textarea" /></el-form-item></el-col>
+        </el-row>
+      </el-form>
+      <template #footer><el-button @click="open = false">取消</el-button><el-button type="primary" @click="handleSubmit">确定</el-button></template>
+    </el-dialog>
 
     <input ref="fileInput" type="file" accept=".xlsx,.xls" style="display: none" @change="handleFileChange" />
   </div>
 </template>
 
 <style scoped>
-.product-container {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
-}
-
-.search-card {
-  flex-shrink: 0;
-  background: #fff;
-  border-radius: 4px;
-  padding: 12px 16px;
-  box-shadow: 0 1px 4px rgba(0, 21, 41, 0.08);
-}
-
-.content-row {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  gap: 16px;
-  margin-top: 16px;
-}
-
-.detail-panel {
-  flex: 3;
-  min-width: 380px;
-  min-height: 0;
-}
-
-.detail-card {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-}
-
-.detail-card :deep(.el-card__body) {
-  flex: 1;
-  overflow-y: auto;
-}
-
-.list-panel {
-  flex: 2;
-  min-width: 0;
-  min-height: 0;
-}
-
-.list-card {
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-}
-
-.list-card :deep(.el-card__body) {
-  flex: 1;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  padding-bottom: 0;
-}
-
-.list-card :deep(.el-table) {
-  flex: 1;
-}
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.header-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.empty-detail {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  color: #999;
-  gap: 12px;
-}
-
-.empty-detail p {
-  margin: 0;
-  font-size: 14px;
-}
-
-.empty-icon {
-  font-size: 48px;
-  color: #c0c4cc;
-}
-
-.detail-form {
-  max-width: 100%;
-}
-
-.list-card .pagination-wrap {
-  padding: 4px 0 0 0;
-  display: flex;
-  justify-content: flex-end;
-  flex-shrink: 0;
-}
+.product-container { padding: 16px; }
+.search-form { margin-bottom: 8px; }
+.toolbar { display: flex; gap: 8px; margin-bottom: 12px; }
+.pagination { margin-top: 16px; display: flex; justify-content: flex-end; }
 </style>

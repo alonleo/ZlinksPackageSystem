@@ -10,7 +10,7 @@ public class CompanyExcelDTO {
     private String companyName;
 
     @ExcelProperty("平台")
-    private String platform;
+    private String platformName;
 
     @ExcelProperty("账号")
     private String account;

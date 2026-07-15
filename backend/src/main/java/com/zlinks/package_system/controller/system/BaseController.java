@@ -12,16 +12,22 @@ import java.util.Map;
 public class BaseController {
 
     /**
-     * 读取当前请求的 pageNum / pageSize, 构造 MyBatis-Plus 分页对象
+     * 读取当前请求的 pageNum / pageSize (RuoYi) 或 current / size (MyBatis-Plus),
+     * 构造 MyBatis-Plus 分页对象
      */
     protected <T> com.baomidou.mybatisplus.extension.plugins.pagination.Page<T> startPage() {
         int pageNum = 1;
         int pageSize = 10;
         if (ServletUtils.getRequest() != null) {
-            String pn = ServletUtils.getRequest().getParameter("pageNum");
-            String ps = ServletUtils.getRequest().getParameter("pageSize");
+            var req = ServletUtils.getRequest();
+            String pn = req.getParameter("pageNum");
+            String ps = req.getParameter("pageSize");
+            String cur = req.getParameter("current");
+            String sz = req.getParameter("size");
             if (pn != null && !pn.isEmpty()) pageNum = Integer.parseInt(pn);
+            else if (cur != null && !cur.isEmpty()) pageNum = Integer.parseInt(cur);
             if (ps != null && !ps.isEmpty()) pageSize = Integer.parseInt(ps);
+            else if (sz != null && !sz.isEmpty()) pageSize = Integer.parseInt(sz);
         }
         return com.baomidou.mybatisplus.extension.plugins.pagination.Page.of(pageNum, pageSize);
     }

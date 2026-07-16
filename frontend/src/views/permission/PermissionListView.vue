@@ -43,9 +43,8 @@ const rules = {
 const moduleOptions = [
   { label: '全部模块', value: 'all' },
   { label: '首页', value: 'home' },
-  { label: '游戏管理', value: 'games' },
-  { label: '产品管理', value: 'products' },
-  { label: '测试管理', value: 'tests' },
+  { label: '打包管理', value: 'package' },
+  { label: '广告参数', value: 'ad-params' },
   { label: '用户管理', value: 'users' },
   { label: '权限管理', value: 'permissions' },
   { label: '公司管理', value: 'companies' },

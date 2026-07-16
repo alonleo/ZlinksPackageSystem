@@ -32,10 +32,10 @@ const fetchAnnouncements = async () => {
 }
 
 const quickLinks = ref([
-  { id: 1, title: '游戏管理', icon: 'Monitor', path: '/games' },
-  { id: 2, title: '产品管理', icon: 'Goods', path: '/products' },
-  { id: 3, title: '测试管理', icon: 'Connection', path: '/tests' },
-  { id: 4, title: '用户管理', icon: 'User', path: '/system/user' },
+  { id: 1, title: '首页', icon: 'HomeFilled', path: '/' },
+  { id: 2, title: '打包管理', icon: 'Box', path: '/package/games' },
+  { id: 3, title: '用户管理', icon: 'User', path: '/system/user' },
+  { id: 4, title: '系统监控', icon: 'Monitor', path: '/system/monitor/server' },
 ])
 
 onMounted(() => fetchAnnouncements())

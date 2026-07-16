@@ -43,13 +43,9 @@ const rules = {
 const moduleOptions = [
   { label: '全部模块', value: 'all' },
   { label: '首页', value: 'home' },
+  { label: '系统管理', value: 'system-mgmt' },
+  { label: '系统设置', value: 'system-settings' },
   { label: '打包管理', value: 'package' },
-  { label: '广告参数', value: 'ad-params' },
-  { label: '用户管理', value: 'users' },
-  { label: '权限管理', value: 'permissions' },
-  { label: '公司管理', value: 'companies' },
-  { label: '软著管理', value: 'copyrights' },
-  { label: '通知管理', value: 'notifications' },
 ]
 
 const prevModules = ref<string[]>([])

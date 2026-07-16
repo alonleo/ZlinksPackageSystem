@@ -474,3 +474,20 @@ dotnet build desktop/ZlinksPackageSystem.Desktop/ZlinksPackageSystem.Desktop.csp
 # 冒烟测试（Linux 下 .csproj 默认按 WinExe 构建，冒烟测试子工程不受影响）
 dotnet run --project desktop/ZlinksPackageSystem.Desktop/SmokeTest/SmokeTest.csproj
 ```
+
+---
+
+## 11. 实施记录（实现完成后回填）
+
+- 实施日期：2026-07-16
+- 实施者：opencode
+- 实现计划：`Docs/git-clone-feature-plan.md`
+- SmokeTest 通过用例数：**13 通过 / 4 失败**
+  - 通过 13 个：原有 5 个 + 新增 8 个（GitUrlParser × 6 + ToolPersistenceService × 2）
+  - 失败 4 个：均为本次改动前已存在的预存在问题（脚本模式引号、Linux 进程 Exited 事件、EditableArgument 字段名差异），与 Git 克隆功能无关
+- 桌面端构建：**BUILD SUCCESS，0 warnings / 0 errors**
+- 已知限制：
+  - MVP 不做主窗口级跨 VM Toast，进度反馈只在弹窗内 Git 面板可见（按设计文档 4.3 节简化方案）。
+  - 取消时 `Directory.Delete(targetDir, recursive: true)` 会一并清理目标父目录所有内容（用户期望：取消即视为本次操作完全撤销）。
+  - Avalonia 11.2 的 `TryGetFolderFromPathAsync(Uri)` 在 Linux 上需要 `BclStorageProvider` 后端；当前 `Desktop` 平台已自带支持，无需额外配置。
+  - 持久化 `tools.json` 写到 `LocalApplicationData/ZlinksPackageSystem/`，第一次启动会写入 mock 数据；后续启动均从文件读取。

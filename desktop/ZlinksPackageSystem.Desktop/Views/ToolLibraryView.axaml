@@ -57,7 +57,7 @@
             <DockPanel Margin="20" LastChildFill="True">
 
             <!-- 顶部条：标题 + 搜索 + 新建 -->
-            <Grid DockPanel.Dock="Top" Margin="0,0,0,16" ColumnDefinitions="Auto,*,Auto,Auto">
+            <Grid DockPanel.Dock="Top" Margin="0,0,0,16" ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto">
             <TextBlock Grid.Column="0" Text="🔧 工具库" FontSize="18" FontWeight="Bold"
                        Foreground="White" VerticalAlignment="Center" Margin="0,0,16,0" />
             <TextBox Grid.Column="1" Text="{Binding SearchText}"
@@ -72,6 +72,12 @@
                     Margin="8,0,0,0" Width="110"
                     BorderBrush="#FF1976D2" Foreground="#FF1976D2"
                     VerticalAlignment="Center" />
+            <Button Grid.Column="4" Content="📥 导入"
+                    Command="{Binding ImportToolsCommand}" Width="80"
+                    Margin="8,0,0,0" VerticalAlignment="Center" />
+            <Button Grid.Column="5" Content="📤 导出"
+                    Command="{Binding ExportToolsCommand}" Width="80"
+                    Margin="8,0,0,0" VerticalAlignment="Center" />
         </Grid>
 
         <!-- 可用运行环境面板 -->
@@ -245,7 +251,59 @@
                         <TextBox Grid.Column="1" Text="{Binding EditManager}" Watermark="👤 负责人" Margin="4,0,0,0" />
                     </Grid>
 
-                    <Separator />
+                                        <!-- ===== Git 仓库面板（仅新建时显示）===== -->
+                                        <StackPanel Spacing="8" IsVisible="{Binding IsNewProject}">
+                                            <Grid ColumnDefinitions="*,Auto">
+                                                <TextBlock Grid.Column="0" Text="📥 Git 仓库（可选 · 一次性克隆）"
+                                                           FontSize="13" FontWeight="SemiBold" Foreground="White"
+                                                           VerticalAlignment="Center" />
+                                                <Button Grid.Column="1"
+                                                        Content="{Binding IsGitPanelExpanded, Converter={StaticResource BoolToExpandGlyphConverter}}"
+                                                        Command="{Binding ToggleGitPanelCommand}"
+                                                        Width="34" Height="26" Padding="0" />
+                                            </Grid>
+
+                                            <StackPanel Spacing="6" IsVisible="{Binding IsGitPanelExpanded}">
+                                                <TextBox Text="{Binding EditGitUrl}"
+                                                         Watermark="Git URL（HTTPS 或 SSH，留空跳过克隆）" />
+
+                                                <Grid ColumnDefinitions="*,Auto">
+                                                    <TextBox Grid.Column="0" Text="{Binding EditCloneDirectory}"
+                                                             Watermark="克隆目标父目录（如 D:\tools 或 /home/user/tools）"
+                                                             Margin="0,0,6,0" />
+                                                    <Button Grid.Column="1" Content="📁 浏览" Width="80"
+                                                            Command="{Binding BrowseCloneDirectoryCommand}" />
+                                                </Grid>
+
+                                                <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
+                                                    <Ellipse Width="8" Height="8" VerticalAlignment="Center"
+                                                             Fill="{Binding GitEnvironment.IsInstalled, Converter={StaticResource BoolToColorConverter}, FallbackValue=#666666}" />
+                                                    <TextBlock VerticalAlignment="Center" FontSize="11" Foreground="#FFBFcbd9">
+                                                        <Run Text="本地 Git: " />
+                                                        <Run Text="{Binding GitEnvironment.Version, FallbackValue='点击右侧刷新检测', TargetNullValue='点击右侧刷新检测'}" />
+                                                    </TextBlock>
+                                                    <Button Content="🔄 刷新" Padding="6,2" FontSize="10"
+                                                            IsEnabled="{Binding IsDetectingGit, Converter={StaticResource BooleanInverseConverter}}"
+                                                            Command="{Binding RefreshGitEnvironmentCommand}" />
+                                                </StackPanel>
+
+                                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                                    <Button Content="📥 克隆" Width="110"
+                                                            Background="#FF1976D2" BorderBrush="#FF1976D2" Foreground="White"
+                                                            IsVisible="{Binding IsCloning, Converter={StaticResource BooleanInverseConverter}}"
+                                                            IsEnabled="{Binding GitEnvironment.IsInstalled}"
+                                                            Command="{Binding StartCloneCommand}" />
+                                                    <Button Content="⏳ 取消克隆" Width="110"
+                                                            IsVisible="{Binding IsCloning}"
+                                                            BorderBrush="#FFF56C6C" Foreground="#FFF56C6C"
+                                                            Command="{Binding CancelCloneCommand}" />
+                                                    <TextBlock VerticalAlignment="Center" FontSize="11" Foreground="#99BFcbd9"
+                                                               Text="{Binding CloneProgressText}" />
+                                                </StackPanel>
+                                            </StackPanel>
+                                        </StackPanel>
+
+                                        <Separator />
 
                     <!-- ============ 运行模式选择 ============ -->
                     <TextBlock Text="🚀 启动方式" FontSize="13" FontWeight="SemiBold" Foreground="White" />

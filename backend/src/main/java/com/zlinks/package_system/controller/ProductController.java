@@ -104,6 +104,12 @@ public class ProductController {
         return Result.success(pageResult);
     }
 
+    @Operation(summary = "全部产品（用于下拉）")
+    @GetMapping("/all")
+    public Result<List<Product>> all() {
+        return Result.success(productService.list(new LambdaQueryWrapper<Product>().orderByAsc(Product::getId)));
+    }
+
     @Operation(summary = "获取筛选项")
     @GetMapping("/options")
     public Result<Map<String, List<?>>> getOptions() {

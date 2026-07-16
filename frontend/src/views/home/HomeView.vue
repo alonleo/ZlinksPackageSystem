@@ -34,7 +34,7 @@ const fetchAnnouncements = async () => {
 const quickLinks = ref([
   { id: 1, title: '首页', icon: 'HomeFilled', path: '/' },
   { id: 2, title: '打包管理', icon: 'Box', path: '/package/games' },
-  { id: 3, title: '用户管理', icon: 'User', path: '/system/user' },
+  { id: 3, title: '用户管理', icon: 'User', path: '/system-mgmt/users' },
   { id: 4, title: '系统监控', icon: 'Monitor', path: '/system/monitor/server' },
 ])
 

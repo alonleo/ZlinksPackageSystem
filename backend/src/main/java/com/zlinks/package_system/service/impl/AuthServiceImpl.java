@@ -1,17 +1,23 @@
 package com.zlinks.package_system.service.impl;
 
 import com.baomidou.mybatisplus.core.conditions.query.LambdaQueryWrapper;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.zlinks.package_system.dto.UserVO;
 import com.zlinks.package_system.entity.PermissionGroup;
+import com.zlinks.package_system.entity.PermissionScope;
 import com.zlinks.package_system.entity.User;
 import com.zlinks.package_system.entity.UserGroup;
 import com.zlinks.package_system.security.UserDetailsImpl;
 import com.zlinks.package_system.service.AuthService;
+import com.zlinks.package_system.service.IPermissionScopeService;
 import com.zlinks.package_system.service.PermissionGroupService;
 import com.zlinks.package_system.service.UserGroupService;
 import com.zlinks.package_system.service.UserService;
 import com.zlinks.package_system.util.BusinessException;
 import com.zlinks.package_system.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.BeanUtils;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
@@ -19,13 +25,19 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class AuthServiceImpl implements AuthService {
+
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     private final AuthenticationManager authenticationManager;
     private final UserService userService;
@@ -33,6 +45,7 @@ public class AuthServiceImpl implements AuthService {
     private final JwtUtil jwtUtil;
     private final UserGroupService userGroupService;
     private final PermissionGroupService permissionGroupService;
+    private final IPermissionScopeService permissionScopeService;
 
     @Override
     public String login(String username, String password) {
@@ -59,7 +72,7 @@ public class AuthServiceImpl implements AuthService {
     }
 
     @Override
-    public User getCurrentUser() {
+    public UserVO getCurrentUser() {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
         if (authentication == null || !authentication.isAuthenticated()) {
             throw new BusinessException("User not authenticated");
@@ -83,6 +96,43 @@ public class AuthServiceImpl implements AuthService {
             user.setGroupNames(groupNames);
         }
 
-        return user;
+        UserVO vo = new UserVO();
+        BeanUtils.copyProperties(user, vo);
+        vo.setGroupIds(user.getGroupIds());
+        vo.setGroupNames(user.getGroupNames());
+        vo.setDesktopModules(mergeModulesByUser(user.getId(), "desktop"));
+        return vo;
+    }
+
+    @Override
+    public List<String> mergeModulesByUser(Long userId, String scope) {
+        if (userId == null) {
+            return Collections.emptyList();
+        }
+        List<UserGroup> ugs = userGroupService.list(
+                new LambdaQueryWrapper<UserGroup>().eq(UserGroup::getUserId, userId));
+        if (ugs.isEmpty()) {
+            return Collections.emptyList();
+        }
+        List<Long> groupIds = ugs.stream().map(UserGroup::getGroupId).collect(Collectors.toList());
+        List<PermissionScope> scopes = permissionScopeService.list(
+                new LambdaQueryWrapper<PermissionScope>()
+                        .in(PermissionScope::getGroupId, groupIds)
+                        .eq(PermissionScope::getScope, scope));
+        Set<String> merged = new LinkedHashSet<>();
+        for (PermissionScope s : scopes) {
+            if (s.getModulesText() == null) {
+                continue;
+            }
+            try {
+                List<String> mods = OBJECT_MAPPER.readValue(s.getModulesText(), new TypeReference<List<String>>() {});
+                if (mods.contains("all")) {
+                    return List.of("all");
+                }
+                merged.addAll(mods);
+            } catch (Exception ignored) {
+            }
+        }
+        return new ArrayList<>(merged);
     }
 }

@@ -1,6 +1,9 @@
 package com.zlinks.package_system.service;
 
+import com.zlinks.package_system.dto.UserVO;
 import com.zlinks.package_system.entity.User;
+
+import java.util.List;
 
 public interface AuthService {
 
@@ -8,5 +11,7 @@ public interface AuthService {
 
     User register(User user);
 
-    User getCurrentUser();
+    UserVO getCurrentUser();
+
+    List<String> mergeModulesByUser(Long userId, String scope);
 }

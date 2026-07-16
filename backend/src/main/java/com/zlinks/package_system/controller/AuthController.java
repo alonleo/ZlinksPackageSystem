@@ -1,5 +1,6 @@
 package com.zlinks.package_system.controller;
 
+import com.zlinks.package_system.dto.UserVO;
 import com.zlinks.package_system.entity.User;
 import com.zlinks.package_system.service.AuthService;
 import com.zlinks.package_system.util.Result;
@@ -39,9 +40,9 @@ public class AuthController {
 
     @Operation(summary = "获取当前用户信息")
     @GetMapping("/info")
-    public Result<User> getCurrentUser() {
-        User user = authService.getCurrentUser();
-        return Result.success(user);
+    public Result<UserVO> getCurrentUser() {
+        UserVO userInfo = authService.getCurrentUser();
+        return Result.success(userInfo);
     }
 
     @Data

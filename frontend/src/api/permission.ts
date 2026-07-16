@@ -1,5 +1,5 @@
 import api from '@/api'
-import type { PermissionGroup } from '@/types/permission-group'
+import type { PermissionGroup, PermissionScope } from '@/types/permission-group'
 import type { User } from '@/types/user'
 import type { PageResult } from '@/types/common'
 
@@ -60,5 +60,20 @@ export const permissionApi = {
 
   downloadTemplate(format: 'xlsx' | 'json' = 'xlsx'): Promise<Blob> {
     return api.get('/permission-groups/template', { params: { format }, responseType: 'blob' })
+  },
+}
+
+export const permissionScopeApi = {
+  list(groupId: number): Promise<{ data: PermissionScope[] }> {
+    return api.get(`/permission-groups/${groupId}/scopes`)
+  },
+  getModules(groupId: number, scope: string): Promise<{ data: string[] }> {
+    return api.get(`/permission-groups/${groupId}/scopes/${scope}`)
+  },
+  upsert(groupId: number, scope: string, modules: string[]): Promise<{ data: PermissionScope }> {
+    return api.put(`/permission-groups/${groupId}/scopes/${scope}`, { groupId, scope, modules })
+  },
+  remove(groupId: number, scope: string): Promise<void> {
+    return api.delete(`/permission-groups/${groupId}/scopes/${scope}`)
   },
 }

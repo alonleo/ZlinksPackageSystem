@@ -30,6 +30,8 @@ public partial class App : Application
                                 services.AddSingleton<IProcessManagerService, ProcessManagerService>();
                                 services.AddSingleton<IGitService, GitService>();
                                 services.AddSingleton<IToolPersistenceService, ToolPersistenceService>();
+                                services.AddSingleton<IGlobalNotificationService, GlobalNotificationService>();
+                                services.AddSingleton<INotificationService, NotificationService>();
 
                 // ViewModels
                 services.AddSingleton<MainViewModel>();

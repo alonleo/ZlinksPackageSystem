@@ -17,6 +17,7 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
     {
         private readonly IAuthService _authService;
         private readonly IServiceProvider _serviceProvider;
+        private User? _currentUser;
         private readonly IDialogService _dialogService;
 
         [ObservableProperty]
@@ -46,6 +47,44 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
             Title = "Zlinks Package System";
             CurrentViewModel = _serviceProvider.GetRequiredService<LoginViewModel>();
             LoadSettings();
+        }
+
+        public User? CurrentUser
+        {
+            get => _currentUser;
+            private set
+            {
+                if (SetProperty(ref _currentUser, value))
+                {
+                    OnPropertyChanged(nameof(IsHomeVisible));
+                    OnPropertyChanged(nameof(IsGamesVisible));
+                    OnPropertyChanged(nameof(IsProductsVisible));
+                    OnPropertyChanged(nameof(IsParametersVisible));
+                    OnPropertyChanged(nameof(IsTestsVisible));
+                    OnPropertyChanged(nameof(IsToolLibraryVisible));
+                    OnPropertyChanged(nameof(IsNotificationVisible));
+                    OnPropertyChanged(nameof(IsSettingsVisible));
+                }
+            }
+        }
+
+        public bool IsHomeVisible => CheckModule("home");
+        public bool IsGamesVisible => CheckModule("games");
+        public bool IsProductsVisible => CheckModule("products");
+        public bool IsParametersVisible => CheckModule("parameters");
+        public bool IsTestsVisible => CheckModule("tests");
+        public bool IsToolLibraryVisible => CheckModule("tool-library");
+        public bool IsNotificationVisible => CheckModule("notification");
+        public bool IsSettingsVisible => CheckModule("settings");
+
+        private bool CheckModule(string key)
+        {
+            var user = CurrentUser;
+            if (user == null) return true;
+            var mods = user.DesktopModules;
+            if (mods == null || mods.Count == 0) return true;
+            if (mods.Contains("all")) return true;
+            return mods.Contains(key);
         }
 
         public void LoadSettings()
@@ -132,6 +171,7 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
 
                     IsLoggedIn = true;
                     var user = await _authService.GetCurrentUserAsync();
+                    CurrentUser = user;
                     Username = user?.RealName ?? "User";
                     CurrentViewModel = _serviceProvider.GetRequiredService<HomeViewModel>();
                 }
@@ -148,6 +188,7 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
         {
             await _authService.LogoutAsync();
             IsLoggedIn = false;
+            CurrentUser = null;
             Username = string.Empty;
             CurrentViewModel = new LoginViewModel();
         }

@@ -8,6 +8,8 @@ export const useUserStore = defineStore('user', () => {
   const user = ref<User | null>(null)
   const permissions = ref<string[]>([])
   const roles = ref<string[]>([])
+  const backendModules = ref<string[]>([])
+  const desktopModules = ref<string[]>([])
 
   const isAuthenticated = computed(() => !!token.value)
   const currentUser = computed(() => user.value)
@@ -25,9 +27,16 @@ export const useUserStore = defineStore('user', () => {
       user.value = response.data.user
       roles.value = response.data.roles ?? []
       permissions.value = response.data.permissions ?? []
+      backendModules.value = response.data.modules?.backend ?? ['all']
+      desktopModules.value = response.data.modules?.desktop ?? ['all']
     } catch (error) {
       logout()
     }
+  }
+
+  function resetModules() {
+    backendModules.value = []
+    desktopModules.value = []
   }
 
   function logout() {
@@ -35,6 +44,7 @@ export const useUserStore = defineStore('user', () => {
     user.value = null
     roles.value = []
     permissions.value = []
+    resetModules()
     localStorage.removeItem('token')
   }
 
@@ -48,10 +58,13 @@ export const useUserStore = defineStore('user', () => {
     user,
     permissions,
     roles,
+    backendModules,
+    desktopModules,
     isAuthenticated,
     currentUser,
     login,
     fetchUserInfo,
+    resetModules,
     logout,
     setToken,
   }

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 
 namespace ZlinksPackageSystem.Desktop.Models
 {
@@ -12,5 +13,6 @@ namespace ZlinksPackageSystem.Desktop.Models
         public string Remark { get; set; } = string.Empty;
         public DateTime CreateTime { get; set; }
         public DateTime UpdateTime { get; set; }
+        public List<string> DesktopModules { get; set; } = new();
     }
 }

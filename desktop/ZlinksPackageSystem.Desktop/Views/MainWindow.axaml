@@ -131,14 +131,14 @@
                 <Menu Grid.Row="1"
                       IsVisible="{Binding IsLoggedIn}"
                       HorizontalAlignment="Center">
-                    <MenuItem Header="🏠 首页" Command="{Binding NavigateToHomeCommand}" />
-                    <MenuItem Header="🎮 游戏" Command="{Binding NavigateToGamesCommand}" />
-                    <MenuItem Header="📦 产品" Command="{Binding NavigateToProductsCommand}" />
-                    <MenuItem Header="📋 参数" Command="{Binding NavigateToParametersCommand}" />
-                    <MenuItem Header="🧪 测试" Command="{Binding NavigateToTestsCommand}" />
-                    <MenuItem Header="🔧 工具库" Command="{Binding NavigateToToolLibraryCommand}" />
-                    <MenuItem Header="🔔 消息中心" Command="{Binding NavigateToNotificationCommand}" />
-                    <MenuItem Header="⚙️ 设置" Command="{Binding NavigateToSettingsCommand}" />
+                    <MenuItem Header="🏠 首页" Command="{Binding NavigateToHomeCommand}" IsVisible="{Binding IsHomeVisible}" />
+                    <MenuItem Header="🎮 游戏" Command="{Binding NavigateToGamesCommand}" IsVisible="{Binding IsGamesVisible}" />
+                    <MenuItem Header="📦 产品" Command="{Binding NavigateToProductsCommand}" IsVisible="{Binding IsProductsVisible}" />
+                    <MenuItem Header="📋 参数" Command="{Binding NavigateToParametersCommand}" IsVisible="{Binding IsParametersVisible}" />
+                    <MenuItem Header="🧪 测试" Command="{Binding NavigateToTestsCommand}" IsVisible="{Binding IsTestsVisible}" />
+                    <MenuItem Header="🔧 工具库" Command="{Binding NavigateToToolLibraryCommand}" IsVisible="{Binding IsToolLibraryVisible}" />
+                    <MenuItem Header="🔔 消息中心" Command="{Binding NavigateToNotificationCommand}" IsVisible="{Binding IsNotificationVisible}" />
+                    <MenuItem Header="⚙️ 设置" Command="{Binding NavigateToSettingsCommand}" IsVisible="{Binding IsSettingsVisible}" />
                     <Separator />
                     <MenuItem Header="🚪 退出" Command="{Binding LogoutCommand}" />
                 </Menu>

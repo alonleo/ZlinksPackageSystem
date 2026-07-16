@@ -202,6 +202,21 @@ CREATE TABLE IF NOT EXISTS `permission_group` (
     PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='权限组表';
 
+-- 权限组模块范围表
+CREATE TABLE IF NOT EXISTS `permission_scope` (
+    `id` BIGINT NOT NULL AUTO_INCREMENT,
+    `group_id` BIGINT NOT NULL COMMENT '权限组ID',
+    `scope` VARCHAR(16) NOT NULL COMMENT '作用域: backend/desktop',
+    `modules_text` TEXT COMMENT '模块列表(JSON数组)',
+    `create_by` VARCHAR(64) DEFAULT '' COMMENT '创建人',
+    `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建日期',
+    `update_by` VARCHAR(64) DEFAULT '' COMMENT '更新人',
+    `update_time` DATETIME ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+    `is_deleted` TINYINT DEFAULT 0 COMMENT '逻辑删除',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uk_group_scope` (`group_id`, `scope`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='权限组模块范围表';
+
 -- 用户表
 CREATE TABLE IF NOT EXISTS `user` (
     `id` BIGINT NOT NULL AUTO_INCREMENT,
@@ -251,6 +266,18 @@ INSERT INTO `permission_group` (`group_name`, `group_permission`, `remark`) VALU
 ('开发组', '{"modules":["games","products"]}', '开发人员，负责游戏和产品管理'),
 ('测试组', '{"modules":["tests"]}', '测试人员，负责测试管理'),
 ('运营组', '{"modules":["products","companies"]}', '运营人员，负责产品和公司管理');
+
+-- 插入默认权限组的模块范围（按 scope 拆分：backend/desktop）
+-- 顺序与上面 permission_group INSERT 一致：1=管理员组, 2=开发组, 3=测试组, 4=运营组
+INSERT INTO `permission_scope` (`group_id`, `scope`, `modules_text`, `create_by`) VALUES
+(1, 'backend', '["all"]', 'system'),
+(1, 'desktop',  '["all"]', 'system'),
+(2, 'backend', '["home","package"]', 'system'),
+(2, 'desktop',  '["home","products"]', 'system'),
+(3, 'backend', '["home","package"]', 'system'),
+(3, 'desktop',  '["home","tests"]', 'system'),
+(4, 'backend', '["home","package"]', 'system'),
+(4, 'desktop',  '["home","products"]', 'system');
 
 -- 插入默认管理员用户 (密码: admin123)
 INSERT INTO `user` (`username`, `password`, `real_name`, `status`) VALUES

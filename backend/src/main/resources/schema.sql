@@ -14,6 +14,20 @@ CREATE TABLE IF NOT EXISTS `permission_group` (
     `is_deleted` TINYINT DEFAULT 0
 );
 
+-- 权限组模块范围（按 scope 拆分）
+CREATE TABLE IF NOT EXISTS `permission_scope` (
+    `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
+    `group_id` BIGINT NOT NULL,
+    `scope` VARCHAR(16) NOT NULL,
+    `modules_text` TEXT,
+    `create_by` VARCHAR(64) DEFAULT '',
+    `create_time` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    `update_by` VARCHAR(64) DEFAULT '',
+    `update_time` TIMESTAMP,
+    `is_deleted` TINYINT DEFAULT 0,
+    UNIQUE KEY `uk_group_scope` (`group_id`, `scope`)
+);
+
 -- 用户表
 CREATE TABLE IF NOT EXISTS users (
     id BIGINT AUTO_INCREMENT PRIMARY KEY,

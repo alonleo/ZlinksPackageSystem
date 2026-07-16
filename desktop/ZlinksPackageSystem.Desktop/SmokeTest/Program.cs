@@ -35,7 +35,7 @@ namespace ZlinksPackageSystem.SmokeTest
                 typeof(ToolLibraryViewModel),
                 BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
                 binder: null,
-                args: new object?[] { null, null, null, null, pm }, // IApiService, IDialogService, IRuntimeEnvironmentService, IFilePickerService, IProcessManagerService
+                args: new object?[] { null, null, null, null, pm, null, null }, // ... IGitService, IToolPersistenceService
                 culture: null)!;
 
             // 注入环境

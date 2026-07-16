@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -21,6 +22,9 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
         private readonly IRuntimeEnvironmentService _runtimeEnvService;
         private readonly IFilePickerService _filePickerService;
         private readonly IProcessManagerService _processManager;
+        private readonly IGitService _gitService;
+        private readonly IToolPersistenceService _persistence;
+        private CancellationTokenSource? _cloneCts;
 
         [ObservableProperty]
         private ObservableCollection<ToolProject> _projects = new();
@@ -80,12 +84,24 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
         // ===== 会话级状态：记住用户是否勾选了「不再询问」 =====
         private bool _skipRunConfirmation;
 
+        // ===== Git 区域（仅新建时显示）=====
+        [ObservableProperty] private bool _isGitPanelExpanded = true;
+        [ObservableProperty] private string _editGitUrl = string.Empty;
+        [ObservableProperty] private string _editCloneDirectory = string.Empty;
+        [ObservableProperty] private GitEnvironmentInfo? _gitEnvironment;
+        [ObservableProperty] private bool _isDetectingGit;
+        [ObservableProperty] private bool _isCloning;
+        [ObservableProperty] private string _cloneProgressText = string.Empty;
+        [ObservableProperty] private bool _isNewProject;
+
         public ToolLibraryViewModel(
             IApiService apiService,
             IDialogService dialogService,
             IRuntimeEnvironmentService runtimeEnvService,
             IFilePickerService filePickerService,
-            IProcessManagerService processManager)
+            IProcessManagerService processManager,
+            IGitService gitService,
+            IToolPersistenceService persistence)
         {
             Title = "工具库";
             _apiService = apiService;
@@ -93,6 +109,8 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
             _runtimeEnvService = runtimeEnvService;
             _filePickerService = filePickerService;
             _processManager = processManager;
+            _gitService = gitService;
+            _persistence = persistence;
 
             _processManager.ProcessExited += OnProcessExited;
 
@@ -109,14 +127,15 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
             IsBusy = true;
             try
             {
-                var result = await _apiService.GetAsync<PageResponse<ToolProject>>("/tools");
-                if (result?.Records?.Count > 0)
+                var loaded = await _persistence.LoadAsync();
+                if (loaded.Count > 0)
                 {
-                    Projects = new ObservableCollection<ToolProject>(result.Records);
+                    Projects = new ObservableCollection<ToolProject>(loaded);
                 }
                 else
                 {
                     LoadMockData();
+                    _ = _persistence.SaveAsync(Projects);
                 }
             }
             catch
@@ -215,6 +234,14 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
 
             SelectedProject = null;
             IsEditing = true;
+
+            EditGitUrl = string.Empty;
+            EditCloneDirectory = string.Empty;
+            GitEnvironment = null;
+            IsCloning = false;
+            CloneProgressText = string.Empty;
+            IsNewProject = true;
+            _ = RefreshGitEnvironmentAsync();
         }
 
         [RelayCommand]
@@ -240,6 +267,7 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
             EditParameters.Clear();
 
             IsEditing = true;
+            IsNewProject = false;
         }
 
         [RelayCommand]
@@ -321,6 +349,8 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
                     WorkingDirectory = string.IsNullOrWhiteSpace(EditWorkingDirectory)
                         ? ResolveDefaultWorkingDirectory()
                         : EditWorkingDirectory,
+                    GitUrl = EditGitUrl,
+                    CloneDirectory = EditCloneDirectory
                 };
                 Projects.Add(newProject);
             }
@@ -347,6 +377,8 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
                         WorkingDirectory = string.IsNullOrWhiteSpace(EditWorkingDirectory)
                             ? ResolveDefaultWorkingDirectory()
                             : EditWorkingDirectory,
+                        GitUrl = SelectedProject.GitUrl,
+                        CloneDirectory = SelectedProject.CloneDirectory,
                         // 保留运行状态
                         IsRunning = SelectedProject.IsRunning,
                         ProcessId = SelectedProject.ProcessId
@@ -354,6 +386,7 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
                 }
             }
 
+            _ = _persistence.SaveAsync(Projects);
             IsEditing = false;
         }
 
@@ -380,6 +413,7 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
             if (project.IsRunning && project.ProcessId is int pid)
                 _processManager.Kill(pid);
             Projects.Remove(project);
+            _ = _persistence.SaveAsync(Projects);
             await Task.CompletedTask;
         }
 
@@ -714,6 +748,166 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
             if (s.Contains(' ') || s.Contains('\t') || s.Contains('"'))
                 return "\"" + s.Replace("\"", "\\\"") + "\"";
             return s;
+        }
+
+        // =========================================================
+        // Git 区域
+        // =========================================================
+
+        [RelayCommand]
+        private void ToggleGitPanel()
+        {
+            IsGitPanelExpanded = !IsGitPanelExpanded;
+        }
+
+        [RelayCommand]
+        private async Task RefreshGitEnvironmentAsync()
+        {
+            IsDetectingGit = true;
+            try
+            {
+                GitEnvironment = await _gitService.DetectAsync();
+            }
+            finally
+            {
+                IsDetectingGit = false;
+            }
+        }
+
+        [RelayCommand]
+        private async Task BrowseCloneDirectoryAsync()
+        {
+            var picked = await _filePickerService.PickDirectoryAsync();
+            if (!string.IsNullOrEmpty(picked))
+                EditCloneDirectory = picked;
+        }
+
+        [RelayCommand]
+        private async Task StartCloneAsync()
+        {
+            if (string.IsNullOrWhiteSpace(EditGitUrl))
+            {
+                await _dialogService.ShowMessageAsync("提示", "请先填写 Git URL。");
+                return;
+            }
+            if (string.IsNullOrWhiteSpace(EditCloneDirectory))
+            {
+                await _dialogService.ShowMessageAsync("提示", "请先选择克隆目标目录。");
+                return;
+            }
+            if (GitEnvironment?.IsInstalled != true)
+            {
+                await _dialogService.ShowMessageAsync("提示", "未检测到本地 Git 环境，请先安装 Git。");
+                return;
+            }
+
+            _cloneCts = new CancellationTokenSource();
+            _ = RunCloneBackgroundAsync();
+        }
+
+        [RelayCommand]
+        private void CancelClone()
+        {
+            _cloneCts?.Cancel();
+        }
+
+        private async Task RunCloneBackgroundAsync()
+        {
+            IsCloning = true;
+            CloneProgressText = "⏳ 准备克隆…";
+            var progress = new Progress<string>(line =>
+            {
+                CloneProgressText = line.Length > 120 ? line[..120] + "…" : line;
+            });
+            try
+            {
+                var result = await _gitService.CloneAsync(
+                    EditGitUrl, EditCloneDirectory, progress, _cloneCts!.Token);
+
+                if (result.Success)
+                {
+                    EditWorkingDirectory = result.RepoRoot;
+                    var picked = await _dialogService.PickScriptFileInDirectoryAsync(result.RepoRoot);
+                    if (!string.IsNullOrEmpty(picked)) EditScriptPath = picked;
+
+                    await _dialogService.ShowCloneLogAsync(
+                        "克隆成功",
+                        $"仓库已克隆到：\n{result.RepoRoot}\n\n可在「启动方式」中选择脚本。",
+                        result.Logs,
+                        success: true);
+                }
+                else
+                {
+                    if (result.Cancelled)
+                    {
+                        TryDeleteCloneDirectory(EditCloneDirectory);
+                    }
+                    await _dialogService.ShowCloneLogAsync(
+                        result.Cancelled ? "克隆已取消" : "克隆失败",
+                        result.Cancelled ? "操作已取消，目标目录已清理。" : result.ErrorMessage,
+                        result.Logs,
+                        success: false);
+                }
+            }
+            catch (Exception ex)
+            {
+                await _dialogService.ShowCloneLogAsync("克隆异常", ex.Message, Array.Empty<string>(), success: false);
+            }
+            finally
+            {
+                IsCloning = false;
+                CloneProgressText = string.Empty;
+                _cloneCts?.Dispose();
+                _cloneCts = null;
+            }
+        }
+
+        private static void TryDeleteCloneDirectory(string dir)
+        {
+            try
+            {
+                if (!string.IsNullOrEmpty(dir) && Directory.Exists(dir))
+                    Directory.Delete(dir, recursive: true);
+            }
+            catch { /* best-effort */ }
+        }
+
+        // =========================================================
+        // 导入 / 导出
+        // =========================================================
+
+        [RelayCommand]
+        private async Task ImportToolsAsync()
+        {
+            var picked = await _filePickerService.PickFileAsync("选择要导入的 JSON", "*.json");
+            if (string.IsNullOrEmpty(picked)) return;
+            var list = await _persistence.ImportAsync(picked);
+            if (list == null)
+            {
+                await _dialogService.ShowEnvironmentResultAsync("导入失败", "JSON 文件无效或无法解析。", false);
+                return;
+            }
+            Projects = new ObservableCollection<ToolProject>(list);
+            _ = _persistence.SaveAsync(Projects);
+            await _dialogService.ShowEnvironmentResultAsync("导入成功",
+                $"已导入 {list.Count} 个工具。", true);
+        }
+
+        [RelayCommand]
+        private async Task ExportToolsAsync()
+        {
+            var picked = await _filePickerService.PickFileAsync("选择导出路径", "*.json");
+            if (string.IsNullOrEmpty(picked)) return;
+            try
+            {
+                await _persistence.ExportAsync(picked, Projects);
+                await _dialogService.ShowEnvironmentResultAsync("导出成功",
+                    $"已导出 {Projects.Count} 个工具到：\n{picked}", true);
+            }
+            catch (Exception ex)
+            {
+                await _dialogService.ShowEnvironmentResultAsync("导出失败", ex.Message, false);
+            }
         }
     }
 }

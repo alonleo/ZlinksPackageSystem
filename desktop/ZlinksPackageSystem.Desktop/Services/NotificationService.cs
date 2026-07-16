@@ -74,7 +74,7 @@ namespace ZlinksPackageSystem.Desktop.Services
             return results;
         }
 
-        private (bool allowed, int maxChars, List<FeishuConfig> channels) ResolveEffective(
+        private (bool allowed, int maxChars, IList<FeishuConfig> channels) ResolveEffective(
             ToolProject project, GlobalNotificationConfig global, NotificationTrigger trigger)
         {
             var t = project.Notification ?? new NotificationConfig();

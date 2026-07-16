@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -316,7 +317,7 @@ namespace ZlinksPackageSystem.SmokeTest
                         NotifyOnSuccess = true,
                         NotifyOnFailure = true,
                         MaxOutputChars = 2000,
-                        Channels = new List<FeishuConfig>
+                        Channels = new ObservableCollection<FeishuConfig>
                         {
                             new() { RobotType = FeishuRobotType.Custom, WebhookUrl = "https://x", AtAll = true },
                             new() { RobotType = FeishuRobotType.App, AppId = "cli_x", AppSecret = "secret", ReceiveId = "oc_xxx" }
@@ -370,7 +371,7 @@ namespace ZlinksPackageSystem.SmokeTest
                 {
                     IsEnabled = true,
                     NotifyOnSuccess = true,
-                    Channels = new List<FeishuConfig>
+                    Channels = new ObservableCollection<FeishuConfig>
                     {
                         new() { RobotType = FeishuRobotType.Custom, WebhookUrl = "https://x" }
                     }
@@ -396,7 +397,7 @@ namespace ZlinksPackageSystem.SmokeTest
                 var global = new InMemoryGlobalNotificationService(new GlobalNotificationConfig
                 {
                     NotifyOnSuccess = true,
-                    Channels = new List<FeishuConfig>
+                    Channels = new ObservableCollection<FeishuConfig>
                     {
                         new() { RobotType = FeishuRobotType.Custom, WebhookUrl = "https://should-not-call" }
                     }
@@ -409,7 +410,7 @@ namespace ZlinksPackageSystem.SmokeTest
                     {
                         UseGlobalSettings = false,
                         NotifyOnSuccess = true,
-                        Channels = new List<FeishuConfig>
+                        Channels = new ObservableCollection<FeishuConfig>
                         {
                             new() { RobotType = FeishuRobotType.Custom, WebhookUrl = "https://override" }
                         }
@@ -421,16 +422,16 @@ namespace ZlinksPackageSystem.SmokeTest
                 Assert("called override", hits == 1);
             });
 
-            // ===== 16. NotificationService 触发时机过滤 =====
+// ===== 16. NotificationService 触发时机过滤 =====
             Test("NotificationService 触发时机过滤", () =>
             {
                 int hits = 0;
                 var handler = new MockHttpHandler(req => { hits++; return MockHttpHandler.OkJson("{\"ok\":true}"); });
                 var global = new InMemoryGlobalNotificationService(new GlobalNotificationConfig
                 {
-                    NotifyOnStart = false,  // 故意关闭
+                    NotifyOnStart = false,
                     NotifyOnSuccess = true,
-                    Channels = new List<FeishuConfig>
+                    Channels = new ObservableCollection<FeishuConfig>
                     {
                         new() { RobotType = FeishuRobotType.Custom, WebhookUrl = "https://x" }
                     }
@@ -441,6 +442,26 @@ namespace ZlinksPackageSystem.SmokeTest
                 var results = svc.SendAsync(proj, snap).GetAwaiter().GetResult();
                 AssertEq("hits", 0, hits);
                 AssertEq("results count", 0, results.Count);
+            });
+
+            // ===== 17. NotificationConfig UseGlobalSettings PropertyChanged =====
+            Test("NotificationConfig UseGlobalSettings PropertyChanged 触发", () =>
+            {
+                var cfg = new NotificationConfig { UseGlobalSettings = true };
+                bool fired = false;
+                cfg.PropertyChanged += (_, e) => { if (e.PropertyName == "UseGlobalSettings") fired = true; };
+                cfg.UseGlobalSettings = false;
+                Assert("PropertyChanged fired", fired);
+            });
+
+            // ===== 18. NotificationConfig.Channels ObservableCollection 通知 =====
+            Test("NotificationConfig Channels ObservableCollection.CollectionChanged", () =>
+            {
+                var cfg = new NotificationConfig();
+                bool fired = false;
+                cfg.Channels.CollectionChanged += (_, _) => { fired = true; };
+                cfg.Channels.Add(new FeishuConfig());
+                Assert("CollectionChanged fired", fired);
             });
 
             Console.WriteLine();

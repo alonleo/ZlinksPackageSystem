@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+using System.Collections.ObjectModel;
 
 namespace ZlinksPackageSystem.Desktop.Models
 {
@@ -12,6 +12,6 @@ namespace ZlinksPackageSystem.Desktop.Models
         public bool NotifyOnSuccess { get; set; } = true;
         public bool NotifyOnFailure { get; set; } = true;
         public int MaxOutputChars { get; set; } = 4000;
-        public List<FeishuConfig> Channels { get; set; } = new();
+        public ObservableCollection<FeishuConfig> Channels { get; set; } = new();
     }
 }

@@ -84,4 +84,8 @@ export const productApi = {
   downloadTemplate(format: 'xlsx' | 'json' = 'xlsx'): Promise<Blob> {
     return api.get('/products/template', { params: { format }, responseType: 'blob' })
   },
+
+  getAll(): Promise<{ data: { id: number; packageName: string; gameName?: string }[] }> {
+    return api.get('/products/all')
+  },
 }

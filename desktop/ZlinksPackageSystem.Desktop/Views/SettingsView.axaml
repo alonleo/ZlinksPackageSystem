@@ -471,7 +471,8 @@
                                 <Button Content="👁 显隐 Secret" Command="{Binding ToggleGlobalSecretsVisibilityCommand}" />
                                 <Button Content="＋ 添加渠道" Command="{Binding AddGlobalNotificationChannelCommand}" />
                             </StackPanel>
-                            <ItemsControl ItemsSource="{Binding GlobalNotification.Channels}">
+                            <ItemsControl ItemsSource="{Binding GlobalNotification.Channels}"
+                                              local:FeishuChannelEditor.RemoveRequested="OnGlobalChannelRemoveRequested">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
                                         <local:FeishuChannelEditor />

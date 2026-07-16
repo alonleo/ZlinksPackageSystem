@@ -500,7 +500,8 @@
 
                                 <!-- 渠道列表：继承全局时禁用 -->
                                 <TextBlock Text="📡 飞书渠道（继承全局时禁用）" FontSize="12" Foreground="#99BFcbd9" />
-                                <Border IsEnabled="{Binding EditNotification.UseGlobalSettings, Converter={StaticResource BooleanInverseConverter}}">
+                                <Border IsEnabled="{Binding EditNotification.UseGlobalSettings, Converter={StaticResource BooleanInverseConverter}}"
+                                        local:FeishuChannelEditor.RemoveRequested="OnNotificationChannelRemoveRequested">
                                     <ItemsControl ItemsSource="{Binding EditNotification.Channels}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>

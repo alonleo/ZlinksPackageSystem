@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using Avalonia.Input;
+using Avalonia.Interactivity;
 using ZlinksPackageSystem.Desktop.Models;
 using ZlinksPackageSystem.Desktop.ViewModels;
 
@@ -24,6 +25,15 @@ namespace ZlinksPackageSystem.Desktop.Views
                     if (project.IsRunning) return;
                     _ = vm.OpenProjectCommand.ExecuteAsync(project);
                 }
+            }
+        }
+
+        private void OnNotificationChannelRemoveRequested(object? sender, RoutedEventArgs e)
+        {
+            if (e.Source is Control { DataContext: FeishuConfig channel }
+                && DataContext is ToolLibraryViewModel vm)
+            {
+                vm.RemoveNotificationChannelCommand.Execute(channel);
             }
         }
     }

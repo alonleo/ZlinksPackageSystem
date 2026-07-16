@@ -57,6 +57,13 @@ namespace ZlinksPackageSystem.Desktop.Models
         /// <summary>参数列表</summary>
         public List<ToolArgument> Arguments { get; set; } = new();
 
+        // ===== Git 仓库（仅新建时填写，编辑时不再修改）=====
+        /// <summary>Git 仓库 URL（HTTPS 或 SSH），可选</summary>
+        public string GitUrl { get; set; } = string.Empty;
+
+        /// <summary>克隆目标父目录（如 D:\tools），可选</summary>
+        public string CloneDirectory { get; set; } = string.Empty;
+
         // ===== 运行时状态（不参与持久化）=====
         /// <summary>是否正在运行</summary>
         [JsonIgnore]
@@ -65,5 +72,9 @@ namespace ZlinksPackageSystem.Desktop.Models
         /// <summary>当前运行进程的 PID</summary>
         [JsonIgnore]
         public int? ProcessId { get; set; }
+
+        /// <summary>运行期：克隆成功后实际生成的仓库根目录（= CloneDirectory/<repo名>）。不参与持久化。</summary>
+        [JsonIgnore]
+        public string ClonedRepoRoot { get; set; } = string.Empty;
     }
 }

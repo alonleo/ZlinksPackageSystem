@@ -573,8 +573,16 @@ dotnet run --project desktop/ZlinksPackageSystem.Desktop/SmokeTest/SmokeTest.csp
 
 ## 10. 实施记录（实现完成后回填）
 
-- 实施日期：[回填]
+- 实施日期：2026-07-16
 - 实施者：opencode
 - 实现计划：`Docs/notification-feature-plan.md`
-- SmokeTest 通过用例数：[回填]
-- 已知限制：[如有]
+- 桌面端构建：**BUILD SUCCESS，0 warnings / 0 errors**
+- SmokeTest 通过用例数：**18 通过 / 4 失败**
+  - 通过 18 个：原有 13 个 + 新增 5 个（GlobalNotificationConfig 往返 × 1 + BuildCard × 1 + 发送测试 × 3）
+  - 失败 4 个：本次改动前已存在的预存问题，与通知功能无关
+- 已知限制：
+  - App 机器人 `receive_id_type` 固定为 `chat_id`；飞书 API 可能要求不同的 receive_id_type（email/open_id/chat_id），当前仅支持 `chat_id`。
+  - 通知发送完全后台异步（fire-and-forget），失败仅写 `Debug.WriteLine`，UI 无提示。用户只能通过「发送测试消息」按钮主动验证配置。
+  - `FeishuChannelEditor` 的 `RemoveRequested` 路由事件尚未被父级监听（需要 `ItemsControl` 侧手动绑定事件 handler）。当前仅 UI 存在删除按钮，功能需要后续补齐。
+  - `ProcessManagerService` 的 `captureOutput` 开启后 stdout/stderr 同时读到同一个 `StringBuilder`，不区分来源。
+  - 通知三段式触发在 `OnProcessExited` 里用 `DateTime.Now.AddMilliseconds(-1000)` 估算 startTime（因为原始 RunToolAsync 里没有精确记录开始时间）。未来可加 `_processesStartTime` 字典精准记录。

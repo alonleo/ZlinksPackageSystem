@@ -33,5 +33,11 @@ namespace ZlinksPackageSystem.Desktop.Services
             ToolProject project,
             string initialCommandLine,
             IEnumerable<EditableArgument> arguments);
+
+        /// <summary>在指定目录里挑一个脚本文件（.py/.js/.ts/.java/.go/.ps1/.sh/.bat/.cmd）。返回 null=取消。</summary>
+        Task<string?> PickScriptFileInDirectoryAsync(string directory);
+
+        /// <summary>显示克隆日志详情弹窗（含可滚动只读日志 + 复制按钮）。</summary>
+        Task ShowCloneLogAsync(string title, string message, IReadOnlyList<string> logs, bool success);
     }
 }

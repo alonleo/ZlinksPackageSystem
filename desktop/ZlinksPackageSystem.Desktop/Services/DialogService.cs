@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -9,6 +10,7 @@ using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Controls.Shapes;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Platform.Storage;
 using ZlinksPackageSystem.Desktop.Models;
 
 namespace ZlinksPackageSystem.Desktop.Services
@@ -1159,6 +1161,159 @@ namespace ZlinksPackageSystem.Desktop.Services
 
             await dialog.ShowDialog(owner);
             return result;
+        }
+
+        // ============================================================
+        // Git 克隆相关：脚本文件挑选 + 日志详情
+        // ============================================================
+        public async Task<string?> PickScriptFileInDirectoryAsync(string directory)
+        {
+            var owner = Owner;
+            if (owner == null) return null;
+            try
+            {
+                if (string.IsNullOrEmpty(directory) || !Directory.Exists(directory)) return null;
+
+                var startFolder = await owner.StorageProvider.TryGetFolderFromPathAsync(new Uri(directory));
+                var options = new FilePickerOpenOptions
+                {
+                    Title = "选择脚本文件",
+                    AllowMultiple = false,
+                    SuggestedStartLocation = startFolder,
+                    FileTypeFilter = new[]
+                    {
+                        new FilePickerFileType("脚本文件")
+                        {
+                            Patterns = new[] { "*.py", "*.js", "*.ts", "*.java", "*.go", "*.ps1", "*.sh", "*.bat", "*.cmd" }
+                        },
+                        new FilePickerFileType("所有文件") { Patterns = new[] { "*" } }
+                    }
+                };
+
+                var files = await owner.StorageProvider.OpenFilePickerAsync(options);
+                var first = files?.FirstOrDefault();
+                if (first == null) return null;
+                return first.Path?.LocalPath ?? first.Path?.ToString();
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        public async Task ShowCloneLogAsync(string title, string message, IReadOnlyList<string> logs, bool success)
+        {
+            var owner = Owner;
+            if (owner == null) return;
+
+            var iconColor = success
+                ? new SolidColorBrush(Color.Parse("#FF52C41A"))
+                : new SolidColorBrush(Color.Parse("#FFF56C6C"));
+            var icon = success ? "✅" : "❌";
+
+            var dialog = new Window
+            {
+                Title = title,
+                SizeToContent = SizeToContent.WidthAndHeight,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                CanResize = true,
+                MinWidth = 480,
+                MinHeight = 320,
+                SystemDecorations = SystemDecorations.None,
+                Background = new SolidColorBrush(Color.Parse("#F01e1e2e"))
+            };
+
+            var header = new Border
+            {
+                Background = new SolidColorBrush(Color.Parse("#22FFFFFF")),
+                Padding = new Thickness(18, 12),
+                Child = new TextBlock
+                {
+                    Text = $"{icon}  {title}",
+                    FontSize = 15,
+                    FontWeight = FontWeight.Bold,
+                    Foreground = iconColor
+                }
+            };
+
+            var messageBlock = new TextBlock
+            {
+                Text = message,
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(20, 16, 20, 12),
+                FontSize = 13,
+                Foreground = new SolidColorBrush(Color.Parse("#FFBFcbd9"))
+            };
+
+            var logBox = new TextBox
+            {
+                Text = logs == null || logs.Count == 0 ? "（无日志）" : string.Join(Environment.NewLine, logs),
+                IsReadOnly = true,
+                AcceptsReturn = true,
+                TextWrapping = TextWrapping.Wrap,
+                FontFamily = new FontFamily("Consolas, Menlo, Courier New, monospace"),
+                FontSize = 11,
+                Height = 200,
+                Margin = new Thickness(20, 0, 20, 8),
+                Background = new SolidColorBrush(Color.Parse("#0DFFFFFF")),
+                BorderBrush = new SolidColorBrush(Color.Parse("#33FFFFFF")),
+                BorderThickness = new Thickness(1),
+                Padding = new Thickness(8)
+            };
+
+            var copyBtn = new Button
+            {
+                Content = "📋 复制日志",
+                Width = 120,
+                Height = 32,
+                Margin = new Thickness(20, 0, 6, 0),
+                HorizontalAlignment = HorizontalAlignment.Left
+            };
+            copyBtn.Click += async (_, _) =>
+            {
+                try
+                {
+                    var clipboard = TopLevel.GetTopLevel(dialog)?.Clipboard;
+                    if (clipboard != null)
+                        await clipboard.SetTextAsync(logBox.Text ?? string.Empty);
+                }
+                catch { /* best-effort */ }
+            };
+
+            var okBtn = new Button
+            {
+                Content = "确定",
+                Width = 100,
+                Height = 32,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Background = new SolidColorBrush(Color.Parse("#FF1976D2")),
+                BorderBrush = new SolidColorBrush(Color.Parse("#FF1976D2")),
+                Foreground = new SolidColorBrush(Colors.White),
+                Margin = new Thickness(0, 0, 20, 16)
+            };
+            okBtn.Click += (_, _) => dialog.Close();
+
+            var btnRow = new Grid
+            {
+                ColumnDefinitions = new ColumnDefinitions("Auto,*"),
+                Margin = new Thickness(0, 4, 0, 0)
+            };
+            btnRow.Children.Add(copyBtn);
+            Grid.SetColumn(copyBtn, 0);
+            btnRow.Children.Add(okBtn);
+            Grid.SetColumn(okBtn, 1);
+
+            var root = new DockPanel { LastChildFill = true };
+            DockPanel.SetDock(header, Dock.Top);
+            root.Children.Add(header);
+            DockPanel.SetDock(messageBlock, Dock.Top);
+            root.Children.Add(messageBlock);
+            DockPanel.SetDock(btnRow, Dock.Bottom);
+            root.Children.Add(btnRow);
+            root.Children.Add(logBox);
+
+            dialog.Content = root;
+            await dialog.ShowDialog(owner);
         }
     }
 }

@@ -1,7 +1,10 @@
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.Text;
 using System.Threading.Tasks;
+using System.Timers;
 
 namespace ZlinksPackageSystem.Desktop.Services
 {
@@ -11,17 +14,41 @@ namespace ZlinksPackageSystem.Desktop.Services
     ///   1. 维护 PID → Process 的字典
     ///   2. 启动时启用 Exited 事件，自动从字典中移除并回调
     ///   3. 杀进程：先优雅关主窗口 → 等待 → 强杀整棵树
+    ///   4. captureOutput=true 时同时把 stdout/stderr 持续缓冲到 _outputs
     /// </summary>
     public class ProcessManagerService : IProcessManagerService
     {
         private readonly ConcurrentDictionary<int, Process> _processes = new();
+        private readonly ConcurrentDictionary<int, StringBuilder> _outputs = new();
         private readonly TimeSpan _gracefulKillTimeout = TimeSpan.FromSeconds(2);
+        private readonly System.Timers.Timer _outputTimer;
 
         public event Action<int, int>? ProcessExited;
+        public event Action<int>? OutputCaptured;
 
-        public int Start(ProcessStartInfo psi)
+        public ProcessManagerService()
+        {
+            _outputTimer = new System.Timers.Timer(500) { AutoReset = true };
+            _outputTimer.Elapsed += (_, _) =>
+            {
+                foreach (var key in _outputs.Keys)
+                {
+                    try { OutputCaptured?.Invoke(key); } catch { /* 吞订阅者异常 */ }
+                }
+            };
+            _outputTimer.Start();
+        }
+
+        public int Start(ProcessStartInfo psi, bool captureOutput = false)
         {
             if (psi == null) return 0;
+
+            if (captureOutput)
+            {
+                psi.RedirectStandardOutput = true;
+                psi.RedirectStandardError = true;
+                psi.UseShellExecute = false;
+            }
 
             try
             {
@@ -30,6 +57,27 @@ namespace ZlinksPackageSystem.Desktop.Services
                     StartInfo = psi,
                     EnableRaisingEvents = true
                 };
+
+                int id = 0;
+                StringBuilder sb = new();
+                if (captureOutput)
+                {
+                    proc.OutputDataReceived += (_, e) =>
+                    {
+                        if (e.Data != null)
+                        {
+                            lock (sb) { sb.AppendLine(e.Data); }
+                        }
+                    };
+                    proc.ErrorDataReceived += (_, e) =>
+                    {
+                        if (e.Data != null)
+                        {
+                            lock (sb) { sb.AppendLine(e.Data); }
+                        }
+                    };
+                }
+
                 proc.Exited += (_, _) =>
                 {
                     int pid = 0;
@@ -43,6 +91,10 @@ namespace ZlinksPackageSystem.Desktop.Services
                     finally
                     {
                         _processes.TryRemove(pid, out _);
+                        if (captureOutput)
+                        {
+                            _outputs[pid] = sb;
+                        }
                         try { ProcessExited?.Invoke(pid, code); } catch { /* 吞掉订阅者异常 */ }
                     }
                 };
@@ -50,8 +102,15 @@ namespace ZlinksPackageSystem.Desktop.Services
                 if (!proc.Start())
                     return 0;
 
-                int id = proc.Id;
+                id = proc.Id;
                 _processes[id] = proc;
+
+                if (captureOutput)
+                {
+                    try { proc.BeginOutputReadLine(); } catch { }
+                    try { proc.BeginErrorReadLine(); } catch { }
+                    _outputs[id] = sb;
+                }
                 return id;
             }
             catch
@@ -70,14 +129,11 @@ namespace ZlinksPackageSystem.Desktop.Services
                 if (proc.HasExited)
                     return true;
 
-                // 1) 尝试优雅关闭（GUI 程序才会响应 CloseMainWindow）
-                try { proc.CloseMainWindow(); } catch { /* 控制台程序无主窗口，忽略 */ }
+                try { proc.CloseMainWindow(); } catch { }
 
-                // 2) 等待 gracefulKillTimeout
                 if (proc.WaitForExit((int)_gracefulKillTimeout.TotalMilliseconds))
                     return true;
 
-                // 3) 仍未退出 → 强杀整棵进程树
                 try
                 {
                     if (OperatingSystem.IsWindows())
@@ -85,7 +141,7 @@ namespace ZlinksPackageSystem.Desktop.Services
                     else
                         proc.Kill(entireProcessTree: true);
                 }
-                catch { /* 已退出 */ }
+                catch { }
 
                 return true;
             }
@@ -107,6 +163,11 @@ namespace ZlinksPackageSystem.Desktop.Services
             {
                 return false;
             }
+        }
+
+        public string GetOutput(int processId)
+        {
+            return _outputs.TryGetValue(processId, out var sb) ? sb.ToString() : string.Empty;
         }
     }
 }

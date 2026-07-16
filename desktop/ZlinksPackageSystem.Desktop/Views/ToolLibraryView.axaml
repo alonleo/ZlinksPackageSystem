@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="clr-namespace:ZlinksPackageSystem.Desktop.ViewModels"
              xmlns:models="clr-namespace:ZlinksPackageSystem.Desktop.Models"
+             xmlns:local="clr-namespace:ZlinksPackageSystem.Desktop.Views"
              x:Class="ZlinksPackageSystem.Desktop.Views.ToolLibraryView">
 
     <UserControl.Styles>
@@ -228,7 +229,9 @@
                         BorderBrush="#33FFFFFF" BorderThickness="1">
             <ScrollViewer VerticalScrollBarVisibility="Disabled"
                           HorizontalScrollBarVisibility="Disabled">
-                    <StackPanel Spacing="10">
+                    <TabControl SelectedIndex="{Binding SelectedTabIndex}">
+                        <TabItem Header="📋 工具设置">
+                            <StackPanel Spacing="10">
 
                                         <!-- 弹窗标题 -->
                                         <TextBlock Text="📝 工具信息" FontSize="16" FontWeight="Bold" Foreground="White" />
@@ -454,8 +457,75 @@
                                 Background="#FF1976D2" BorderBrush="#FF1976D2"
                                 Foreground="White"
                                 Command="{Binding SaveProjectCommand}" />
-                    </StackPanel>
-                                    </StackPanel>
+                            </StackPanel>
+                            </StackPanel>
+                        </TabItem>
+
+                        <!-- ===== Tab 2: 通知 ===== -->
+                        <TabItem Header="📢 通知">
+                            <StackPanel Spacing="10">
+                                <TextBlock Text="📢 通知配置（Q3-C：默认继承全局设置）"
+                                           FontSize="13" FontWeight="SemiBold" Foreground="White" />
+
+                                <!-- 顶部操作行：使用全局设置 + 显隐 + 测试 -->
+                                <Grid ColumnDefinitions="*,Auto,Auto">
+                                    <CheckBox Grid.Column="0" Content="使用全局通知设置"
+                                              IsChecked="{Binding EditNotification.UseGlobalSettings}" />
+                                    <Button Grid.Column="1" Content="👁"
+                                            Command="{Binding ToggleSecretsVisibilityCommand}"
+                                            Width="36" ToolTip.Tip="显隐 App Secret" />
+                                    <Button Grid.Column="2" Content="📤 发送测试消息"
+                                            Command="{Binding TestNotificationCommand}"
+                                            Width="140" Margin="6,0,0,0" />
+                                </Grid>
+
+                                <!-- 三段式触发 -->
+                                <StackPanel Orientation="Horizontal" Spacing="16">
+                                    <CheckBox Content="▶ 启动时" IsChecked="{Binding EditNotification.NotifyOnStart}" />
+                                    <CheckBox Content="✅ 成功时" IsChecked="{Binding EditNotification.NotifyOnSuccess}" />
+                                    <CheckBox Content="❌ 失败时" IsChecked="{Binding EditNotification.NotifyOnFailure}" />
+                                </StackPanel>
+
+                                <!-- 输出截断 -->
+                                <Grid ColumnDefinitions="Auto,*">
+                                    <TextBlock Grid.Column="0" Text="脚本输出最大字符数："
+                                               VerticalAlignment="Center" Margin="0,0,8,0"
+                                               Foreground="#FFBFcbd9" />
+                                    <NumericUpDown Grid.Column="1"
+                                                   Value="{Binding EditNotification.MaxOutputChars}"
+                                                   Minimum="0" Maximum="100000" />
+                                </Grid>
+
+                                <Separator />
+
+                                <!-- 渠道列表：继承全局时禁用 -->
+                                <TextBlock Text="📡 飞书渠道（继承全局时禁用）" FontSize="12" Foreground="#99BFcbd9" />
+                                <Border IsEnabled="{Binding EditNotification.UseGlobalSettings, Converter={StaticResource BooleanInverseConverter}}">
+                                    <ItemsControl ItemsSource="{Binding EditNotification.Channels}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <local:FeishuChannelEditor />
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </Border>
+                                <Button Content="＋ 添加渠道" Command="{Binding AddNotificationChannelCommand}"
+                                        HorizontalAlignment="Left"
+                                        IsEnabled="{Binding EditNotification.UseGlobalSettings, Converter={StaticResource BooleanInverseConverter}}" />
+
+                                <Separator />
+
+                                <!-- 底部按钮 -->
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
+                                    <Button Content="取消" Width="80" Command="{Binding CancelEditCommand}" />
+                                    <Button Content="💾 保存" Width="100"
+                                            Background="#FF1976D2" BorderBrush="#FF1976D2"
+                                            Foreground="White"
+                                            Command="{Binding SaveProjectCommand}" />
+                                </StackPanel>
+                            </StackPanel>
+                        </TabItem>
+                    </TabControl>
             </ScrollViewer>
                                 </Border>
                             </Border>

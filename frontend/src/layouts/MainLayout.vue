@@ -122,19 +122,6 @@ const handleCloseAll = async () => {
           <el-icon><HomeFilled /></el-icon>
           <template #title>首页</template>
         </el-menu-item>
-        <el-sub-menu index="system-mgmt">
-          <template #title>
-            <el-icon><UserFilled /></el-icon>
-            <span>系统管理</span>
-          </template>
-          <el-menu-item
-            v-for="item in systemMgmtItems"
-            :key="item.index"
-            :index="item.index"
-          >
-            {{ item.title }}
-          </el-menu-item>
-        </el-sub-menu>
         <el-sub-menu index="package">
           <template #title>
             <el-icon><Box /></el-icon>
@@ -142,6 +129,19 @@ const handleCloseAll = async () => {
           </template>
           <el-menu-item
             v-for="item in packageItems"
+            :key="item.index"
+            :index="item.index"
+          >
+            {{ item.title }}
+          </el-menu-item>
+        </el-sub-menu>
+        <el-sub-menu index="system-mgmt">
+          <template #title>
+            <el-icon><UserFilled /></el-icon>
+            <span>系统管理</span>
+          </template>
+          <el-menu-item
+            v-for="item in systemMgmtItems"
             :key="item.index"
             :index="item.index"
           >

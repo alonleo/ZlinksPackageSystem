@@ -3,6 +3,8 @@ import { ref, onMounted, reactive } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Refresh, Plus, Edit, Delete, Upload, Download, ArrowDown, User as UserIcon } from '@element-plus/icons-vue'
 import { permissionApi } from '@/api/permission'
+import { permissionScopeApi } from '@/api/permission'
+import { BACKEND_MODULE_OPTIONS, DESKTOP_MODULE_OPTIONS } from '@/types/permission-group'
 import type { PermissionGroup } from '@/types/permission-group'
 import type { User } from '@/types/user'
 
@@ -32,23 +34,23 @@ const searchForm = ref({ groupName: '' })
 
 const form = reactive({
   groupName: '',
-  selectedModules: [] as string[],
   remark: '',
 })
+
+const backendModulesSelection = ref<string[]>([])
+const desktopModulesSelection = ref<string[]>([])
 
 const rules = {
   groupName: [{ required: true, message: '请输入权限组名称', trigger: 'blur' }],
 }
 
-const moduleOptions = [
-  { label: '全部模块', value: 'all' },
-  { label: '首页', value: 'home' },
-  { label: '系统管理', value: 'system-mgmt' },
-  { label: '系统设置', value: 'system-settings' },
-  { label: '打包管理', value: 'package' },
-]
-
-const prevModules = ref<string[]>([])
+const parseScopeModules = (modulesText?: string) => {
+  if (!modulesText) return []
+  try {
+    const modules = JSON.parse(modulesText)
+    return Array.isArray(modules) ? modules.map(String) : []
+  } catch { return [] }
+}
 
 const fetchList = async () => {
   loading.value = true
@@ -70,12 +72,18 @@ const handleSelectionChange = (rows: any[]) => {
 
 const resetForm = () => {
   form.groupName = ''
-  form.selectedModules = []
   form.remark = ''
-  prevModules.value = []
+  backendModulesSelection.value = []
+  desktopModulesSelection.value = []
 }
 
-const handleAdd = () => { resetForm(); title.value = '添加权限组'; open.value = true }
+const handleAdd = () => {
+  ids.value = []
+  resetForm()
+  title.value = '添加权限组'
+  open.value = true
+}
+
 const handleUpdate = async (row?: any) => {
   const id = row?.id ?? ids.value[0]
   if (!id) return
@@ -83,41 +91,33 @@ const handleUpdate = async (row?: any) => {
     const { data } = await permissionApi.getById(id)
     form.groupName = data.groupName
     form.remark = data.remark || ''
-    try {
-      const config = JSON.parse(data.groupPermission)
-      form.selectedModules = config.modules || []
-    } catch { form.selectedModules = [] }
-    prevModules.value = [...form.selectedModules]
-    title.value = '修改权限组'; open.value = true
+    const { data: scopes } = await permissionScopeApi.list(id)
+    const backend = scopes.find(scope => scope.scope === 'backend')
+    const desktop = scopes.find(scope => scope.scope === 'desktop')
+    backendModulesSelection.value = backend?.modules ?? parseScopeModules(backend?.modulesText)
+    desktopModulesSelection.value = desktop?.modules ?? parseScopeModules(desktop?.modulesText)
+    ids.value = [id]
+    title.value = '修改权限组'
+    open.value = true
   } catch { ElMessage.error('获取权限详情失败') }
-}
-
-const handleModuleChange = (values: unknown[]) => {
-  const strValues = values.map(String)
-  const hadAll = prevModules.value.includes('all')
-  const hasAll = strValues.includes('all')
-  if (!hadAll && hasAll) form.selectedModules = moduleOptions.map(m => m.value)
-  else if (hadAll && !hasAll) form.selectedModules = []
-  else if (hasAll && strValues.length < moduleOptions.length) form.selectedModules = strValues.filter(v => v !== 'all')
-  prevModules.value = [...form.selectedModules]
 }
 
 const handleSubmit = async () => {
   try {
-    let modules = form.selectedModules
-    if (modules.includes('all')) modules = ['all']
-    const data = {
-      groupName: form.groupName,
-      groupPermission: JSON.stringify({ modules }),
-      remark: form.remark,
+    const data = { groupName: form.groupName, remark: form.remark }
+    let groupId: number
+    if (ids.value.length === 1) {
+      await permissionApi.update(ids.value[0], data)
+      groupId = ids.value[0]
+    } else {
+      const { data: created } = await permissionApi.create(data)
+      groupId = created.id
     }
-    if (open.value && data) {
-      const id = ids.value[0]
-      if (id) await permissionApi.update(id, data)
-      else await permissionApi.create(data)
-    }
-    ElMessage.success(ids.value.length ? '修改成功' : '新增成功')
-    open.value = false; fetchList()
+    await permissionScopeApi.upsert(groupId, 'backend', backendModulesSelection.value)
+    await permissionScopeApi.upsert(groupId, 'desktop', desktopModulesSelection.value)
+    ElMessage.success('保存成功')
+    open.value = false
+    fetchList()
   } catch { ElMessage.error('操作失败') }
 }
 
@@ -264,11 +264,14 @@ onMounted(() => fetchList())
     <el-dialog :title="title" v-model="open" width="500px" append-to-body>
       <el-form :model="form" :rules="rules" label-width="100px">
         <el-form-item label="权限组名称" prop="groupName"><el-input v-model="form.groupName" /></el-form-item>
-        <el-form-item label="权限配置">
-          <el-checkbox-group v-model="form.selectedModules" @change="handleModuleChange">
-            <el-checkbox v-for="item in moduleOptions" :key="item.value" :label="item.value" :value="item.value">
-              {{ item.label }}
-            </el-checkbox>
+        <el-form-item label="后台模块">
+          <el-checkbox-group v-model="backendModulesSelection">
+            <el-checkbox v-for="o in BACKEND_MODULE_OPTIONS" :key="o.value" :value="o.value">{{ o.label }}</el-checkbox>
+          </el-checkbox-group>
+        </el-form-item>
+        <el-form-item label="桌面端模块">
+          <el-checkbox-group v-model="desktopModulesSelection">
+            <el-checkbox v-for="o in DESKTOP_MODULE_OPTIONS" :key="o.value" :value="o.value">{{ o.label }}</el-checkbox>
           </el-checkbox-group>
         </el-form-item>
         <el-form-item label="备注"><el-input v-model="form.remark" type="textarea" /></el-form-item>

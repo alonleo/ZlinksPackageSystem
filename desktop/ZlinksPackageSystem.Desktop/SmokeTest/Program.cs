@@ -220,6 +220,40 @@ namespace ZlinksPackageSystem.SmokeTest
                 AssertEq("LocalExecutable=1", 1, (int)ToolRunMode.LocalExecutable);
             });
 
+            // ===== 9. GitUrl 解析 =====
+            Test("GitUrl.ParseRepoName HTTPS with .git", () =>
+            {
+                AssertEq("repo name", "y", GitUrlParser.ParseRepoName("https://github.com/x/y.git"));
+            });
+            Test("GitUrl.ParseRepoName HTTPS without .git", () =>
+            {
+                AssertEq("repo name", "y", GitUrlParser.ParseRepoName("https://github.com/x/y"));
+            });
+            Test("GitUrl.ParseRepoName SSH", () =>
+            {
+                AssertEq("repo name", "y", GitUrlParser.ParseRepoName("git@github.com:x/y.git"));
+            });
+            Test("GitUrl.ParseRepoName with token", () =>
+            {
+                AssertEq("repo name", "y", GitUrlParser.ParseRepoName("https://token@github.com/x/y.git"));
+            });
+            Test("GitUrl.ParseRepoName invalid throws", () =>
+            {
+                try
+                {
+                    GitUrlParser.ParseRepoName("");
+                    throw new Exception("未抛异常");
+                }
+                catch (ArgumentException) { /* 预期 */ }
+            });
+            Test("GitUrl.CombineRepoRoot", () =>
+            {
+                AssertEq("root", Path.Combine("D:\\tools", "y"),
+                    GitUrlParser.CombineRepoRoot("D:\\tools", "y"));
+                AssertEq("root unix", "/tools/y",
+                    GitUrlParser.CombineRepoRoot("/tools", "y"));
+            });
+
             Console.WriteLine();
             Console.WriteLine($"=== 结果：通过 {_passed}，失败 {_failed} ===");
             Environment.Exit(_failed == 0 ? 0 : 1);

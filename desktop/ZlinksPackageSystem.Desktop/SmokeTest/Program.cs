@@ -254,6 +254,53 @@ namespace ZlinksPackageSystem.SmokeTest
                     GitUrlParser.CombineRepoRoot("/tools", "y"));
             });
 
+            // ===== 10. ToolPersistenceService Save→Load 往返（含 Git 字段） =====
+            Test("ToolPersistenceService.Save→Load 往返", () =>
+            {
+                var tmp = Path.Combine(Path.GetTempPath(), "zlinks-persist-test-" + Guid.NewGuid().ToString("N"));
+                Directory.CreateDirectory(tmp);
+                try
+                {
+                    var svc = new ToolPersistenceService(tmp);
+                    var input = new List<ToolProject>
+                    {
+                        new() { Id = 1, Name = "t1", GitUrl = "https://x/y.git", CloneDirectory = @"D:\tools" },
+                        new() { Id = 2, Name = "t2", GitUrl = "git@github.com:x/y.git", CloneDirectory = "" },
+                        new() { Id = 3, Name = "t3" }
+                    };
+                    svc.SaveAsync(input).GetAwaiter().GetResult();
+                    var loaded = svc.LoadAsync().GetAwaiter().GetResult();
+                    AssertEq("count", 3, loaded.Count);
+                    AssertEq("t1.GitUrl", "https://x/y.git", loaded[0].GitUrl);
+                    AssertEq("t1.CloneDirectory", @"D:\tools", loaded[0].CloneDirectory);
+                    AssertEq("t2.GitUrl", "git@github.com:x/y.git", loaded[1].GitUrl);
+                    AssertEq("t3.GitUrl", "", loaded[2].GitUrl);
+                }
+                finally
+                {
+                    try { Directory.Delete(tmp, recursive: true); } catch { }
+                }
+            });
+
+            // ===== 11. ToolPersistenceService.Import 错误文件返回 null =====
+            Test("ToolPersistenceService.Import 错误文件", () =>
+            {
+                var tmp = Path.Combine(Path.GetTempPath(), "zlinks-import-test-" + Guid.NewGuid().ToString("N"));
+                Directory.CreateDirectory(tmp);
+                try
+                {
+                    var svc = new ToolPersistenceService(tmp);
+                    var badPath = Path.Combine(tmp, "bad.json");
+                    File.WriteAllText(badPath, "this is not json {");
+                    var result = svc.ImportAsync(badPath).GetAwaiter().GetResult();
+                    Assert("Import bad json returns null", result == null);
+                }
+                finally
+                {
+                    try { Directory.Delete(tmp, recursive: true); } catch { }
+                }
+            });
+
             Console.WriteLine();
             Console.WriteLine($"=== 结果：通过 {_passed}，失败 {_failed} ===");
             Environment.Exit(_failed == 0 ? 0 : 1);

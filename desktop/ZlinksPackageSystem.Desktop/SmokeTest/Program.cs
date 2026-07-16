@@ -36,7 +36,7 @@ namespace ZlinksPackageSystem.SmokeTest
                 typeof(ToolLibraryViewModel),
                 BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
                 binder: null,
-                args: new object?[] { null, null, null, null, pm, null, null }, // ... IGitService, IToolPersistenceService
+                args: new object?[] { null, null, null, null, pm, null, null, null }, // ... INotificationService
                 culture: null)!;
 
             // 注入环境

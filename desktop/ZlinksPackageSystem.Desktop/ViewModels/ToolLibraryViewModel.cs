@@ -24,6 +24,7 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
         private readonly IProcessManagerService _processManager;
         private readonly IGitService _gitService;
         private readonly IToolPersistenceService _persistence;
+        private readonly INotificationService _notificationService;
         private CancellationTokenSource? _cloneCts;
 
         [ObservableProperty]
@@ -94,6 +95,11 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
         [ObservableProperty] private string _cloneProgressText = string.Empty;
         [ObservableProperty] private bool _isNewProject;
 
+        // ===== 通知 Tab =====
+        [ObservableProperty] private NotificationConfig _editNotification = new();
+        [ObservableProperty] private int _selectedTabIndex;
+        [ObservableProperty] private bool _isSecretsVisible;
+
         public ToolLibraryViewModel(
             IApiService apiService,
             IDialogService dialogService,
@@ -101,7 +107,8 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
             IFilePickerService filePickerService,
             IProcessManagerService processManager,
             IGitService gitService,
-            IToolPersistenceService persistence)
+            IToolPersistenceService persistence,
+            INotificationService notificationService)
         {
             Title = "工具库";
             _apiService = apiService;
@@ -111,6 +118,7 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
             _processManager = processManager;
             _gitService = gitService;
             _persistence = persistence;
+            _notificationService = notificationService;
 
             _processManager.ProcessExited += OnProcessExited;
 
@@ -241,6 +249,9 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
             IsCloning = false;
             CloneProgressText = string.Empty;
             IsNewProject = true;
+            EditNotification = new NotificationConfig { UseGlobalSettings = true };
+            SelectedTabIndex = 0;
+            IsSecretsVisible = false;
             _ = RefreshGitEnvironmentAsync();
         }
 
@@ -268,6 +279,15 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
 
             IsEditing = true;
             IsNewProject = false;
+            EditNotification = CloneNotification(project.Notification);
+            SelectedTabIndex = 0;
+            IsSecretsVisible = false;
+        }
+
+        private static NotificationConfig CloneNotification(NotificationConfig src)
+        {
+            var json = System.Text.Json.JsonSerializer.Serialize(src);
+            return System.Text.Json.JsonSerializer.Deserialize<NotificationConfig>(json) ?? new NotificationConfig();
         }
 
         [RelayCommand]
@@ -350,7 +370,8 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
                         ? ResolveDefaultWorkingDirectory()
                         : EditWorkingDirectory,
                     GitUrl = EditGitUrl,
-                    CloneDirectory = EditCloneDirectory
+                    CloneDirectory = EditCloneDirectory,
+                    Notification = CloneNotification(EditNotification)
                 };
                 Projects.Add(newProject);
             }
@@ -379,6 +400,7 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
                             : EditWorkingDirectory,
                         GitUrl = SelectedProject.GitUrl,
                         CloneDirectory = SelectedProject.CloneDirectory,
+                        Notification = CloneNotification(EditNotification),
                         // 保留运行状态
                         IsRunning = SelectedProject.IsRunning,
                         ProcessId = SelectedProject.ProcessId
@@ -521,7 +543,7 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
             // 5) 用最终命令构造 ProcessStartInfo，启动进程
             var (psi, finalCmd) = BuildProcessStartInfo(project, confirmation?.Arguments ?? editable);
 
-            var pid = _processManager.Start(psi);
+            var pid = _processManager.Start(psi, captureOutput: true);
             if (pid == 0)
             {
                 await _dialogService.ShowMessageAsync("错误", $"进程启动失败。\n命令：{finalCmd}");
@@ -532,6 +554,20 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
             project.IsRunning = true;
             project.ProcessId = pid;
             project.Status = "运行中";
+
+            // 7) 触发启动通知（后台异步 fire-and-forget）
+            var startSnapshot = new ToolRunSnapshot
+            {
+                StartTime = DateTime.Now,
+                EndTime = DateTime.Now,
+                ProcessId = pid,
+                WorkingDirectory = psi.WorkingDirectory ?? string.Empty,
+                CommandLine = finalCmd,
+                ExitCode = 0,
+                Output = string.Empty,
+                Trigger = NotificationTrigger.Start
+            };
+            _ = FireNotificationAsync(project, startSnapshot);
         }
 
         [RelayCommand]
@@ -557,7 +593,33 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
                 p.IsRunning = false;
                 p.ProcessId = null;
                 p.Status = exitCode == 0 ? "已停止" : $"异常退出({exitCode})";
+
+                // 触发成功/失败通知
+                var output = _processManager.GetOutput(pid);
+                var snapshot = new ToolRunSnapshot
+                {
+                    StartTime = DateTime.Now.AddMilliseconds(-1000),
+                    EndTime = DateTime.Now,
+                    ProcessId = pid,
+                    WorkingDirectory = p.WorkingDirectory,
+                    ExitCode = exitCode,
+                    Output = output,
+                    Trigger = exitCode == 0 ? NotificationTrigger.Success : NotificationTrigger.Failure
+                };
+                _ = FireNotificationAsync(p, snapshot);
             });
+        }
+
+        private async Task FireNotificationAsync(ToolProject project, ToolRunSnapshot snapshot)
+        {
+            try
+            {
+                await _notificationService.SendAsync(project, snapshot);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[Notification] Fire 异常：{ex.Message}");
+            }
         }
 
         // =========================================================
@@ -908,6 +970,62 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
             {
                 await _dialogService.ShowEnvironmentResultAsync("导出失败", ex.Message, false);
             }
+        }
+
+        // =========================================================
+        // 通知 Tab 命令
+        // =========================================================
+
+        [RelayCommand]
+        private void AddNotificationChannel()
+        {
+            EditNotification.Channels.Add(new FeishuConfig());
+        }
+
+        [RelayCommand]
+        private void RemoveNotificationChannel(FeishuConfig? channel)
+        {
+            if (channel != null) EditNotification.Channels.Remove(channel);
+        }
+
+        [RelayCommand]
+        private void ToggleSecretsVisibility()
+        {
+            IsSecretsVisible = !IsSecretsVisible;
+        }
+
+        [RelayCommand]
+        private async Task TestNotificationAsync()
+        {
+            // 用一份 mock snapshot 测试当前配置
+            var mockProject = new ToolProject
+            {
+                Name = "测试工具",
+                WorkingDirectory = @"D:\tools",
+                Notification = CloneNotification(EditNotification)
+            };
+            var mockSnapshot = new ToolRunSnapshot
+            {
+                StartTime = DateTime.Now.AddSeconds(-5),
+                EndTime = DateTime.Now,
+                ProcessId = 99999,
+                WorkingDirectory = @"D:\tools",
+                CommandLine = "test command",
+                ExitCode = 0,
+                Output = "这是一条测试通知消息。\n如看到此卡片说明配置正确。",
+                Trigger = NotificationTrigger.Success
+            };
+            var results = await _notificationService.SendAsync(mockProject, mockSnapshot);
+
+            var message = results.Count == 0
+                ? "当前配置下没有可用的渠道（可能被关闭或未配置渠道）。"
+                : string.Join("\n\n", results.Select(r =>
+                    $"【{r.ChannelLabel}】\n{(r.Success ? "✅ 成功" : "❌ 失败")}\n{r.Message}"));
+
+            await _dialogService.ShowCloneLogAsync("📤 发送测试结果",
+                $"测试渠道数：{results.Count}\n成功：{results.Count(r => r.Success)}\n失败：{results.Count(r => !r.Success)}",
+                message.Split('\n').ToList(),
+                results.All(r => r.Success) && results.Count > 0);
         }
     }
 }

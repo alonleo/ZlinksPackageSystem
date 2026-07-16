@@ -64,6 +64,10 @@ namespace ZlinksPackageSystem.Desktop.Models
         /// <summary>克隆目标父目录（如 D:\tools），可选</summary>
         public string CloneDirectory { get; set; } = string.Empty;
 
+        // ===== 通知配置（Q3-C 混合模式）=====
+        /// <summary>工具级通知配置（默认继承全局）</summary>
+        public NotificationConfig Notification { get; set; } = new();
+
         // ===== 运行时状态（不参与持久化）=====
         /// <summary>是否正在运行</summary>
         [JsonIgnore]

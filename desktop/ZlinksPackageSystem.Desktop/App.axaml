@@ -93,6 +93,7 @@
                         <converters:StringEmptyToDimConverter x:Key="StringEmptyToDimConverter" />
                         <converters:EnumToIntConverter x:Key="EnumToIntConverter" />
                         <converters:EnumEqualsConverter x:Key="EnumEqualsConverter" />
+            <converters:BoolToExpandGlyphConverter x:Key="BoolToExpandGlyphConverter" />
 
         </ResourceDictionary>
     </Application.Resources>

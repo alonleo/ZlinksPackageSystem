@@ -144,7 +144,7 @@ CREATE TABLE IF NOT EXISTS `platform_match` (
 -- 荣耀参数表
 CREATE TABLE IF NOT EXISTS `honor_param` (
     `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
-    `game_id` BIGINT,
+    `product_id` BIGINT NOT NULL,
     `package_name` VARCHAR(100),
     `app_id` VARCHAR(100),
     `app_secret` VARCHAR(100),
@@ -155,6 +155,8 @@ CREATE TABLE IF NOT EXISTS `honor_param` (
     `list_status` VARCHAR(20),
     `operator` VARCHAR(50),
     `remark` TEXT,
+    `create_by` VARCHAR(64) DEFAULT '',
+    `update_by` VARCHAR(64) DEFAULT '',
     `create_time` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     `update_time` TIMESTAMP,
     `is_deleted` TINYINT DEFAULT 0
@@ -163,7 +165,7 @@ CREATE TABLE IF NOT EXISTS `honor_param` (
 -- VIVO参数表
 CREATE TABLE IF NOT EXISTS `vivo_param` (
     `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
-    `game_id` BIGINT,
+    `product_id` BIGINT NOT NULL,
     `app_id` VARCHAR(100),
     `contract_status` VARCHAR(20),
     `media_id` VARCHAR(100),
@@ -172,6 +174,8 @@ CREATE TABLE IF NOT EXISTS `vivo_param` (
     `list_status` VARCHAR(20),
     `operator` VARCHAR(50),
     `remark` TEXT,
+    `create_by` VARCHAR(64) DEFAULT '',
+    `update_by` VARCHAR(64) DEFAULT '',
     `create_time` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     `update_time` TIMESTAMP,
     `is_deleted` TINYINT DEFAULT 0
@@ -180,7 +184,7 @@ CREATE TABLE IF NOT EXISTS `vivo_param` (
 -- HUAWEI参数表
 CREATE TABLE IF NOT EXISTS `huawei_param` (
     `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
-    `game_id` BIGINT,
+    `product_id` BIGINT NOT NULL,
     `package_name` VARCHAR(100),
     `app_id` VARCHAR(100),
     `agconnect_path` VARCHAR(255),
@@ -189,6 +193,8 @@ CREATE TABLE IF NOT EXISTS `huawei_param` (
     `list_status` VARCHAR(20),
     `operator` VARCHAR(50),
     `remark` TEXT,
+    `create_by` VARCHAR(64) DEFAULT '',
+    `update_by` VARCHAR(64) DEFAULT '',
     `create_time` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     `update_time` TIMESTAMP,
     `is_deleted` TINYINT DEFAULT 0

@@ -89,7 +89,7 @@ CREATE TABLE IF NOT EXISTS `platform_match` (
 -- 荣耀参数表
 CREATE TABLE IF NOT EXISTS `honor_param` (
     `id` BIGINT NOT NULL AUTO_INCREMENT,
-    `game_id` BIGINT COMMENT '游戏ID',
+    `product_id` BIGINT NOT NULL COMMENT '产品ID',
     `package_name` VARCHAR(100) COMMENT '包名',
     `app_id` VARCHAR(100) COMMENT 'APPID',
     `app_secret` VARCHAR(100) COMMENT 'APP_SECRET',
@@ -100,17 +100,19 @@ CREATE TABLE IF NOT EXISTS `honor_param` (
     `list_status` VARCHAR(20) COMMENT '黑白名单状态',
     `operator` VARCHAR(50) COMMENT '经办人',
     `remark` TEXT COMMENT '备注信息',
+    `create_by` VARCHAR(64) DEFAULT '',
+    `update_by` VARCHAR(64) DEFAULT '',
     `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建日期',
     `update_time` DATETIME ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     `is_deleted` TINYINT DEFAULT 0 COMMENT '逻辑删除',
     PRIMARY KEY (`id`),
-    FOREIGN KEY (`game_id`) REFERENCES `game`(`id`)
+    FOREIGN KEY (`product_id`) REFERENCES `product`(`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='荣耀参数表';
 
 -- VIVO参数表
 CREATE TABLE IF NOT EXISTS `vivo_param` (
     `id` BIGINT NOT NULL AUTO_INCREMENT,
-    `game_id` BIGINT COMMENT '游戏ID',
+    `product_id` BIGINT NOT NULL COMMENT '产品ID',
     `app_id` VARCHAR(100) COMMENT 'APPID',
     `contract_status` VARCHAR(20) COMMENT '签约状态',
     `media_id` VARCHAR(100) COMMENT 'MediaID',
@@ -119,17 +121,19 @@ CREATE TABLE IF NOT EXISTS `vivo_param` (
     `list_status` VARCHAR(20) COMMENT '黑白名单状态',
     `operator` VARCHAR(50) COMMENT '经办人',
     `remark` TEXT COMMENT '备注信息',
+    `create_by` VARCHAR(64) DEFAULT '',
+    `update_by` VARCHAR(64) DEFAULT '',
     `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建日期',
     `update_time` DATETIME ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     `is_deleted` TINYINT DEFAULT 0 COMMENT '逻辑删除',
     PRIMARY KEY (`id`),
-    FOREIGN KEY (`game_id`) REFERENCES `game`(`id`)
+    FOREIGN KEY (`product_id`) REFERENCES `product`(`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='VIVO参数表';
 
 -- HUAWEI参数表
 CREATE TABLE IF NOT EXISTS `huawei_param` (
     `id` BIGINT NOT NULL AUTO_INCREMENT,
-    `game_id` BIGINT COMMENT '游戏ID',
+    `product_id` BIGINT NOT NULL COMMENT '产品ID',
     `package_name` VARCHAR(100) COMMENT '包名',
     `app_id` VARCHAR(100) COMMENT 'APPID',
     `agconnect_path` VARCHAR(255) COMMENT 'agconnect_services_json_path',
@@ -138,11 +142,13 @@ CREATE TABLE IF NOT EXISTS `huawei_param` (
     `list_status` VARCHAR(20) COMMENT '黑白名单状态',
     `operator` VARCHAR(50) COMMENT '经办人',
     `remark` TEXT COMMENT '备注信息',
+    `create_by` VARCHAR(64) DEFAULT '',
+    `update_by` VARCHAR(64) DEFAULT '',
     `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建日期',
     `update_time` DATETIME ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
     `is_deleted` TINYINT DEFAULT 0 COMMENT '逻辑删除',
     PRIMARY KEY (`id`),
-    FOREIGN KEY (`game_id`) REFERENCES `game`(`id`)
+    FOREIGN KEY (`product_id`) REFERENCES `product`(`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='HUAWEI参数表';
 
 -- 签名文件信息表

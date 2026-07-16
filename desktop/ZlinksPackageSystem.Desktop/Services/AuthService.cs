@@ -24,6 +24,7 @@ namespace ZlinksPackageSystem.Desktop.Services
             // Local test account fallback
             if (username == "admin" && password == "admin")
             {
+                // 本地 admin/admin：默认桌面端全可见，模块列表保持 ["all"]
                 _token = "local-token";
                 _useLocalAccount = true;
                 _currentUser = new User
@@ -67,6 +68,19 @@ namespace ZlinksPackageSystem.Desktop.Services
                 return _currentUser;
             }
             return await _apiService.GetAsync<User>("/auth/info");
+        }
+
+        public async Task<List<string>> FetchDesktopModulesAsync()
+        {
+            try
+            {
+                var user = await GetCurrentUserAsync();
+                return user?.DesktopModules ?? new List<string>();
+            }
+            catch
+            {
+                return new List<string> { "all" };
+            }
         }
     }
 }

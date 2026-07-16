@@ -1,6 +1,9 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             x:Class="ZlinksPackageSystem.Desktop.Views.ProductView">
+             xmlns:vm="clr-namespace:ZlinksPackageSystem.Desktop.ViewModels"
+             xmlns:m="clr-namespace:ZlinksPackageSystem.Desktop.Models"
+             x:Class="ZlinksPackageSystem.Desktop.Views.ProductView"
+             x:DataType="vm:ProductViewModel">
 
     <UserControl.Styles>
         <Style Selector="Button">
@@ -36,128 +39,142 @@
 
     <Panel>
 
-    <Grid Margin="20">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="Auto" />
-            <RowDefinition Height="*" />
-            <RowDefinition Height="Auto" />
-        </Grid.RowDefinitions>
-
-        <!-- Header -->
-        <Grid Grid.Row="0" Margin="0,0,0,16" ColumnDefinitions="Auto,*,Auto">
-            <TextBlock Grid.Column="0" Text="📦 产品列表" FontSize="18" FontWeight="Bold"
-                       Foreground="White" VerticalAlignment="Center" />
-            <Button Grid.Column="2" Content="＋ 新增产品"
-                    Command="{Binding OpenAddDialogCommand}"
-                    Width="110"
-                    BorderBrush="#FF1976D2" Foreground="#FF1976D2" />
-        </Grid>
-
-        <!-- Search Bar -->
-        <Border Grid.Row="1" Background="Transparent" Padding="0" Margin="0,0,0,16">
-            <Grid ColumnDefinitions="*,Auto">
-                <TextBox Grid.Column="0" Text="{Binding SearchText}"
-                         Watermark="🔍 搜索产品名称..."
-                         HorizontalAlignment="Stretch"
-                         Margin="0,0,10,0" />
-                <Button Grid.Column="1" Content="搜索"
-                        Command="{Binding SearchCommand}"
-                        Width="80" />
-            </Grid>
-        </Border>
-
-        <!-- Data Grid -->
-        <DataGrid Grid.Row="2"
-                  ItemsSource="{Binding Products}"
-                  SelectedItem="{Binding SelectedProduct}"
-                  AutoGenerateColumns="False"
-                  IsReadOnly="True"
-                  SelectionMode="Single">
-            <DataGrid.Columns>
-                <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="50" />
-                <DataGridTextColumn Header="产品名称" Binding="{Binding ProductName}" Width="3*" />
-                <DataGridTextColumn Header="分类" Binding="{Binding Category}" Width="1.5*" />
-                <DataGridTextColumn Header="版本" Binding="{Binding Version}" Width="1.5*" />
-                <DataGridTextColumn Header="负责人" Binding="{Binding Manager}" Width="1.5*" />
-                <DataGridTextColumn Header="状态" Binding="{Binding Status}" Width="1.5*" />
-                <DataGridTextColumn Header="优先级" Binding="{Binding Priority}" Width="1*" />
-                <DataGridTextColumn Header="创建时间" Binding="{Binding CreateTime, StringFormat='yyyy-MM-dd HH:mm:ss'}" Width="2.5*" />
-                <DataGridTemplateColumn Header="操作" Width="130">
-                    <DataGridTemplateColumn.CellTemplate>
-                        <DataTemplate>
-                            <StackPanel Orientation="Horizontal" Spacing="5">
-                                <Button Content="✏ 编辑" FontSize="11"
-                                        BorderBrush="#FF1976D2" Foreground="#FF1976D2"
-                                        Command="{Binding DataContext.OpenEditDialogCommand, RelativeSource={RelativeSource FindAncestor, AncestorType=DataGrid}}"
-                                        CommandParameter="{Binding}" />
-                                <Button Content="🗑 删除" FontSize="11"
-                                        Command="{Binding DataContext.DeleteProductCommand, RelativeSource={RelativeSource FindAncestor, AncestorType=DataGrid}}"
-                                        CommandParameter="{Binding}"
-                                        BorderBrush="#FFF56C6C"
-                                        Foreground="#FFF56C6C" />
-                            </StackPanel>
-                        </DataTemplate>
-                    </DataGridTemplateColumn.CellTemplate>
-                </DataGridTemplateColumn>
-            </DataGrid.Columns>
-        </DataGrid>
-
-        <!-- Pagination -->
-        <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,16,0,0" Spacing="10">
-            <Button Content="◀ 上一页"
-                    Command="{Binding PreviousPageCommand}"
-                    Width="90" />
-            <TextBlock Text="{Binding CurrentPage}" VerticalAlignment="Center"
-                       Foreground="White" FontSize="14" />
-            <TextBlock Text="/" VerticalAlignment="Center"
-                       Foreground="#66FFFFFF" FontSize="14" />
-            <TextBlock Text="{Binding TotalCount}" VerticalAlignment="Center"
-                       Foreground="#66FFFFFF" FontSize="14" />
-            <Button Content="下一页 ▶"
-                    Command="{Binding NextPageCommand}"
-                    Width="90" />
-        </StackPanel>
-    </Grid>
-
-    <!-- Edit Overlay -->
-    <Border IsVisible="{Binding IsEditing}"
-            Background="#80000000"
-            VerticalAlignment="Stretch" HorizontalAlignment="Stretch">
-        <Border VerticalAlignment="Center" HorizontalAlignment="Center"
-                Width="440" Padding="24" CornerRadius="12"
-                Background="#F01e1e2e"
-                BorderBrush="#33FFFFFF" BorderThickness="1">
-            <StackPanel Spacing="12">
-                <TextBlock Text="产品信息" FontSize="16" FontWeight="Bold"
-                           Foreground="White" />
-
-                <TextBox Text="{Binding EditProductName}" Watermark="📦 产品名称" />
-                <Grid ColumnDefinitions="*,*">
-                    <TextBox Grid.Column="0" Text="{Binding EditCategory}"
-                             Watermark="📂 分类" Margin="0,0,6,0" />
-                    <TextBox Grid.Column="1" Text="{Binding EditVersion}"
-                             Watermark="🏷 版本号" Margin="6,0,0,0" />
-                </Grid>
-                <Grid ColumnDefinitions="*,*">
-                    <TextBox Grid.Column="0" Text="{Binding EditManager}"
-                             Watermark="👤 负责人" Margin="0,0,6,0" />
-                    <TextBox Grid.Column="1" Text="{Binding EditStatus}"
-                             Watermark="📊 状态" Margin="6,0,0,0" />
-                </Grid>
-                <TextBox Text="{Binding EditPriority}" Watermark="⭐ 优先级" />
-
-                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right"
-                            Margin="0,8,0,0" Spacing="10">
-                    <Button Content="取消" Width="80"
-                            Command="{Binding CancelEditCommand}" />
-                    <Button Content="保存" Width="80"
-                            Background="#FF1976D2" BorderBrush="#FF1976D2"
-                            Foreground="White"
-                            Command="{Binding SaveProductCommand}" />
-                </StackPanel>
+        <!-- 空状态 -->
+        <Border IsVisible="{Binding IsPlatformsEmpty}"
+                Background="Transparent"
+                VerticalAlignment="Stretch" HorizontalAlignment="Stretch">
+            <StackPanel Spacing="12" HorizontalAlignment="Center" VerticalAlignment="Center">
+                <TextBlock Text="📦 暂无平台数据"
+                           FontSize="22" FontWeight="Bold"
+                           Foreground="White"
+                           HorizontalAlignment="Center" />
+                <TextBlock Text="{Binding EmptyStateMessage}"
+                           Foreground="#88FFFFFF"
+                           HorizontalAlignment="Center" />
+                <Button Content="↻ 重新加载"
+                        Width="120" Margin="0,12,0,0"
+                        HorizontalAlignment="Center"
+                        Command="{Binding LoadPlatformsCommand}" />
             </StackPanel>
         </Border>
+
+        <!-- 主体 -->
+        <Grid IsVisible="{Binding HasPlatforms}" Margin="20">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!-- TabControl -->
+            <TabControl Grid.Row="0"
+                        ItemsSource="{Binding Platforms}"
+                        SelectedItem="{Binding SelectedPlatform, Mode=TwoWay}"
+                        Margin="0,0,0,12">
+                <TabControl.ItemTemplate>
+                    <DataTemplate DataType="m:Platform">
+                        <TextBlock Text="{Binding PlatformName}" Padding="8,4" />
+                    </DataTemplate>
+                </TabControl.ItemTemplate>
+            </TabControl>
+
+            <!-- 顶部工具栏 -->
+            <Grid Grid.Row="1" ColumnDefinitions="*,Auto,Auto" Margin="0,0,0,12">
+                <TextBox Grid.Column="0" Text="{Binding SearchText}"
+                         Watermark="🔍 搜索包名（当前仅 UI 占位）" />
+                <Button Grid.Column="1" Content="搜索" Width="80" Margin="8,0,0,0"
+                        Command="{Binding SearchCommand}" />
+                <Button Grid.Column="2" Content="＋ 新增产品" Width="110" Margin="8,0,0,0"
+                        BorderBrush="#FF1976D2" Foreground="#FF1976D2"
+                        Command="{Binding OpenAddDialogCommand}" />
+            </Grid>
+
+            <!-- DataGrid：列由 ProductView.axaml.cs 代码后台动态生成 -->
+            <DataGrid Grid.Row="2"
+                      x:Name="ProductsDataGrid"
+                      ItemsSource="{Binding Products}"
+                      SelectedItem="{Binding SelectedProduct, Mode=TwoWay}"
+                      AutoGenerateColumns="False"
+                      IsReadOnly="True"
+                      SelectionMode="Single">
+                <DataGrid.Columns>
+                    <DataGridTemplateColumn Header="操作" Width="140">
+                        <DataGridTemplateColumn.CellTemplate>
+                            <DataTemplate DataType="m:Product">
+                                <StackPanel Orientation="Horizontal" Spacing="4">
+                                    <Button Content="✏ 编辑" FontSize="11"
+                                            BorderBrush="#FF1976D2" Foreground="#FF1976D2"
+                                            Command="{Binding $parent[UserControl].((vm:ProductViewModel)DataContext).OpenEditDialogCommand}"
+                                            CommandParameter="{Binding}" />
+                                    <Button Content="🗑 删除" FontSize="11"
+                                            BorderBrush="#FFF56C6C" Foreground="#FFF56C6C"
+                                            Command="{Binding $parent[UserControl].((vm:ProductViewModel)DataContext).DeleteProductCommand}"
+                                            CommandParameter="{Binding}" />
+                                </StackPanel>
+                            </DataTemplate>
+                        </DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                </DataGrid.Columns>
+            </DataGrid>
+
+            <!-- 分页 -->
+            <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="10" Margin="0,12,0,0">
+                <Button Content="◀ 上一页" Command="{Binding PreviousPageCommand}" Width="90" />
+                <TextBlock Text="{Binding CurrentPage}" VerticalAlignment="Center" Foreground="White" FontSize="14" />
+                <TextBlock Text="/" VerticalAlignment="Center" Foreground="#66FFFFFF" FontSize="14" />
+                <TextBlock Text="{Binding TotalCount}" VerticalAlignment="Center" Foreground="#66FFFFFF" FontSize="14" />
+                <Button Content="下一页 ▶" Command="{Binding NextPageCommand}" Width="90" />
+            </StackPanel>
+        </Grid>
+
+        <!-- 编辑覆盖层 -->
+        <Border IsVisible="{Binding IsEditing}"
+                Background="#80000000"
+                VerticalAlignment="Stretch" HorizontalAlignment="Stretch">
+            <Border VerticalAlignment="Center" HorizontalAlignment="Center"
+                    Width="520" Padding="24" CornerRadius="12"
+                    Background="#F01e1e2e"
+                    BorderBrush="#33FFFFFF" BorderThickness="1">
+                <StackPanel Spacing="10">
+                    <TextBlock Text="{Binding EditTitle}" FontSize="16" FontWeight="Bold" Foreground="White" />
+
+                    <ScrollViewer MaxHeight="500" VerticalScrollBarVisibility="Auto">
+                        <ItemsControl ItemsSource="{Binding EditFieldRows}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="m:FieldEditRow">
+                                    <Grid ColumnDefinitions="100,*" Margin="0,4">
+                                        <TextBlock Grid.Column="0" Text="{Binding Label}"
+                                                   Foreground="#CCFFFFFF"
+                                                   VerticalAlignment="Center" />
+                                        <Panel Grid.Column="1">
+                                            <TextBox Text="{Binding Value, Mode=TwoWay}"
+                                                     Watermark="{Binding Placeholder}"
+                                                     IsVisible="{Binding IsText}" />
+                                            <TextBox Text="{Binding Value, Mode=TwoWay}"
+                                                     Watermark="{Binding Placeholder}"
+                                                     AcceptsReturn="True" Height="60"
+                                                     IsVisible="{Binding IsMultiLine}" />
+                                            <ComboBox ItemsSource="{Binding Options}"
+                                                      SelectedItem="{Binding Value, Mode=TwoWay}"
+                                                      HorizontalAlignment="Stretch"
+                                                      IsVisible="{Binding IsCombo}" />
+                                        </Panel>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin="0,8,0,0">
+                        <Button Content="取消" Width="80" Command="{Binding CancelEditCommand}" />
+                        <Button Content="保存" Width="80"
+                                Background="#FF1976D2" BorderBrush="#FF1976D2" Foreground="White"
+                                Command="{Binding SaveProductCommand}" />
+                    </StackPanel>
+                </StackPanel>
+            </Border>
         </Border>
+
     </Panel>
 </UserControl>

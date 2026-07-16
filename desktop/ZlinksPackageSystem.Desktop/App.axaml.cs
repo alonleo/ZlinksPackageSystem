@@ -38,8 +38,14 @@ public partial class App : Application
                 services.AddTransient<LoginViewModel>();
                 services.AddTransient<HomeViewModel>();
                 services.AddTransient<GameListViewModel>();
-                services.AddTransient<ProductViewModel>();
-                services.AddTransient<ParameterViewModel>();
+                services.AddTransient<ProductViewModel>(sp =>
+                                    new ProductViewModel(
+                                        sp.GetRequiredService<IApiService>(),
+                                        sp.GetRequiredService<IDialogService>()));
+                services.AddTransient<ParameterViewModel>(sp =>
+                                    new ParameterViewModel(
+                                        sp.GetRequiredService<IApiService>(),
+                                        sp.GetRequiredService<IDialogService>()));
                 services.AddTransient<TestViewModel>();
                 services.AddTransient<ToolLibraryViewModel>();
                 services.AddTransient<NotificationViewModel>();

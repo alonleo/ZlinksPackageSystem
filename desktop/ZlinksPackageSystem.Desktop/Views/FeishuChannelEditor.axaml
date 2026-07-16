@@ -1,0 +1,47 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:models="clr-namespace:ZlinksPackageSystem.Desktop.Models"
+             xmlns:converters="clr-namespace:ZlinksPackageSystem.Desktop.Converters"
+             x:Class="ZlinksPackageSystem.Desktop.Views.FeishuChannelEditor">
+    <UserControl.Resources>
+        <converters:BoolToPasswordCharConverter x:Key="BoolToPasswordCharConverter" />
+    </UserControl.Resources>
+
+    <Border Margin="0,0,0,8" Padding="10" CornerRadius="6"
+            Background="#0DFFFFFF" BorderBrush="#22FFFFFF" BorderThickness="1">
+        <StackPanel Spacing="6" DataContext="{Binding $parent.DataContext}">
+            <!-- 类型下拉 + 删除 -->
+            <Grid ColumnDefinitions="Auto,*,Auto">
+                <TextBlock Grid.Column="0" Text="类型" VerticalAlignment="Center"
+                           Margin="0,0,8,0" Foreground="#99BFcbd9" />
+                <ComboBox Grid.Column="1"
+                          SelectedIndex="{Binding RobotType, Converter={StaticResource EnumToIntConverter}}">
+                    <ComboBoxItem Content="自定义机器人（Webhook）" />
+                    <ComboBoxItem Content="应用机器人（App ID + Secret）" />
+                </ComboBox>
+                <Button Grid.Column="2" Content="🗑 删除" Margin="8,0,0,0"
+                        Padding="8,4" FontSize="10"
+                        BorderBrush="#FFF56C6C" Foreground="#FFF56C6C"
+                        Click="OnRemoveClicked" />
+            </Grid>
+
+            <!-- 自定义机器人 -->
+            <TextBox Text="{Binding WebhookUrl}"
+                     Watermark="Webhook URL（含 access_token 查询参数）" />
+
+            <!-- 应用机器人 -->
+            <TextBox Text="{Binding AppId}"
+                     Watermark="App ID（飞书开放平台 CLI_xxx）" />
+            <TextBox Text="{Binding AppSecret}"
+                     PasswordChar="{Binding DataContext.IsSecretsVisible, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToPasswordCharConverter}}"
+                     Watermark="App Secret" />
+            <TextBox Text="{Binding ReceiveId}"
+                     Watermark="Receive ID（chat_id / open_id / email）" />
+
+            <!-- @人 -->
+            <CheckBox Content="@所有人" IsChecked="{Binding AtAll}" />
+            <TextBox Text="{Binding AtMobilesText, Mode=TwoWay}"
+                     Watermark="@手机号列表（逗号或换行分隔）" />
+        </StackPanel>
+    </Border>
+</UserControl>

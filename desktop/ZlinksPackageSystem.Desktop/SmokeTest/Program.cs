@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Threading;
+using System.Threading.Tasks;
 using ZlinksPackageSystem.Desktop.Models;
 using ZlinksPackageSystem.Desktop.Services;
 using ZlinksPackageSystem.Desktop.ViewModels;
@@ -335,6 +336,113 @@ namespace ZlinksPackageSystem.SmokeTest
                 }
             });
 
+            // ===== 13. NotificationService.BuildCard JSON 结构 =====
+            Test("NotificationService.BuildCard 含 header/elements/工具/退出码", () =>
+            {
+                var proj = new ToolProject { Name = "demo", WorkingDirectory = "D:\\tools" };
+                var snap = new ToolRunSnapshot
+                {
+                    StartTime = new DateTime(2026, 7, 16, 10, 0, 0),
+                    EndTime = new DateTime(2026, 7, 16, 10, 0, 5),
+                    ProcessId = 1234,
+                    ExitCode = 0,
+                    WorkingDirectory = "D:\\tools",
+                    CommandLine = "python main.py",
+                    Output = "hello\nworld",
+                    Trigger = NotificationTrigger.Success
+                };
+                var ch = new FeishuConfig { RobotType = FeishuRobotType.Custom, WebhookUrl = "https://x", AtAll = true };
+                var json = NotificationService.BuildCardJson(proj, snap, ch);
+                Assert("contains header", json.Contains("\"header\""));
+                Assert("contains elements", json.Contains("\"elements\""));
+                Assert("contains 工具", json.Contains("工具"));
+                Assert("contains 退出码", json.Contains("退出码"));
+                Assert("contains script output", json.Contains("脚本输出"));
+                Assert("contains template green", json.Contains("\"green\""));
+            });
+
+            // ===== 14. NotificationService.SendAsync 完全继承（工具无渠道 → 用全局） =====
+            Test("NotificationService 完全继承", () =>
+            {
+                int hits = 0;
+                var handler = new MockHttpHandler(req => { hits++; return MockHttpHandler.OkJson("{\"ok\":true}"); });
+                var global = new InMemoryGlobalNotificationService(new GlobalNotificationConfig
+                {
+                    IsEnabled = true,
+                    NotifyOnSuccess = true,
+                    Channels = new List<FeishuConfig>
+                    {
+                        new() { RobotType = FeishuRobotType.Custom, WebhookUrl = "https://x" }
+                    }
+                });
+                var svc = new NotificationService(global, handler);
+                var proj = new ToolProject
+                {
+                    Name = "demo",
+                    Notification = new NotificationConfig { UseGlobalSettings = true }
+                };
+                var snap = new ToolRunSnapshot { Trigger = NotificationTrigger.Success, Output = "ok" };
+                var results = svc.SendAsync(proj, snap).GetAwaiter().GetResult();
+                AssertEq("hits", 1, hits);
+                AssertEq("results count", 1, results.Count);
+                Assert("result success", results[0].Success);
+            });
+
+            // ===== 15. NotificationService 完全覆盖（工具自配渠道） =====
+            Test("NotificationService 完全覆盖", () =>
+            {
+                int hits = 0;
+                var handler = new MockHttpHandler(req => { hits++; return MockHttpHandler.OkJson("{\"ok\":true}"); });
+                var global = new InMemoryGlobalNotificationService(new GlobalNotificationConfig
+                {
+                    NotifyOnSuccess = true,
+                    Channels = new List<FeishuConfig>
+                    {
+                        new() { RobotType = FeishuRobotType.Custom, WebhookUrl = "https://should-not-call" }
+                    }
+                });
+                var svc = new NotificationService(global, handler);
+                var proj = new ToolProject
+                {
+                    Name = "demo",
+                    Notification = new NotificationConfig
+                    {
+                        UseGlobalSettings = false,
+                        NotifyOnSuccess = true,
+                        Channels = new List<FeishuConfig>
+                        {
+                            new() { RobotType = FeishuRobotType.Custom, WebhookUrl = "https://override" }
+                        }
+                    }
+                };
+                var snap = new ToolRunSnapshot { Trigger = NotificationTrigger.Success, Output = "ok" };
+                svc.SendAsync(proj, snap).GetAwaiter().GetResult();
+                AssertEq("hits", 1, hits);
+                Assert("called override", hits == 1);
+            });
+
+            // ===== 16. NotificationService 触发时机过滤 =====
+            Test("NotificationService 触发时机过滤", () =>
+            {
+                int hits = 0;
+                var handler = new MockHttpHandler(req => { hits++; return MockHttpHandler.OkJson("{\"ok\":true}"); });
+                var global = new InMemoryGlobalNotificationService(new GlobalNotificationConfig
+                {
+                    NotifyOnStart = false,  // 故意关闭
+                    NotifyOnSuccess = true,
+                    Channels = new List<FeishuConfig>
+                    {
+                        new() { RobotType = FeishuRobotType.Custom, WebhookUrl = "https://x" }
+                    }
+                });
+                var svc = new NotificationService(global, handler);
+                var proj = new ToolProject { Name = "demo", Notification = new NotificationConfig { UseGlobalSettings = true } };
+                var snap = new ToolRunSnapshot { Trigger = NotificationTrigger.Start, Output = "starting" };
+                var results = svc.SendAsync(proj, snap).GetAwaiter().GetResult();
+                AssertEq("hits", 0, hits);
+                AssertEq("results count", 0, results.Count);
+            });
+
             Console.WriteLine();
             Console.WriteLine($"=== 结果：通过 {_passed}，失败 {_failed} ===");
             Environment.Exit(_failed == 0 ? 0 : 1);
@@ -372,6 +480,33 @@ namespace ZlinksPackageSystem.SmokeTest
         {
             var prop = obj.GetType().GetProperty(name, BindingFlags.Instance | BindingFlags.Public);
             prop?.SetValue(obj, value);
+        }
+
+        // ===== Test helpers =====
+        class MockHttpHandler : System.Net.Http.HttpMessageHandler
+        {
+            private readonly Func<System.Net.Http.HttpRequestMessage, System.Net.Http.HttpResponseMessage> _handler;
+            public MockHttpHandler(Func<System.Net.Http.HttpRequestMessage, System.Net.Http.HttpResponseMessage> handler)
+            {
+                _handler = handler;
+            }
+            protected override Task<System.Net.Http.HttpResponseMessage> SendAsync(System.Net.Http.HttpRequestMessage req, CancellationToken ct)
+            {
+                return Task.FromResult(_handler(req));
+            }
+            public static System.Net.Http.HttpResponseMessage OkJson(string body) => new(System.Net.HttpStatusCode.OK)
+            {
+                Content = new System.Net.Http.StringContent(body, System.Text.Encoding.UTF8, "application/json")
+            };
+        }
+
+        class InMemoryGlobalNotificationService : IGlobalNotificationService
+        {
+            private readonly GlobalNotificationConfig _config;
+            public InMemoryGlobalNotificationService(GlobalNotificationConfig config) { _config = config; }
+            public string DefaultFilePath => "(in-memory)";
+            public Task<GlobalNotificationConfig> LoadAsync(CancellationToken ct = default) => Task.FromResult(_config);
+            public Task SaveAsync(GlobalNotificationConfig config, CancellationToken ct = default) => Task.CompletedTask;
         }
     }
 }

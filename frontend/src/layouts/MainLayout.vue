@@ -24,6 +24,13 @@ const userStore = useUserStore()
 const tabsStore = useTabsStore()
 const isCollapse = ref(false)
 
+const canShow = (key: string) => {
+  const mods = userStore.backendModules || []
+  if (mods.length === 0) return true
+  if (mods.includes('all')) return true
+  return mods.includes(key)
+}
+
 watch(
   () => route.fullPath,
   () => {
@@ -122,7 +129,7 @@ const handleCloseAll = async () => {
           <el-icon><HomeFilled /></el-icon>
           <template #title>首页</template>
         </el-menu-item>
-        <el-sub-menu index="package">
+        <el-sub-menu v-if="canShow('package')" index="package">
           <template #title>
             <el-icon><Box /></el-icon>
             <span>打包管理</span>
@@ -135,7 +142,7 @@ const handleCloseAll = async () => {
             {{ item.title }}
           </el-menu-item>
         </el-sub-menu>
-        <el-sub-menu index="system-mgmt">
+        <el-sub-menu v-if="canShow('system-mgmt')" index="system-mgmt">
           <template #title>
             <el-icon><UserFilled /></el-icon>
             <span>系统管理</span>
@@ -148,7 +155,7 @@ const handleCloseAll = async () => {
             {{ item.title }}
           </el-menu-item>
         </el-sub-menu>
-        <el-sub-menu index="system-settings">
+        <el-sub-menu v-if="canShow('system-settings')" index="system-settings">
           <template #title>
             <el-icon><Tools /></el-icon>
             <span>系统设置</span>
@@ -161,7 +168,7 @@ const handleCloseAll = async () => {
             {{ item.title }}
           </el-menu-item>
         </el-sub-menu>
-        <el-sub-menu index="monitor">
+        <el-sub-menu v-if="canShow('monitor')" index="monitor">
           <template #title>
             <el-icon><Monitor /></el-icon>
             <span>系统监控</span>

@@ -28,6 +28,8 @@ public partial class App : Application
                                 services.AddSingleton<IFilePickerService, FilePickerService>();
                                 services.AddSingleton<IRuntimeEnvironmentService, RuntimeEnvironmentService>();
                                 services.AddSingleton<IProcessManagerService, ProcessManagerService>();
+                                services.AddSingleton<IGitService, GitService>();
+                                services.AddSingleton<IToolPersistenceService, ToolPersistenceService>();
 
                 // ViewModels
                 services.AddSingleton<MainViewModel>();

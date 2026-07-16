@@ -43,6 +43,9 @@ namespace ZlinksPackageSystem.Desktop.Models
         /// <summary>应用机器人 App Secret（敏感字段，UI 可一键显隐）</summary>
         public string AppSecret { get; set; } = string.Empty;
 
+        /// <summary>应用机器人 Receive ID（chat_id / open_id / email 之一）；留空跳过该渠道</summary>
+        public string ReceiveId { get; set; } = string.Empty;
+
         /// <summary>@all</summary>
         public bool AtAll { get; set; }
 
@@ -251,9 +254,9 @@ public interface INotificationService
   3. 对每个渠道构造卡片 → POST → 收集 `NotificationSendResult`。
   4. 自定义机器人：`POST WebhookUrl`，body = `{ msg_type: "interactive", card: {...}, at: {...} }`。
   5. 应用机器人：
-     - 先 `POST https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal`，body = `{ app_id, app_secret }`，拿 `tenant_access_token`（缓存 2 小时）。
-     - 再 `POST https://open.feishu.cn/open-apis/im/v1/messages?receive_id_type=chat_id`（`receive_id` 需用户配置；本 MVP 简化为发送到「机器人所在的群」：`receive_id_type=email` 或 `chat_id`，需要额外字段；为简化，本 MVP 仅支持自定义机器人 webhook 路径，App 机器人暂存代码但发送路径用 webhook 兜底）—— **设计简化**：App 机器人仅在「全局设置」或「测试按钮」路径使用，发到任意 chat_id 暂以 TODO 标记，主路径走 Custom。
-- **简化决策（消除歧义）：** App 机器人需指定 `receive_id`（chat_id / email / open_id），UI 上新增可选 `ReceiveId` 字段；MVP 不强制，没填时跳过 App 渠道并记录日志。
+     - 先 `POST https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal`，body = `{ app_id, app_secret }`，拿 `tenant_access_token`（缓存到私有字段 `_appToken` + `_appTokenExpiry` 2 小时）。
+     - 再 `POST https://open.feishu.cn/open-apis/im/v1/messages?receive_id_type=chat_id`（`receive_id` 用 `FeishuConfig.ReceiveId`）。
+     - 若 `ReceiveId` 为空，跳过该渠道并写日志「App 机器人未配置 ReceiveId」。
 - 输出截断：`if (snapshot.Output.Length > max) snapshot.Output = snapshot.Output[^max..]`；卡片里加省略号前缀 `...`。
 
 ### 2.5 卡片 JSON 结构（`BuildCard` 内部方法）
@@ -348,11 +351,15 @@ private async Task FireNotificationAsync(NotificationTrigger trigger, ToolProjec
 
 - 注入 `IGlobalNotificationService`
 - 新增 `[ObservableProperty] private GlobalNotificationConfig _globalNotification = new()`
-- 加载时 `_ = LoadGlobalNotificationAsync()`
-- 新增命令 `SaveGlobalNotificationAsync()`：调 `_globalNotification.SaveAsync(GlobalNotification)`
-- 新增 `AddGlobalChannel / RemoveGlobalChannel / ToggleGlobalSecretsVisibility`（与工具级对称）
+- 新增 `[ObservableProperty] private bool _isGlobalSecretsVisible`
+- 构造器末尾调 `_ = LoadGlobalNotificationAsync()`
+- 新增 `[RelayCommand] private async Task LoadGlobalNotificationAsync()` → `_globalNotification.LoadAsync()` → 写入 `GlobalNotification`
+- 新增 `[RelayCommand] private async Task SaveGlobalNotificationAsync()` → `_globalNotification.SaveAsync(GlobalNotification)` → 弹成功/失败消息
+- 新增 `[RelayCommand] private void AddGlobalChannel() => GlobalNotification.Channels.Add(new())`
+- 新增 `[RelayCommand] private void RemoveGlobalChannel(FeishuConfig? c) { if (c != null) GlobalNotification.Channels.Remove(c); }`
+- 新增 `[RelayCommand] private void ToggleGlobalSecretsVisibility() => IsGlobalSecretsVisible = !IsGlobalSecretsVisible`
 
-> 具体需先读现有 `SettingsViewModel.cs` 后才能精确扩展；本规格只约束接口。
+> 实施前需先读现有 `SettingsViewModel.cs`，复用其已有的 LoadSettings/SaveSettings 模板与构造器签名。
 
 ### 3.3 `ViewModelBase` 不变
 
@@ -409,7 +416,7 @@ private async Task FireNotificationAsync(NotificationTrigger trigger, ToolProjec
 </UserControl>
 ```
 
-`FeishuChannelEditor` 通过 `DataContext` 接收一个 `FeishuConfig` + `RemoveCommand`（由父级传入）。
+`FeishuChannelEditor` 通过 `DataContext` 接收一个 `FeishuConfig`。删除按钮通过 `RaiseEvent` 抛出 `RemoveRequested` 路由事件，父级 `ItemsControl` 监听后调用 `RemoveNotificationChannelCommand` 并传 `DataContext` 作为参数。避免 UserControl 直接依赖父级命令路径。
 
 ### 4.3 `ToolLibraryView.axaml` 通知 Tab 内容
 
@@ -440,7 +447,7 @@ private async Task FireNotificationAsync(NotificationTrigger trigger, ToolProjec
 
         <!-- 渠道列表（继承时禁用） -->
         <TextBlock Text="📡 飞书渠道（继承全局时只读）" FontSize="12" Foreground="#99BFcbd9"/>
-        <Border IsEnabled="{Binding !EditNotification.UseGlobalSettings}">
+        <Border IsEnabled="{Binding EditNotification.UseGlobalSettings, Converter={StaticResource BooleanInverseConverter}}">
             <ItemsControl ItemsSource="{Binding EditNotification.Channels}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
@@ -451,12 +458,12 @@ private async Task FireNotificationAsync(NotificationTrigger trigger, ToolProjec
         </Border>
         <Button Content="＋ 添加渠道" Command="{Binding AddNotificationChannelCommand}"
                 HorizontalAlignment="Left"
-                IsEnabled="{Binding !EditNotification.UseGlobalSettings}"/>
+                IsEnabled="{Binding EditNotification.UseGlobalSettings, Converter={StaticResource BooleanInverseConverter}}"/>
     </StackPanel>
 </TabItem>
 ```
 
-> `!EditNotification.UseGlobalSettings` 需新增 `InverseBoolConverter` 或复用现有 `BooleanInverseConverter` 直接绑 `UseGlobalSettings` 配合 `Border.IsEnabled` 的反逻辑（实际上 `IsEnabled="{Binding EditNotification.UseGlobalSettings}"` 是「继承时可编辑」，按 Q3-C 语义不对。修正：渠道区 **继承时禁用** = `IsEnabled="{Binding !EditNotification.UseGlobalSettings}"`，但 Avalonia 11.2 Binding 不直接支持 `!`；新增小转换器或用 `BoolNotConverter`，或改 `IsEnabled="{Binding EditNotification.UseGlobalSettings, Converter={StaticResource BooleanInverseConverter}}"`。
+> 渠道区在「使用全局设置」勾选时禁用、勾掉时可编辑。`BooleanInverseConverter` 已在 `App.axaml:86` 注册，直接复用。
 
 ### 4.4 `SettingsView.axaml` 新增「📢 通知」分区
 
@@ -465,7 +472,7 @@ private async Task FireNotificationAsync(NotificationTrigger trigger, ToolProjec
 ### 4.5 新增/复用转换器
 
 - 复用：`EnumToIntConverter`、`EnumEqualsConverter`、`BooleanInverseConverter`
-- 新增：`BoolToPasswordCharConverter`（`true→""`、`false→"●"`，用于 AppSecret 显示切换）
+- 新增：`BoolToPasswordCharConverter`（`true→'\0'`（明文）、`false→'●'`（掩码），返回 `char?`，用于 AppSecret 显示切换。`PasswordChar` 在 Avalonia 11.2 是 `char?` 类型，绑定 `{Binding IsSecretsVisible, Converter={StaticResource BoolToPasswordCharConverter}}` 即可。）
 
 ---
 

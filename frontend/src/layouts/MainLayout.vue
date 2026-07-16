@@ -7,21 +7,14 @@ import {
   HomeFilled,
   Monitor,
   User,
-  Lock,
-  OfficeBuilding,
-  Document,
-  Bell,
-  Key,
+  UserFilled,
   SwitchButton,
   Fold,
   Expand,
   ArrowDown,
   Close,
-  Tickets,
-  Menu as IconMenu,
-  Tools,
-  Setting,
   Box,
+  Tools,
 } from '@element-plus/icons-vue'
 import { ElMessageBox } from 'element-plus'
 
@@ -39,21 +32,6 @@ watch(
   { immediate: true },
 )
 
-const menuItems = [
-  { index: '/', icon: HomeFilled, title: '首页' },
-  { index: '/system/user', icon: User, title: '用户管理' },
-  { index: '/system/role', icon: Lock, title: '角色管理' },
-  { index: '/system/menu', icon: IconMenu, title: '菜单管理' },
-  { index: '/system/config', icon: Tools, title: '参数设置' },
-  { index: '/notice', icon: Bell, title: '通知管理' },
-  { index: '/sign-files', icon: Key, title: '签名管理' },
-  { index: '/copyrights', icon: Document, title: '软著管理' },
-  { index: '/platforms', icon: Setting, title: '平台管理' },
-  { index: '/companies', icon: OfficeBuilding, title: '公司管理' },
-  { index: '/operation-logs', icon: Tickets, title: '操作日志' },
-  { index: '/permissions', icon: Lock, title: '权限管理' },
-]
-
 const monitorItems = [
   { index: '/system/monitor/server', title: '服务监控' },
   { index: '/system/monitor/online', title: '在线用户' },
@@ -64,12 +42,28 @@ const monitorItems = [
   { index: '/system/monitor/operlog', title: '操作日志' },
 ]
 
+const systemMgmtItems = [
+  { index: '/system-mgmt/users', title: '用户管理' },
+  { index: '/system-mgmt/roles', title: '角色管理' },
+  { index: '/system-mgmt/notice', title: '通知管理' },
+  { index: '/system-mgmt/permissions', title: '权限管理' },
+]
+
+const systemSettingsItems = [
+  { index: '/system-settings/menus', title: '菜单管理' },
+  { index: '/system-settings/config', title: '参数设置' },
+]
+
 const packageItems = [
   { index: '/package/games', title: '游戏管理' },
   { index: '/package/products', title: '产品管理' },
   { index: '/package/tests', title: '测试管理' },
   { index: '/package/ad-params', title: '广告参数' },
-]
+  { index: '/package/platforms', title: '平台管理' },
+  { index: '/package/sign-files', title: '签名管理' },
+  { index: '/package/copyrights', title: '软著管理' },
+  { index: '/package/companies', title: '公司管理' },
+] 
 
 const handleMenuSelect = (index: string) => {
   router.push(index)
@@ -124,14 +118,23 @@ const handleCloseAll = async () => {
         text-color="#bfcbd9"
         active-text-color="#409eff"
       >
-        <el-menu-item
-          v-for="item in menuItems"
-          :key="item.index"
-          :index="item.index"
-        >
-          <el-icon><component :is="item.icon" /></el-icon>
-          <template #title>{{ item.title }}</template>
+        <el-menu-item index="/" :route="{ path: '/' }">
+          <el-icon><HomeFilled /></el-icon>
+          <template #title>首页</template>
         </el-menu-item>
+        <el-sub-menu index="system-mgmt">
+          <template #title>
+            <el-icon><UserFilled /></el-icon>
+            <span>系统管理</span>
+          </template>
+          <el-menu-item
+            v-for="item in systemMgmtItems"
+            :key="item.index"
+            :index="item.index"
+          >
+            {{ item.title }}
+          </el-menu-item>
+        </el-sub-menu>
         <el-sub-menu index="package">
           <template #title>
             <el-icon><Box /></el-icon>
@@ -139,6 +142,19 @@ const handleCloseAll = async () => {
           </template>
           <el-menu-item
             v-for="item in packageItems"
+            :key="item.index"
+            :index="item.index"
+          >
+            {{ item.title }}
+          </el-menu-item>
+        </el-sub-menu>
+        <el-sub-menu index="system-settings">
+          <template #title>
+            <el-icon><Tools /></el-icon>
+            <span>系统设置</span>
+          </template>
+          <el-menu-item
+            v-for="item in systemSettingsItems"
             :key="item.index"
             :index="item.index"
           >

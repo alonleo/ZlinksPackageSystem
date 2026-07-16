@@ -301,6 +301,40 @@ namespace ZlinksPackageSystem.SmokeTest
                 }
             });
 
+            // ===== 12. GlobalNotificationConfig JSON 往返 =====
+            Test("GlobalNotificationConfig JSON 往返", () =>
+            {
+                var tmp = Path.Combine(Path.GetTempPath(), "zlinks-globalnotif-" + Guid.NewGuid().ToString("N"));
+                Directory.CreateDirectory(tmp);
+                try
+                {
+                    var svc = new GlobalNotificationService(tmp);
+                    var input = new GlobalNotificationConfig
+                    {
+                        IsEnabled = true,
+                        NotifyOnSuccess = true,
+                        NotifyOnFailure = true,
+                        MaxOutputChars = 2000,
+                        Channels = new List<FeishuConfig>
+                        {
+                            new() { RobotType = FeishuRobotType.Custom, WebhookUrl = "https://x", AtAll = true },
+                            new() { RobotType = FeishuRobotType.App, AppId = "cli_x", AppSecret = "secret", ReceiveId = "oc_xxx" }
+                        }
+                    };
+                    svc.SaveAsync(input).GetAwaiter().GetResult();
+                    var loaded = svc.LoadAsync().GetAwaiter().GetResult();
+                    AssertEq("IsEnabled", true, loaded.IsEnabled);
+                    AssertEq("MaxOutputChars", 2000, loaded.MaxOutputChars);
+                    AssertEq("channels count", 2, loaded.Channels.Count);
+                    AssertEq("c0.WebhookUrl", "https://x", loaded.Channels[0].WebhookUrl);
+                    AssertEq("c1.ReceiveId", "oc_xxx", loaded.Channels[1].ReceiveId);
+                }
+                finally
+                {
+                    try { Directory.Delete(tmp, recursive: true); } catch { }
+                }
+            });
+
             Console.WriteLine();
             Console.WriteLine($"=== 结果：通过 {_passed}，失败 {_failed} ===");
             Environment.Exit(_failed == 0 ? 0 : 1);

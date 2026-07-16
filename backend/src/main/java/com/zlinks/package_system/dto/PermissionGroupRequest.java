@@ -9,7 +9,5 @@ public class PermissionGroupRequest {
     @NotBlank(message = "权限组名称不能为空")
     private String groupName;
 
-    private String groupPermission;
-
     private String remark;
 }

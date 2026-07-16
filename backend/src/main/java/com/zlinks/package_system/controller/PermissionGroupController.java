@@ -154,7 +154,6 @@ public class PermissionGroupController {
     public Result<PermissionGroup> create(@Valid @RequestBody PermissionGroupRequest request) {
         PermissionGroup group = new PermissionGroup();
         group.setGroupName(request.getGroupName());
-        group.setGroupPermission(request.getGroupPermission());
         group.setRemark(request.getRemark());
 
         permissionGroupService.save(group);
@@ -170,7 +169,6 @@ public class PermissionGroupController {
         }
 
         group.setGroupName(request.getGroupName());
-        group.setGroupPermission(request.getGroupPermission());
         group.setRemark(request.getRemark());
 
         permissionGroupService.updateById(group);
@@ -200,7 +198,6 @@ public class PermissionGroupController {
             }
             PermissionGroup group = new PermissionGroup();
             group.setGroupName(dto.getGroupName());
-            group.setGroupPermission(dto.getGroupPermission());
             group.setGroupAccounts(dto.getGroupAccounts());
             group.setRemark(dto.getRemark());
             list.add(group);
@@ -224,7 +221,6 @@ public class PermissionGroupController {
         for (PermissionGroup group : list) {
             PermissionGroupExcelDTO dto = new PermissionGroupExcelDTO();
             dto.setGroupName(group.getGroupName());
-            dto.setGroupPermission(group.getGroupPermission());
             dto.setGroupAccounts(group.getGroupAccounts());
             dto.setRemark(group.getRemark());
             exportList.add(dto);
@@ -255,7 +251,6 @@ public class PermissionGroupController {
         if ("json".equals(format)) {
             PermissionGroupExcelDTO sample = new PermissionGroupExcelDTO();
             sample.setGroupName("");
-            sample.setGroupPermission("");
             sample.setGroupAccounts("");
             sample.setRemark("");
             response.setContentType("application/json");

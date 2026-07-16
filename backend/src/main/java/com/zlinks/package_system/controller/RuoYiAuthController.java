@@ -7,6 +7,7 @@ import com.zlinks.package_system.entity.system.SysRole;
 import com.zlinks.package_system.entity.system.SysUser;
 import com.zlinks.package_system.security.LoginUser;
 import com.zlinks.package_system.security.UserDetailsImpl;
+import com.zlinks.package_system.service.AuthService;
 import com.zlinks.package_system.service.system.ISysMenuService;
 import com.zlinks.package_system.service.system.ISysRoleService;
 import com.zlinks.package_system.service.system.ISysUserService;
@@ -51,6 +52,7 @@ public class RuoYiAuthController {
         private final JwtUtil jwtUtil;
         private final RedisUtils redisUtils;
         private final ISysLogininforService logininforService;
+        private final AuthService authService;
 
     @Operation(summary = "RuoYi 风格登录")
         @PostMapping("/api/login")
@@ -140,6 +142,12 @@ public class RuoYiAuthController {
         rsp.put("user", user);
         rsp.put("roles", roles);
         rsp.put("permissions", permissions);
+
+        Map<String, Object> modules = new HashMap<>();
+        modules.put("backend", authService.mergeModulesByUser(ud.getUserId(), "backend"));
+        modules.put("desktop", authService.mergeModulesByUser(ud.getUserId(), "desktop"));
+        rsp.put("modules", modules);
+
         return Result.success(rsp);
     }
 

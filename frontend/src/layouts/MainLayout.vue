@@ -6,8 +6,6 @@ import { useTabsStore } from '@/stores/tabs'
 import {
   HomeFilled,
   Monitor,
-  Goods,
-  Connection,
   User,
   Lock,
   OfficeBuilding,
@@ -23,6 +21,7 @@ import {
   Menu as IconMenu,
   Tools,
   Setting,
+  Box,
 } from '@element-plus/icons-vue'
 import { ElMessageBox } from 'element-plus'
 
@@ -42,9 +41,6 @@ watch(
 
 const menuItems = [
   { index: '/', icon: HomeFilled, title: '首页' },
-  { index: '/games', icon: Monitor, title: '游戏管理' },
-  { index: '/products', icon: Goods, title: '产品管理' },
-  { index: '/tests', icon: Connection, title: '测试管理' },
   { index: '/system/user', icon: User, title: '用户管理' },
   { index: '/system/role', icon: Lock, title: '角色管理' },
   { index: '/system/menu', icon: IconMenu, title: '菜单管理' },
@@ -66,6 +62,13 @@ const monitorItems = [
   { index: '/system/monitor/cache', title: '缓存监控' },
   { index: '/system/monitor/logininfor', title: '登录日志' },
   { index: '/system/monitor/operlog', title: '操作日志' },
+]
+
+const packageItems = [
+  { index: '/package/games', title: '游戏管理' },
+  { index: '/package/products', title: '产品管理' },
+  { index: '/package/tests', title: '测试管理' },
+  { index: '/package/ad-params', title: '广告参数' },
 ]
 
 const handleMenuSelect = (index: string) => {
@@ -129,6 +132,19 @@ const handleCloseAll = async () => {
           <el-icon><component :is="item.icon" /></el-icon>
           <template #title>{{ item.title }}</template>
         </el-menu-item>
+        <el-sub-menu index="package">
+          <template #title>
+            <el-icon><Box /></el-icon>
+            <span>打包管理</span>
+          </template>
+          <el-menu-item
+            v-for="item in packageItems"
+            :key="item.index"
+            :index="item.index"
+          >
+            {{ item.title }}
+          </el-menu-item>
+        </el-sub-menu>
         <el-sub-menu index="monitor">
           <template #title>
             <el-icon><Monitor /></el-icon>

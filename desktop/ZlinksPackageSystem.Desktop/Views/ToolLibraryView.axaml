@@ -226,7 +226,7 @@
                         Width="720" MaxHeight="900" Padding="22" CornerRadius="12"
                         Background="#F01e1e2e"
                         BorderBrush="#33FFFFFF" BorderThickness="1">
-            <ScrollViewer VerticalScrollBarVisibility="Auto"
+            <ScrollViewer VerticalScrollBarVisibility="Disabled"
                           HorizontalScrollBarVisibility="Disabled">
                     <StackPanel Spacing="10">
 

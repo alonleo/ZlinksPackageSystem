@@ -25,6 +25,7 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
         Font,
         Background,
         Updates,
+        Notification,
         About
     }
 
@@ -76,6 +77,7 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
 
         private readonly MainViewModel _mainViewModel;
         private readonly IFilePickerService _filePickerService;
+        private readonly IGlobalNotificationService _globalNotificationService;
         private bool _isLoading;
 
         [ObservableProperty]
@@ -83,6 +85,10 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
 
         [ObservableProperty]
         private bool _autoCheckUpdates = true;
+
+        // ===== 通知配置（全局）=====
+        [ObservableProperty] private GlobalNotificationConfig _globalNotification = new();
+        [ObservableProperty] private bool _isGlobalSecretsVisible;
 
         [ObservableProperty]
         private int _backgroundType;
@@ -124,6 +130,7 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
             new() { Key = SettingsCategory.Font,       Icon = "🅰️", Title = "字体",       Description = "字体 / 字号 / 样式", AccentColor = "#FF9C27B0" },
             new() { Key = SettingsCategory.Background, Icon = "🖼️", Title = "背景",       Description = "背景图片与透明度", AccentColor = "#FFFF4081" },
             new() { Key = SettingsCategory.Updates,    Icon = "🔄", Title = "更新",       Description = "版本检测", AccentColor = "#FFE6A23C" },
+            new() { Key = SettingsCategory.Notification, Icon = "📢", Title = "通知",   Description = "飞书机器人全局默认", AccentColor = "#FF1890FF" },
             new() { Key = SettingsCategory.About,      Icon = "ℹ️", Title = "关于",       Description = "应用信息", AccentColor = "#FF52C41A" },
         };
 
@@ -132,6 +139,7 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
         public bool IsFontVisible => SelectedCategory?.Key == SettingsCategory.Font;
         public bool IsBackgroundVisible => SelectedCategory?.Key == SettingsCategory.Background;
         public bool IsUpdatesVisible => SelectedCategory?.Key == SettingsCategory.Updates;
+        public bool IsNotificationVisible => SelectedCategory?.Key == SettingsCategory.Notification;
         public bool IsAboutVisible => SelectedCategory?.Key == SettingsCategory.About;
 
         // 预览文本用
@@ -139,10 +147,11 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
         public FontStyle PreviewFontStyle => FontIsItalic ? FontStyle.Italic : FontStyle.Normal;
         public Avalonia.Media.FontFamily PreviewFontFamily => BuildFontFamily(FontFamily);
 
-        public SettingsViewModel(MainViewModel mainViewModel, IFilePickerService filePickerService)
+        public SettingsViewModel(MainViewModel mainViewModel, IFilePickerService filePickerService, IGlobalNotificationService globalNotificationService)
         {
             _mainViewModel = mainViewModel;
             _filePickerService = filePickerService;
+            _globalNotificationService = globalNotificationService;
             Title = "设置";
 
             LoadInstalledFonts();
@@ -150,6 +159,39 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
             LoadSettings();
             ApplyTheme(IsDarkTheme);
             ApplyFont(FontFamily, FontSize, FontIsBold, FontIsItalic);
+            _ = LoadGlobalNotificationAsync();
+        }
+
+        // ===== 通知配置命令 =====
+        [RelayCommand]
+        private async Task LoadGlobalNotificationAsync()
+        {
+            var cfg = await _globalNotificationService.LoadAsync();
+            GlobalNotification = cfg;
+        }
+
+        [RelayCommand]
+        private async Task SaveGlobalNotificationAsync()
+        {
+            await _globalNotificationService.SaveAsync(GlobalNotification);
+        }
+
+        [RelayCommand]
+        private void AddGlobalNotificationChannel()
+        {
+            GlobalNotification.Channels.Add(new FeishuConfig());
+        }
+
+        [RelayCommand]
+        private void RemoveGlobalNotificationChannel(FeishuConfig? channel)
+        {
+            if (channel != null) GlobalNotification.Channels.Remove(channel);
+        }
+
+        [RelayCommand]
+        private void ToggleGlobalSecretsVisibility()
+        {
+            IsGlobalSecretsVisible = !IsGlobalSecretsVisible;
         }
 
         // ===== 分类变化 =====
@@ -159,6 +201,7 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
             OnPropertyChanged(nameof(IsFontVisible));
             OnPropertyChanged(nameof(IsBackgroundVisible));
             OnPropertyChanged(nameof(IsUpdatesVisible));
+            OnPropertyChanged(nameof(IsNotificationVisible));
             OnPropertyChanged(nameof(IsAboutVisible));
         }
 

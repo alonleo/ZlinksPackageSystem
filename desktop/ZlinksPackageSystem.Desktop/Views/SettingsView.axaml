@@ -1,5 +1,6 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:ZlinksPackageSystem.Desktop.Views"
              x:Class="ZlinksPackageSystem.Desktop.Views.SettingsView">
 
     <UserControl.Resources>
@@ -441,6 +442,46 @@
                                           OnContent="开" OffContent="关"
                                           VerticalAlignment="Center" />
                         </Grid>
+                    </Border>
+                </StackPanel>
+
+                <!-- ============ 通知 ============ -->
+                <StackPanel IsVisible="{Binding IsNotificationVisible}" Spacing="16">
+                    <StackPanel Margin="0,0,0,8">
+                        <TextBlock Text="通知" FontSize="22" FontWeight="Bold"
+                                   Foreground="White" />
+                        <TextBlock Text="飞书机器人全局默认配置（工具级可覆盖）"
+                                   FontSize="11" Foreground="#99BFcbd9" Margin="0,2,0,0" />
+                    </StackPanel>
+
+                    <Border Padding="14" CornerRadius="8"
+                            Background="#0DFFFFFF" BorderBrush="#22FFFFFF" BorderThickness="1">
+                        <StackPanel Spacing="10">
+                            <CheckBox Content="启用全局通知" IsChecked="{Binding GlobalNotification.IsEnabled}" />
+                            <StackPanel Orientation="Horizontal" Spacing="16">
+                                <CheckBox Content="▶ 启动时" IsChecked="{Binding GlobalNotification.NotifyOnStart}" />
+                                <CheckBox Content="✅ 成功时" IsChecked="{Binding GlobalNotification.NotifyOnSuccess}" />
+                                <CheckBox Content="❌ 失败时" IsChecked="{Binding GlobalNotification.NotifyOnFailure}" />
+                            </StackPanel>
+                            <Grid ColumnDefinitions="Auto,*">
+                                <TextBlock Grid.Column="0" Text="脚本输出最大字符数：" VerticalAlignment="Center" Margin="0,0,8,0" Foreground="#FFBFcbd9" />
+                                <NumericUpDown Grid.Column="1" Value="{Binding GlobalNotification.MaxOutputChars}" Minimum="0" Maximum="100000" />
+                            </Grid>
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Button Content="👁 显隐 Secret" Command="{Binding ToggleGlobalSecretsVisibilityCommand}" />
+                                <Button Content="＋ 添加渠道" Command="{Binding AddGlobalNotificationChannelCommand}" />
+                            </StackPanel>
+                            <ItemsControl ItemsSource="{Binding GlobalNotification.Channels}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <local:FeishuChannelEditor />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <Button Content="💾 保存全局通知配置" Command="{Binding SaveGlobalNotificationCommand}"
+                                    Background="#FF1976D2" BorderBrush="#FF1976D2" Foreground="White"
+                                    HorizontalAlignment="Right" />
+                        </StackPanel>
                     </Border>
                 </StackPanel>
 

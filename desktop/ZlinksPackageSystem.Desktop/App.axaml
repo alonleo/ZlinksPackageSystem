@@ -6,40 +6,40 @@
     <Application.Styles>
         <FluentTheme />
         <Style Selector="Button">
-            <Setter Property="Background" Value="#FF3d3d5c" />
-            <Setter Property="Foreground" Value="#FFBFcbd9" />
+            <Setter Property="Background" Value="{DynamicResource ButtonBackground}" />
+            <Setter Property="Foreground" Value="{DynamicResource ButtonForeground}" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="CornerRadius" Value="4" />
             <Setter Property="HorizontalContentAlignment" Value="Center" />
             <Setter Property="VerticalContentAlignment" Value="Center" />
         </Style>
         <Style Selector="Button:pointerover">
-            <Setter Property="Background" Value="#FF4d4d6c" />
+            <Setter Property="Background" Value="{DynamicResource ButtonHoverBackground}" />
         </Style>
         <Style Selector="Button:pressed">
-            <Setter Property="Background" Value="#FF2d2d4c" />
+            <Setter Property="Background" Value="{DynamicResource ButtonPressedBackground}" />
         </Style>
         <Style Selector="TextBox">
-            <Setter Property="Background" Value="#FF2d2d44" />
-            <Setter Property="Foreground" Value="#FFBFcbd9" />
+            <Setter Property="Background" Value="{DynamicResource TextBoxBackground}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextBoxForeground}" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="CornerRadius" Value="4" />
         </Style>
         <Style Selector="TextBox:pointerover">
-            <Setter Property="Background" Value="#1AFFFFFF" />
+            <Setter Property="Background" Value="{DynamicResource TextBoxHoverBackground}" />
         </Style>
         <Style Selector="TextBox:focus">
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="BorderBrush" Value="#FF1976D2" />
         </Style>
         <Style Selector="CheckBox">
-            <Setter Property="Foreground" Value="#FFBFcbd9" />
+            <Setter Property="Foreground" Value="{DynamicResource ForegroundPrimary}" />
         </Style>
         <Style Selector="RadioButton">
-            <Setter Property="Foreground" Value="#FFBFcbd9" />
+            <Setter Property="Foreground" Value="{DynamicResource ForegroundPrimary}" />
         </Style>
         <Style Selector="ToggleButton">
-            <Setter Property="Foreground" Value="#FFBFcbd9" />
+            <Setter Property="Foreground" Value="{DynamicResource ForegroundPrimary}" />
         </Style>
         <Style Selector="ListBox">
             <Setter Property="Background" Value="Transparent" />
@@ -47,55 +47,76 @@
         </Style>
         <Style Selector="ListBoxItem">
             <Setter Property="Background" Value="Transparent" />
-            <Setter Property="Foreground" Value="#FFBFcbd9" />
+            <Setter Property="Foreground" Value="{DynamicResource ForegroundPrimary}" />
         </Style>
         <Style Selector="ListBoxItem:selected">
-            <Setter Property="Background" Value="#44333333" />
+            <Setter Property="Background" Value="{DynamicResource ListBoxItemSelectedBackground}" />
         </Style>
         <Style Selector="DataGrid">
             <Setter Property="Background" Value="Transparent" />
-            <Setter Property="Foreground" Value="#FFBFcbd9" />
+            <Setter Property="Foreground" Value="{DynamicResource ForegroundPrimary}" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="GridLinesVisibility" Value="None" />
             <Setter Property="HeadersVisibility" Value="Column" />
         </Style>
         <Style Selector="DataGridColumnHeader">
             <Setter Property="Background" Value="Transparent" />
-            <Setter Property="Foreground" Value="#FFBFcbd9" />
+            <Setter Property="Foreground" Value="{DynamicResource ForegroundPrimary}" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="SeparatorBrush" Value="Transparent" />
         </Style>
         <Style Selector="DataGridCell">
-            <Setter Property="Foreground" Value="#FFBFcbd9" />
+            <Setter Property="Foreground" Value="{DynamicResource ForegroundPrimary}" />
             <Setter Property="BorderThickness" Value="0" />
         </Style>
         <Style Selector="Menu">
             <Setter Property="Background" Value="Transparent" />
-            <Setter Property="Foreground" Value="#FFBFcbd9" />
+            <Setter Property="Foreground" Value="{DynamicResource ForegroundPrimary}" />
         </Style>
         <Style Selector="MenuItem">
-            <Setter Property="Foreground" Value="#FFBFcbd9" />
+            <Setter Property="Foreground" Value="{DynamicResource ForegroundPrimary}" />
         </Style>
         <Style Selector="Separator">
-            <Setter Property="Background" Value="#FF444466" />
+            <Setter Property="Background" Value="{DynamicResource SeparatorBackground}" />
         </Style>
     </Application.Styles>
 
     <Application.Resources>
         <ResourceDictionary>
+            <!-- 主题色(默认暗色,由 SettingsViewModel.ApplyTheme 在切换主题时直接替换) -->
+            <SolidColorBrush x:Key="ForegroundPrimary" Color="#FFBFcbd9" />
+            <SolidColorBrush x:Key="ForegroundSecondary" Color="#FF909399" />
+            <SolidColorBrush x:Key="WindowBackground" Color="#FF1e1e2e" />
+            <SolidColorBrush x:Key="WindowDimOverlay" Color="#CC1e1e2e" />
+            <SolidColorBrush x:Key="CardBackground" Color="#1A2d2d44" />
+            <SolidColorBrush x:Key="CardBorder" Color="#22FFFFFF" />
+            <SolidColorBrush x:Key="CardHover" Color="#22FFFFFF" />
+            <SolidColorBrush x:Key="SubItemBackground" Color="#0DFFFFFF" />
+            <SolidColorBrush x:Key="ButtonBackground" Color="#FF3d3d5c" />
+            <SolidColorBrush x:Key="ButtonForeground" Color="#FFBFcbd9" />
+            <SolidColorBrush x:Key="ButtonHoverBackground" Color="#FF4d4d6c" />
+            <SolidColorBrush x:Key="ButtonPressedBackground" Color="#FF2d2d4c" />
+            <SolidColorBrush x:Key="TextBoxBackground" Color="#FF2d2d44" />
+            <SolidColorBrush x:Key="TextBoxForeground" Color="#FFBFcbd9" />
+            <SolidColorBrush x:Key="TextBoxHoverBackground" Color="#1AFFFFFF" />
+            <SolidColorBrush x:Key="ListBoxItemSelectedBackground" Color="#44333333" />
+            <SolidColorBrush x:Key="SeparatorBackground" Color="#FF444466" />
+            <SolidColorBrush x:Key="NavItemBackground" Color="Transparent" />
+            <SolidColorBrush x:Key="NavItemHoverBackground" Color="#15FFFFFF" />
+            <SolidColorBrush x:Key="NavItemSelectedBackground" Color="#331976D2" />
+
             <converters:InverseBooleanConverter x:Key="BooleanInverseConverter" />
             <converters:RadioBoolConverter x:Key="RadioBoolConverter" />
             <converters:ReadToBackgroundConverter x:Key="ReadToBackgroundConverter" />
             <converters:ReadToOpacityConverter x:Key="ReadToOpacityConverter" />
             <converters:UrgencyToColorConverter x:Key="UrgencyToColorConverter" />
-                        <converters:IntPositiveToBoolConverter x:Key="IntPositiveToBoolConverter" />
-                        <converters:BoolToColorConverter x:Key="BoolToColorConverter" />
-                        <converters:StringEmptyToDimConverter x:Key="StringEmptyToDimConverter" />
-                        <converters:EnumToIntConverter x:Key="EnumToIntConverter" />
-                        <converters:EnumEqualsConverter x:Key="EnumEqualsConverter" />
+            <converters:IntPositiveToBoolConverter x:Key="IntPositiveToBoolConverter" />
+            <converters:BoolToColorConverter x:Key="BoolToColorConverter" />
+            <converters:StringEmptyToDimConverter x:Key="StringEmptyToDimConverter" />
+            <converters:EnumToIntConverter x:Key="EnumToIntConverter" />
+            <converters:EnumEqualsConverter x:Key="EnumEqualsConverter" />
             <converters:BoolToExpandGlyphConverter x:Key="BoolToExpandGlyphConverter" />
             <converters:BoolToPasswordCharConverter x:Key="BoolToPasswordCharConverter" />
-
         </ResourceDictionary>
     </Application.Resources>
 </Application>

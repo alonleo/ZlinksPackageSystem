@@ -37,38 +37,56 @@ namespace ZlinksPackageSystem.Desktop.Services
                         SizeToContent = SizeToContent.WidthAndHeight,
                         WindowStartupLocation = WindowStartupLocation.CenterOwner,
                         CanResize = false,
-                        MinWidth = 300,
-                        MinHeight = 150
+                        MinWidth = 360,
+                        MinHeight = 180,
+                        SystemDecorations = SystemDecorations.None,
+                        Background = new SolidColorBrush(Color.Parse("#F01e1e2e"))
                     };
 
-                    var textBlock = new TextBlock
+                    var header = new Border
+                    {
+                        Background = new SolidColorBrush(Color.Parse("#22FFFFFF")),
+                        Padding = new Thickness(18, 12),
+                        Child = new TextBlock
+                        {
+                            Text = $"💬  {title}",
+                            FontSize = 15,
+                            FontWeight = FontWeight.Bold,
+                            Foreground = new SolidColorBrush(Color.Parse("#FFBFcbd9"))
+                        }
+                    };
+
+                    var messageBlock = new TextBlock
                     {
                         Text = message,
                         TextWrapping = TextWrapping.Wrap,
-                        Margin = new Thickness(20),
-                        HorizontalAlignment = HorizontalAlignment.Center,
-                        VerticalAlignment = VerticalAlignment.Center
+                        Margin = new Thickness(20, 22, 20, 18),
+                        FontSize = 13,
+                        Foreground = new SolidColorBrush(Color.Parse("#FFBFcbd9"))
                     };
 
                     var okButton = new Button
                     {
                         Content = "确定",
+                        Width = 110,
+                        Height = 34,
                         HorizontalAlignment = HorizontalAlignment.Center,
-                        Width = 100,
-                        Height = 32,
-                        Margin = new Thickness(0, 4, 0, 18)
+                        HorizontalContentAlignment = HorizontalAlignment.Center,
+                        Background = new SolidColorBrush(Color.Parse("#FF1976D2")),
+                        BorderBrush = new SolidColorBrush(Color.Parse("#FF1976D2")),
+                        Foreground = new SolidColorBrush(Colors.White),
+                        Margin = new Thickness(0, 6, 0, 22)
                     };
-
                     okButton.Click += (_, _) => dialog.Close();
 
-                    var grid = new Grid
-                    {
-                        RowDefinitions = new RowDefinitions("*,Auto"),
-                        Children = { textBlock, okButton }
-                    };
-                    Grid.SetRow(okButton, 1);
+                    var root = new DockPanel { LastChildFill = true };
+                    DockPanel.SetDock(header, Dock.Top);
+                    root.Children.Add(header);
+                    DockPanel.SetDock(okButton, Dock.Bottom);
+                    root.Children.Add(okButton);
+                    root.Children.Add(messageBlock);
 
-                    dialog.Content = grid;
+                    dialog.Content = root;
                     await dialog.ShowDialog(owner);
                 }
 

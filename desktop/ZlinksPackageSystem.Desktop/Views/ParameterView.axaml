@@ -46,10 +46,10 @@
             <StackPanel Spacing="12" HorizontalAlignment="Center" VerticalAlignment="Center">
                 <TextBlock Text="📋 暂无平台数据"
                            FontSize="22" FontWeight="Bold"
-                           Foreground="White"
+                           Foreground="{DynamicResource ForegroundPrimary}"
                            HorizontalAlignment="Center" />
                 <TextBlock Text="{Binding EmptyStateMessage}"
-                           Foreground="#88FFFFFF"
+                           Foreground="{DynamicResource ForegroundSecondary}"
                            HorizontalAlignment="Center" />
                 <Button Content="↻ 重新加载"
                         Width="120" Margin="0,12,0,0"
@@ -79,7 +79,7 @@
                             <Border IsVisible="{Binding !IsMapped}"
                                     Background="#FFF56C6C" CornerRadius="3"
                                     Padding="6,1" VerticalAlignment="Center">
-                                <TextBlock Text="未对接" FontSize="10" Foreground="White" />
+                                <TextBlock Text="未对接" FontSize="10" Foreground="{DynamicResource ForegroundPrimary}" />
                             </Border>
                         </StackPanel>
                     </DataTemplate>
@@ -136,15 +136,15 @@
                     <StackPanel Spacing="12" HorizontalAlignment="Center" VerticalAlignment="Center">
                         <TextBlock Text="⚠ 当前平台暂未对接参数类型"
                                    FontSize="18" FontWeight="Bold"
-                                   Foreground="White"
+                                   Foreground="{DynamicResource ForegroundPrimary}"
                                    HorizontalAlignment="Center" />
-                        <TextBlock Foreground="#88FFFFFF"
+                        <TextBlock Foreground="{DynamicResource ForegroundSecondary}"
                                    HorizontalAlignment="Center"
                                    TextWrapping="Wrap"
                                    MaxWidth="600">
                             <Run Text="平台 " /><Run Text="{Binding SelectedPlatform.PlatformName, Mode=OneWay}" /><Run Text="（编码：" /><Run Text="{Binding SelectedPlatform.PlatformCode, Mode=OneWay}" /><Run Text="）未对接参数类型。" />
                         </TextBlock>
-                        <TextBlock Foreground="#88FFFFFF" FontSize="12"
+                        <TextBlock Foreground="{DynamicResource ForegroundSecondary}" FontSize="12"
                                    HorizontalAlignment="Center"
                                    Text="请在后台「平台管理」中将其 platformCode 设置为 honor / vivo / huawei 之一" />
                     </StackPanel>
@@ -155,7 +155,7 @@
             <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="10" Margin="0,12,0,0">
                 <Button Content="◀ 上一页" Command="{Binding PreviousPageCommand}" Width="90"
                         IsEnabled="{Binding IsCurrentPlatformMapped}" />
-                <TextBlock Text="{Binding CurrentPage}" VerticalAlignment="Center" Foreground="White" FontSize="14" />
+                <TextBlock Text="{Binding CurrentPage}" VerticalAlignment="Center" Foreground="{DynamicResource ForegroundPrimary}" FontSize="14" />
                 <TextBlock Text="/" VerticalAlignment="Center" Foreground="#66FFFFFF" FontSize="14" />
                 <TextBlock Text="{Binding TotalCount}" VerticalAlignment="Center" Foreground="#66FFFFFF" FontSize="14" />
                 <Button Content="下一页 ▶" Command="{Binding NextPageCommand}" Width="90"
@@ -169,10 +169,10 @@
                 VerticalAlignment="Stretch" HorizontalAlignment="Stretch">
             <Border VerticalAlignment="Center" HorizontalAlignment="Center"
                     Width="560" Padding="24" CornerRadius="12"
-                    Background="#F01e1e2e"
-                    BorderBrush="#33FFFFFF" BorderThickness="1">
+                    Background="{DynamicResource WindowBackground}"
+                    BorderBrush="{DynamicResource CardBorder}" BorderThickness="1">
                 <StackPanel Spacing="10">
-                    <TextBlock Text="{Binding EditTitle}" FontSize="16" FontWeight="Bold" Foreground="White" />
+                    <TextBlock Text="{Binding EditTitle}" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource ForegroundPrimary}" />
 
                     <ScrollViewer MaxHeight="540" VerticalScrollBarVisibility="Auto">
                         <ItemsControl ItemsSource="{Binding EditFieldRows}">
@@ -204,7 +204,7 @@
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin="0,8,0,0">
                         <Button Content="取消" Width="80" Command="{Binding CancelEditCommand}" />
                         <Button Content="保存" Width="80"
-                                Background="#FF1976D2" BorderBrush="#FF1976D2" Foreground="White"
+                                Background="#FF1976D2" BorderBrush="#FF1976D2" Foreground="{DynamicResource ForegroundPrimary}"
                                 Command="{Binding SaveProductCommand}" />
                     </StackPanel>
                 </StackPanel>

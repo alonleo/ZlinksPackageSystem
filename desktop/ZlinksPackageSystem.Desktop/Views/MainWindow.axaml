@@ -85,7 +85,7 @@
                    IsHitTestVisible="False" />
 
         <!-- Dimming overlay to keep content readable -->
-        <Rectangle Fill="#CC1e1e2e" IsHitTestVisible="False" />
+        <Rectangle Fill="{DynamicResource WindowDimOverlay}" IsHitTestVisible="False" />
 
         <Border CornerRadius="8">
             <Grid>
@@ -105,7 +105,7 @@
 
                         <TextBlock Grid.Column="0"
                                    Text="{Binding Title}"
-                                   Foreground="#FFBFcbd9"
+                                   Foreground="{DynamicResource ForegroundPrimary}"
                                    FontSize="13"
                                    VerticalAlignment="Center"
                                    Margin="16,0,0,0" />
@@ -128,20 +128,73 @@
                 </Border>
 
                 <!-- Menu Bar -->
-                <Menu Grid.Row="1"
-                      IsVisible="{Binding IsLoggedIn}"
-                      HorizontalAlignment="Center">
-                    <MenuItem Header="🏠 首页" Command="{Binding NavigateToHomeCommand}" IsVisible="{Binding IsHomeVisible}" />
-                    <MenuItem Header="🎮 游戏" Command="{Binding NavigateToGamesCommand}" IsVisible="{Binding IsGamesVisible}" />
-                    <MenuItem Header="📦 产品" Command="{Binding NavigateToProductsCommand}" IsVisible="{Binding IsProductsVisible}" />
-                    <MenuItem Header="📋 参数" Command="{Binding NavigateToParametersCommand}" IsVisible="{Binding IsParametersVisible}" />
-                    <MenuItem Header="🧪 测试" Command="{Binding NavigateToTestsCommand}" IsVisible="{Binding IsTestsVisible}" />
-                    <MenuItem Header="🔧 工具库" Command="{Binding NavigateToToolLibraryCommand}" IsVisible="{Binding IsToolLibraryVisible}" />
-                    <MenuItem Header="🔔 消息中心" Command="{Binding NavigateToNotificationCommand}" IsVisible="{Binding IsNotificationVisible}" />
-                    <MenuItem Header="⚙️ 设置" Command="{Binding NavigateToSettingsCommand}" IsVisible="{Binding IsSettingsVisible}" />
-                    <Separator />
-                    <MenuItem Header="🚪 退出" Command="{Binding LogoutCommand}" />
-                </Menu>
+                <DockPanel Grid.Row="1"
+                           IsVisible="{Binding IsLoggedIn}"
+                           LastChildFill="True">
+                    <Button DockPanel.Dock="Right"
+                            Margin="0,6,14,6"
+                            Padding="14,6"
+                            Background="{DynamicResource SubItemBackground}"
+                            Foreground="{DynamicResource ForegroundPrimary}"
+                            BorderBrush="{DynamicResource CardBorder}"
+                            BorderThickness="1"
+                            CornerRadius="4"
+                            Cursor="Hand">
+                        <Button.Content>
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Border Background="#FF1976D2"
+                                        CornerRadius="3"
+                                        Padding="6,2"
+                                        VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding PrimaryRole}"
+                                               FontSize="11"
+                                               Foreground="{DynamicResource ForegroundPrimary}"
+                                               FontWeight="Bold" />
+                                </Border>
+                                <TextBlock Text="{Binding DisplayUsername}"
+                                           FontSize="12"
+                                           VerticalAlignment="Center"
+                                           Foreground="{DynamicResource ForegroundPrimary}" />
+                                <TextBlock Text="▾" FontSize="10" VerticalAlignment="Center" Foreground="{DynamicResource ForegroundPrimary}" />
+                            </StackPanel>
+                        </Button.Content>
+                        <Button.Flyout>
+                            <MenuFlyout>
+                                <MenuItem>
+                                    <MenuItem.Header>
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <TextBlock Text="角色" Foreground="#909399" FontSize="12" />
+                                            <TextBlock Text="{Binding PrimaryRole}" Foreground="{DynamicResource ForegroundPrimary}" FontSize="12" FontWeight="Bold" />
+                                        </StackPanel>
+                                    </MenuItem.Header>
+                                </MenuItem>
+                                <MenuItem>
+                                    <MenuItem.Header>
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <TextBlock Text="用户名" Foreground="#909399" FontSize="12" />
+                                            <TextBlock Text="{Binding DisplayUsername}" Foreground="{DynamicResource ForegroundPrimary}" FontSize="12" FontWeight="Bold" />
+                                        </StackPanel>
+                                    </MenuItem.Header>
+                                </MenuItem>
+                                <Separator />
+                                <MenuItem Header="🔧 修改账号" Command="{Binding ChangeAccountCommand}" />
+                            </MenuFlyout>
+                        </Button.Flyout>
+                    </Button>
+
+                    <Menu HorizontalAlignment="Center" VerticalAlignment="Center">
+                        <MenuItem Header="🏠 首页" Command="{Binding NavigateToHomeCommand}" IsVisible="{Binding IsHomeVisible}" />
+                        <MenuItem Header="🎮 游戏" Command="{Binding NavigateToGamesCommand}" IsVisible="{Binding IsGamesVisible}" />
+                        <MenuItem Header="📦 产品" Command="{Binding NavigateToProductsCommand}" IsVisible="{Binding IsProductsVisible}" />
+                        <MenuItem Header="📋 参数" Command="{Binding NavigateToParametersCommand}" IsVisible="{Binding IsParametersVisible}" />
+                        <MenuItem Header="🧪 测试" Command="{Binding NavigateToTestsCommand}" IsVisible="{Binding IsTestsVisible}" />
+                        <MenuItem Header="🔧 工具库" Command="{Binding NavigateToToolLibraryCommand}" IsVisible="{Binding IsToolLibraryVisible}" />
+                        <MenuItem Header="🔔 消息中心" Command="{Binding NavigateToNotificationCommand}" IsVisible="{Binding IsNotificationVisible}" />
+                        <MenuItem Header="⚙️ 设置" Command="{Binding NavigateToSettingsCommand}" IsVisible="{Binding IsSettingsVisible}" />
+                        <Separator />
+                        <MenuItem Header="🚪 退出" Command="{Binding LogoutCommand}" />
+                    </Menu>
+                </DockPanel>
 
                 <!-- Main Content -->
                 <ScrollViewer Grid.Row="2"

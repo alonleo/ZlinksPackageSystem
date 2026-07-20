@@ -1,15 +1,20 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Avalonia;
+using Avalonia.Controls;
+using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
+using Avalonia.Styling;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Microsoft.Extensions.DependencyInjection;
 using ZlinksPackageSystem.Desktop.Models;
 using ZlinksPackageSystem.Desktop.Services;
+using ZlinksPackageSystem.Desktop.Views;
 
 namespace ZlinksPackageSystem.Desktop.ViewModels
 {
@@ -19,6 +24,8 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
         private readonly IServiceProvider _serviceProvider;
         private User? _currentUser;
         private readonly IDialogService _dialogService;
+        private int _lastBackgroundType;
+        private string _lastBackgroundValue = string.Empty;
 
         [ObservableProperty]
         private ViewModelBase? _currentViewModel;
@@ -47,6 +54,12 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
             Title = "Zlinks Package System";
             CurrentViewModel = _serviceProvider.GetRequiredService<LoginViewModel>();
             LoadSettings();
+            SettingsViewModel.ThemeChanged += OnThemeChanged;
+        }
+
+        private void OnThemeChanged(bool isDark)
+        {
+            ApplyBackground(_lastBackgroundType, _lastBackgroundValue, BackgroundOpacity);
         }
 
         public User? CurrentUser
@@ -64,9 +77,17 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
                     OnPropertyChanged(nameof(IsToolLibraryVisible));
                     OnPropertyChanged(nameof(IsNotificationVisible));
                     OnPropertyChanged(nameof(IsSettingsVisible));
+                    OnPropertyChanged(nameof(PrimaryRole));
+                    OnPropertyChanged(nameof(DisplayUsername));
                 }
             }
         }
+
+        public string PrimaryRole =>
+            CurrentUser?.GroupNames?.FirstOrDefault() ?? "普通用户";
+
+        public string DisplayUsername =>
+            string.IsNullOrEmpty(CurrentUser?.Username) ? "-" : CurrentUser.Username;
 
         public bool IsHomeVisible => CheckModule("home");
         public bool IsGamesVisible => CheckModule("games");
@@ -75,7 +96,7 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
         public bool IsTestsVisible => CheckModule("tests");
         public bool IsToolLibraryVisible => CheckModule("tool-library");
         public bool IsNotificationVisible => CheckModule("notification");
-        public bool IsSettingsVisible => CheckModule("settings");
+        public bool IsSettingsVisible => true;  // 设置对所有登录用户始终可见
 
         private bool CheckModule(string key)
         {
@@ -110,6 +131,8 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
 
         public void ApplyBackground(int type, string value, double opacity)
         {
+            _lastBackgroundType = type;
+            _lastBackgroundValue = value;
             BackgroundOpacity = opacity;
 
             if (type == 3 && !string.IsNullOrEmpty(value))
@@ -125,17 +148,19 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
                 }
             }
 
+            var isDark = Application.Current?.RequestedThemeVariant != ThemeVariant.Light;
+
             var startColor = type switch
             {
-                1 => Color.FromRgb(15, 12, 41),
-                2 => Color.FromRgb(26, 35, 53),
-                _ => Color.FromRgb(30, 30, 46)
+                1 => isDark ? Color.FromRgb(15, 12, 41) : Color.FromRgb(220, 225, 240),
+                2 => isDark ? Color.FromRgb(26, 35, 53) : Color.FromRgb(230, 235, 245),
+                _ => isDark ? Color.FromRgb(30, 30, 46) : Color.FromRgb(250, 250, 250)
             };
             var endColor = type switch
             {
-                1 => Color.FromRgb(36, 36, 62),
-                2 => Color.FromRgb(30, 50, 70),
-                _ => Color.FromRgb(30, 30, 46)
+                1 => isDark ? Color.FromRgb(36, 36, 62) : Color.FromRgb(240, 242, 250),
+                2 => isDark ? Color.FromRgb(30, 50, 70) : Color.FromRgb(240, 245, 255),
+                _ => isDark ? Color.FromRgb(30, 30, 46) : Color.FromRgb(250, 250, 250)
             };
 
             BackgroundBrush = type switch
@@ -245,6 +270,35 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
         private async Task ForgotPasswordAsync()
         {
             await _dialogService.ShowMessageAsync("忘记密码", "请联系管理员重置密码。");
+        }
+
+        [RelayCommand]
+        private async Task ChangeAccountAsync()
+        {
+            if (CurrentUser == null) return;
+
+            var dialog = new ChangeAccountDialog
+            {
+                DataContext = new ChangeAccountViewModel(_authService),
+            };
+
+            if (dialog.DataContext is ChangeAccountViewModel vm)
+            {
+                vm.Initialize(CurrentUser.Username);
+            }
+
+            var owner = (Application.Current?.ApplicationLifetime as IClassicDesktopStyleApplicationLifetime)?.MainWindow;
+            if (owner == null) return;
+
+            await dialog.ShowDialog(owner);
+
+            if (dialog.Succeeded)
+            {
+                CurrentUser = await _authService.GetCurrentUserAsync();
+                Username = CurrentUser?.RealName ?? "User";
+                await _dialogService.ShowMessageAsync("成功", "账号信息修改成功,需重新登录。");
+                await LogoutAsync();
+            }
         }
     }
 }

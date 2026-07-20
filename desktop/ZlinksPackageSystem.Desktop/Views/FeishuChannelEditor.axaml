@@ -8,20 +8,20 @@
     </UserControl.Resources>
 
     <Border Margin="0,0,0,8" Padding="10" CornerRadius="6"
-            Background="#0DFFFFFF" BorderBrush="#22FFFFFF" BorderThickness="1">
+            Background="{DynamicResource SubItemBackground}" BorderBrush="{DynamicResource CardBorder}" BorderThickness="1">
         <StackPanel Spacing="6" DataContext="{Binding $parent.DataContext}">
 
             <!-- 渠道类型下拉 + 飞书子类型下拉 + 测试 + 删除（同一行） -->
             <Grid ColumnDefinitions="Auto,*,Auto,*,Auto,Auto">
                 <TextBlock Grid.Column="0" Text="渠道类型" VerticalAlignment="Center"
-                           Margin="0,0,8,0" Foreground="#99BFcbd9" />
+                           Margin="0,0,8,0" Foreground="{DynamicResource ForegroundSecondary}" />
                 <ComboBox Grid.Column="1"
                           SelectedIndex="{Binding ChannelType, Converter={StaticResource EnumToIntConverter}}">
                     <ComboBoxItem Content="飞书机器人" />
                     <ComboBoxItem Content="微信企业机器人" />
                 </ComboBox>
                 <TextBlock Grid.Column="2" Text="子类型" VerticalAlignment="Center"
-                           Margin="8,0,8,0" Foreground="#99BFcbd9"
+                           Margin="8,0,8,0" Foreground="{DynamicResource ForegroundSecondary}"
                            IsVisible="{Binding ChannelType, Converter={StaticResource EnumEqualsConverter}, ConverterParameter=Feishu}" />
                 <ComboBox Grid.Column="3"
                           SelectedIndex="{Binding RobotType, Converter={StaticResource EnumToIntConverter}}"

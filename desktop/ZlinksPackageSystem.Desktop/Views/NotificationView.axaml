@@ -6,11 +6,11 @@
         <!-- 通知标题 -->
         <Grid Grid.Row="0" Margin="0,0,0,8">
             <TextBlock Text="🔔 通知" FontSize="16" FontWeight="Bold"
-                       Foreground="White" VerticalAlignment="Center" />
+                       Foreground="{DynamicResource ForegroundPrimary}" VerticalAlignment="Center" />
             <Border Background="#FF52C41A" CornerRadius="10"
                     Padding="6,2" HorizontalAlignment="Right"
                     IsVisible="{Binding UnreadCount, Converter={StaticResource IntPositiveToBoolConverter}}">
-                <TextBlock Foreground="White" FontSize="11">
+                <TextBlock Foreground="{DynamicResource ForegroundPrimary}" FontSize="11">
                     <Run Text="{Binding UnreadCount}" /><Run Text=" 条未读" />
                 </TextBlock>
             </Border>
@@ -49,11 +49,11 @@
                                 <TextBlock Grid.Column="2" Text="{Binding Message}"
                                            FontSize="13" VerticalAlignment="Center"
                                            TextWrapping="Wrap"
-                                           Foreground="#FFBFcbd9"
+                                           Foreground="{DynamicResource ForegroundPrimary}"
                                            Opacity="{Binding IsRead, Converter={StaticResource ReadToOpacityConverter}}" />
                                 <TextBlock Grid.Column="3" Text="{Binding Time, StringFormat='{}{0:MM-dd HH:mm}'}"
                                            FontSize="11" VerticalAlignment="Center"
-                                           Foreground="#99FFFFFF"
+                                           Foreground="{DynamicResource ForegroundSecondary}"
                                            Opacity="{Binding IsRead, Converter={StaticResource ReadToOpacityConverter}}" />
                             </Grid>
                             <Grid Grid.Row="1" Margin="14,4,0,0">

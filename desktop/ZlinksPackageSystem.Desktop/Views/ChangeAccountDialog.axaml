@@ -1,0 +1,159 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="clr-namespace:ZlinksPackageSystem.Desktop.ViewModels"
+        x:Class="ZlinksPackageSystem.Desktop.Views.ChangeAccountDialog"
+        Title="修改账号信息"
+        Width="440" Height="540"
+        WindowStartupLocation="CenterOwner"
+        CanResize="False"
+        SystemDecorations="BorderOnly"
+        Background="{DynamicResource WindowBackground}"
+        Foreground="{DynamicResource ForegroundPrimary}">
+
+    <Design.DataContext>
+        <vm:ChangeAccountViewModel />
+    </Design.DataContext>
+
+    <Window.Styles>
+        <Style Selector="ScrollViewer.scroll-hidden ScrollBar">
+            <Setter Property="Opacity" Value="0" />
+            <Setter Property="IsHitTestVisible" Value="False" />
+        </Style>
+    </Window.Styles>
+
+    <DockPanel Margin="20" LastChildFill="True">
+        <!-- 标题 -->
+        <Border DockPanel.Dock="Top" Padding="0,0,0,12">
+            <StackPanel>
+                <TextBlock Text="🔧 修改账号信息"
+                           FontSize="18" FontWeight="Bold"
+                           Foreground="{DynamicResource ForegroundPrimary}" />
+                <TextBlock Text="需先验证当前密码,验证通过后才能修改"
+                           FontSize="11"
+                           Foreground="{DynamicResource ForegroundSecondary}"
+                           Margin="0,4,0,0" />
+            </StackPanel>
+        </Border>
+
+        <!-- 底部按钮 -->
+        <Border DockPanel.Dock="Bottom" Padding="0,12,0,0">
+            <StackPanel Orientation="Horizontal"
+                        HorizontalAlignment="Right" Spacing="10">
+                <Button Content="取消"
+                        Width="90" Height="34"
+                        Click="CancelButton_Click"
+                        Background="#FF444444"
+                        Foreground="{DynamicResource ForegroundPrimary}"
+                        BorderThickness="0" />
+                <Button Content="保存修改"
+                        x:Name="SaveButton"
+                        Width="110" Height="34"
+                        Click="SaveButton_Click"
+                        IsEnabled="{Binding Verified}"
+                        Background="#FF1976D2"
+                        Foreground="{DynamicResource ForegroundPrimary}"
+                        BorderThickness="0" />
+            </StackPanel>
+        </Border>
+
+        <!-- 表单 -->
+        <ScrollViewer Classes="scroll-hidden"
+                      HorizontalScrollBarVisibility="Disabled"
+                      VerticalScrollBarVisibility="Auto">
+            <StackPanel Spacing="10">
+
+                <!-- 当前密码 + 验证按钮 -->
+                <StackPanel>
+                    <TextBlock Text="当前密码"
+                               Foreground="#BFcbd9" FontSize="12"
+                               Margin="0,0,0,4" />
+                    <Grid ColumnDefinitions="*,Auto">
+                        <TextBox Grid.Column="0"
+                                 Text="{Binding CurrentPassword, UpdateSourceTrigger=PropertyChanged}"
+                                 Watermark="请输入当前密码"
+                                 PasswordChar="●"
+                                 IsEnabled="{Binding !Verified}"
+                                 Background="{DynamicResource SubItemBackground}"
+                                 Foreground="{DynamicResource ForegroundPrimary}"
+                                 BorderBrush="{DynamicResource CardBorder}"
+                                 BorderThickness="1"
+                                 Padding="10,8" />
+                        <Button Grid.Column="1"
+                                Content="验证密码"
+                                Command="{Binding VerifyPasswordCommand}"
+                                IsEnabled="{Binding !Verified}"
+                                Margin="8,0,0,0"
+                                Width="92" Height="34"
+                                Background="#FF1E88E5"
+                                Foreground="{DynamicResource ForegroundPrimary}"
+                                BorderThickness="0" />
+                    </Grid>
+                </StackPanel>
+
+                <!-- 用户名 -->
+                <StackPanel>
+                    <TextBlock Text="用户名"
+                               Foreground="#BFcbd9" FontSize="12"
+                               Margin="0,0,0,4" />
+                    <TextBox Text="{Binding NewUsername}"
+                             Watermark="请输入新用户名"
+                             IsEnabled="{Binding Verified}"
+                             Background="{DynamicResource SubItemBackground}"
+                             Foreground="{DynamicResource ForegroundPrimary}"
+                             BorderBrush="{DynamicResource CardBorder}"
+                             BorderThickness="1"
+                             Padding="10,8" />
+            </StackPanel>
+
+                <!-- 新密码 -->
+                <StackPanel>
+                    <TextBlock Text="新密码(留空则不修改)"
+                               Foreground="#BFcbd9" FontSize="12"
+                               Margin="0,0,0,4" />
+                    <TextBox Text="{Binding NewPassword, UpdateSourceTrigger=PropertyChanged}"
+                             Watermark="留空则不修改"
+                             PasswordChar="●"
+                             IsEnabled="{Binding Verified}"
+                             Background="{DynamicResource SubItemBackground}"
+                             Foreground="{DynamicResource ForegroundPrimary}"
+                             BorderBrush="{DynamicResource CardBorder}"
+                             BorderThickness="1"
+                             Padding="10,8" />
+                </StackPanel>
+
+                <!-- 确认密码 -->
+                <StackPanel>
+                    <TextBlock Text="确认新密码"
+                               Foreground="#BFcbd9" FontSize="12"
+                               Margin="0,0,0,4" />
+                    <TextBox Text="{Binding ConfirmPassword, UpdateSourceTrigger=PropertyChanged}"
+                             Watermark="再次输入新密码"
+                             PasswordChar="●"
+                             IsEnabled="{Binding Verified}"
+                             Background="{DynamicResource SubItemBackground}"
+                             Foreground="{DynamicResource ForegroundPrimary}"
+                             BorderBrush="{DynamicResource CardBorder}"
+                             BorderThickness="1"
+                             Padding="10,8" />
+                </StackPanel>
+
+                <!-- 提示 -->
+                <Border IsVisible="{Binding !Verified}"
+                        Background="{DynamicResource SubItemBackground}"
+                        CornerRadius="4"
+                        Padding="10,8">
+                    <TextBlock Text="请先验证当前密码,验证通过后才能修改账号信息"
+                               Foreground="{DynamicResource ForegroundPrimary}"
+                               FontSize="12"
+                               TextWrapping="Wrap" />
+                </Border>
+
+                <!-- 错误信息 -->
+                <TextBlock Text="{Binding ErrorMessage}"
+                           Foreground="#FFF56C6C"
+                           FontSize="12"
+                           TextWrapping="Wrap" />
+            </StackPanel>
+        </ScrollViewer>
+    </DockPanel>
+</Window>

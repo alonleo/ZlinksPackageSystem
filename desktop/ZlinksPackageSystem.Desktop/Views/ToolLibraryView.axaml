@@ -60,7 +60,7 @@
             <!-- 顶部条：标题 + 搜索 + 新建 + 同步本地工具 -->
             <Grid DockPanel.Dock="Top" Margin="0,0,0,16" ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto,Auto">
             <TextBlock Grid.Column="0" Text="🔧 工具库" FontSize="18" FontWeight="Bold"
-                       Foreground="White" VerticalAlignment="Center" Margin="0,0,16,0" />
+                       Foreground="{DynamicResource ForegroundPrimary}" VerticalAlignment="Center" Margin="0,0,16,0" />
             <TextBox Grid.Column="1" Text="{Binding SearchText}"
                      Watermark="🔍 搜索工具名称..."
                      VerticalAlignment="Center" />
@@ -89,7 +89,7 @@
                     <Border Background="#FFFFA940" CornerRadius="8"
                             Padding="6,1"
                             IsVisible="{Binding HasPendingSync}">
-                        <TextBlock Foreground="White" FontSize="10"
+                        <TextBlock Foreground="{DynamicResource ForegroundPrimary}" FontSize="10"
                                    Text="{Binding PendingSyncTools.Count}" />
                     </Border>
                 </StackPanel>
@@ -98,12 +98,12 @@
 
         <!-- 可用运行环境面板 -->
                 <Border DockPanel.Dock="Top" Margin="0,0,0,14" Padding="12,10"
-                        Background="#0DFFFFFF" CornerRadius="8"
-                        BorderBrush="#22FFFFFF" BorderThickness="1">
+                        Background="{DynamicResource SubItemBackground}" CornerRadius="8"
+                        BorderBrush="{DynamicResource CardBorder}" BorderThickness="1">
                     <Grid RowDefinitions="Auto,Auto">
                         <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
                             <TextBlock Grid.Column="0" Text="🖥️ 可用运行环境（启动时已自动检测）"
-                                       FontSize="13" FontWeight="SemiBold" Foreground="White"
+                                       FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource ForegroundPrimary}"
                                        VerticalAlignment="Center" />
                             <Button Grid.Column="1" Content="🔄 重新检测全部"
                                     Command="{Binding ReDetectEnvironmentsCommand}"
@@ -118,14 +118,14 @@
                             <ItemsControl.ItemTemplate>
                                                             <DataTemplate DataType="models:RuntimeEnvironment">
                                                                 <Border Margin="0,0,6,6" Padding="8,5" CornerRadius="4"
-                                                                        Background="#15FFFFFF" BorderBrush="#33FFFFFF" BorderThickness="1">
+                                                                        Background="#15FFFFFF" BorderBrush="{DynamicResource CardBorder}" BorderThickness="1">
                                                                     <StackPanel Orientation="Horizontal" Spacing="6">
                                                                         <TextBlock Text="{Binding Icon}" FontSize="14"
                                                                                    VerticalAlignment="Center" />
                                                                         <Ellipse Width="8" Height="8" VerticalAlignment="Center"
                                                                                  Fill="{Binding IsAvailable, Converter={StaticResource BoolToColorConverter}}" />
                                                                         <TextBlock Text="{Binding DisplayName}" FontSize="11"
-                                                                                   Foreground="#FFBFcbd9" VerticalAlignment="Center" />
+                                                                                   Foreground="{DynamicResource ForegroundPrimary}" VerticalAlignment="Center" />
                                                                         <TextBlock FontSize="10" VerticalAlignment="Center"
                                                                                    Foreground="{Binding ExecutablePath, Converter={StaticResource StringEmptyToDimConverter}}">
                                                                             <Run Text="{Binding ExecutablePath}" />
@@ -157,7 +157,7 @@
                     <DataTemplate DataType="models:ToolProject">
                         <Border Width="280" Margin="0,0,14,14" Padding="0"
                                                         CornerRadius="10" Background="#1AFFFFFF"
-                                                        BorderBrush="#22FFFFFF" BorderThickness="1">
+                                                        BorderBrush="{DynamicResource CardBorder}" BorderThickness="1">
                             <Grid RowDefinitions="Auto,Auto,Auto,Auto">
                                 <!-- 卡片标题栏 -->
                                 <Border Grid.Row="0" Padding="14,12" CornerRadius="10,10,0,0"
@@ -166,14 +166,14 @@
                                     <Grid ColumnDefinitions="*,Auto">
                                         <StackPanel Grid.Column="0">
                                             <TextBlock Text="{Binding Name}" FontSize="15" FontWeight="Bold"
-                                                       Foreground="White" />
+                                                       Foreground="{DynamicResource ForegroundPrimary}" />
                                             <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,2,0,0">
                                                 <TextBlock Text="{Binding Category, StringFormat='🏷 {0}'}"
-                                                           FontSize="11" Foreground="#99FFFFFF" />
+                                                           FontSize="11" Foreground="{DynamicResource ForegroundSecondary}" />
                                                 <Border Padding="4,1" CornerRadius="3"
                                                         Background="#FF8C00"
                                                         IsVisible="{Binding IsSystemBuiltin}">
-                                                    <TextBlock Text="⚙ 系统内置" FontSize="9" Foreground="White" />
+                                                    <TextBlock Text="⚙ 系统内置" FontSize="9" Foreground="{DynamicResource ForegroundPrimary}" />
                                                 </Border>
                                             </StackPanel>
                                         </StackPanel>
@@ -184,7 +184,7 @@
                                                          IsVisible="{Binding IsRunning}"
                                                          Fill="#FF52C41A" />
                                                 <TextBlock Text="{Binding Status}" FontSize="10"
-                                                           Foreground="#FFBFcbd9" />
+                                                           Foreground="{DynamicResource ForegroundPrimary}" />
                                             </StackPanel>
                                         </Border>
                                     </Grid>
@@ -192,7 +192,7 @@
 
                                 <!-- 描述 -->
                                 <TextBlock Grid.Row="1" Text="{Binding Description}"
-                                           FontSize="12" Foreground="#99BFcbd9"
+                                           FontSize="12" Foreground="{DynamicResource ForegroundSecondary}"
                                            TextWrapping="Wrap" Margin="14,10,14,6"
                                            MaxHeight="40" TextTrimming="CharacterEllipsis" />
 
@@ -247,8 +247,8 @@
             VerticalAlignment="Stretch" HorizontalAlignment="Stretch">
         <Border VerticalAlignment="Center" HorizontalAlignment="Center"
                         Width="720" MaxHeight="900" Padding="22" CornerRadius="12"
-                        Background="#F01e1e2e"
-                        BorderBrush="#33FFFFFF" BorderThickness="1">
+                        Background="{DynamicResource WindowBackground}"
+                        BorderBrush="{DynamicResource CardBorder}" BorderThickness="1">
             <ScrollViewer VerticalScrollBarVisibility="Disabled"
                           HorizontalScrollBarVisibility="Disabled">
                     <TabControl SelectedIndex="{Binding SelectedTabIndex}">
@@ -257,12 +257,12 @@
                             <StackPanel Spacing="10">
 
                                 <!-- 弹窗标题 -->
-                                <TextBlock Text="📝 工具信息" FontSize="16" FontWeight="Bold" Foreground="White" />
+                                <TextBlock Text="📝 工具信息" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource ForegroundPrimary}" />
 
                                 <Separator />
 
                                 <!-- ============ 基本信息 ============ -->
-                                <TextBlock Text="📋 基本信息" FontSize="13" FontWeight="SemiBold" Foreground="White" />
+                                <TextBlock Text="📋 基本信息" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource ForegroundPrimary}" />
 
                                 <Grid ColumnDefinitions="*,*">
                                     <TextBox Grid.Column="0" Text="{Binding EditName}" Watermark="🔧 工具名称 *" Margin="0,0,4,0" />
@@ -283,7 +283,7 @@
                                 <StackPanel Spacing="8">
                                     <Grid ColumnDefinitions="*,Auto">
                                         <TextBlock Grid.Column="0" Text="📥 Git 仓库（可选 · 一次性克隆 / 或更新现有仓库）"
-                                                   FontSize="13" FontWeight="SemiBold" Foreground="White"
+                                                   FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource ForegroundPrimary}"
                                                    VerticalAlignment="Center" />
                                         <Button Grid.Column="1"
                                                 Content="{Binding IsGitPanelExpanded, Converter={StaticResource BoolToExpandGlyphConverter}}"
@@ -309,7 +309,7 @@
                                         <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
                                             <Ellipse Width="8" Height="8" VerticalAlignment="Center"
                                                      Fill="{Binding GitEnvironment.IsInstalled, Converter={StaticResource BoolToColorConverter}, FallbackValue=#666666}" />
-                                            <TextBlock VerticalAlignment="Center" FontSize="11" Foreground="#FFBFcbd9">
+                                            <TextBlock VerticalAlignment="Center" FontSize="11" Foreground="{DynamicResource ForegroundPrimary}">
                                                 <Run Text="本地 Git: " />
                                                 <Run Text="{Binding GitEnvironment.Version, FallbackValue='点击右侧刷新检测', TargetNullValue='点击右侧刷新检测'}" />
                                             </TextBlock>
@@ -322,7 +322,7 @@
                                         <StackPanel Orientation="Horizontal" Spacing="8"
                                                     IsVisible="{Binding IsNewProject}">
                                             <Button Content="📥 克隆" Width="110"
-                                                    Background="#FF1976D2" BorderBrush="#FF1976D2" Foreground="White"
+                                                    Background="#FF1976D2" BorderBrush="#FF1976D2" Foreground="{DynamicResource ForegroundPrimary}"
                                                     IsVisible="{Binding IsCloning, Converter={StaticResource BooleanInverseConverter}}"
                                                     IsEnabled="{Binding GitEnvironment.IsInstalled}"
                                                     Command="{Binding StartCloneCommand}" />
@@ -330,7 +330,7 @@
                                                     IsVisible="{Binding IsCloning}"
                                                     BorderBrush="#FFF56C6C" Foreground="#FFF56C6C"
                                                     Command="{Binding CancelCloneCommand}" />
-                                            <TextBlock VerticalAlignment="Center" FontSize="11" Foreground="#99BFcbd9"
+                                            <TextBlock VerticalAlignment="Center" FontSize="11" Foreground="{DynamicResource ForegroundSecondary}"
                                                        Text="{Binding CloneProgressText}" />
                                         </StackPanel>
 
@@ -338,7 +338,7 @@
                                         <StackPanel Orientation="Horizontal" Spacing="8"
                                                     IsVisible="{Binding !IsNewProject}">
                                             <Button Content="📥 拉取更新" Width="110"
-                                                    Background="#FF52C41A" BorderBrush="#FF52C41A" Foreground="White"
+                                                    Background="#FF52C41A" BorderBrush="#FF52C41A" Foreground="{DynamicResource ForegroundPrimary}"
                                                     IsVisible="{Binding IsPulling, Converter={StaticResource BooleanInverseConverter}}"
                                                     IsEnabled="{Binding GitEnvironment.IsInstalled}"
                                                     Command="{Binding StartPullCommand}" />
@@ -346,7 +346,7 @@
                                                     IsVisible="{Binding IsPulling}"
                                                     BorderBrush="#FFF56C6C" Foreground="#FFF56C6C"
                                                     Command="{Binding CancelPullCommand}" />
-                                            <TextBlock VerticalAlignment="Center" FontSize="11" Foreground="#99BFcbd9"
+                                            <TextBlock VerticalAlignment="Center" FontSize="11" Foreground="{DynamicResource ForegroundSecondary}"
                                                        Text="{Binding PullProgressText}" />
                                         </StackPanel>
                                     </StackPanel>
@@ -360,7 +360,7 @@
                                             Command="{Binding CancelEditCommand}" />
                                     <Button Content="💾 保存" Width="100"
                                             Background="#FF1976D2" BorderBrush="#FF1976D2"
-                                            Foreground="White"
+                                            Foreground="{DynamicResource ForegroundPrimary}"
                                             Command="{Binding SaveProjectCommand}" />
                                 </StackPanel>
                             </StackPanel>
@@ -371,10 +371,10 @@
                             <StackPanel Spacing="10">
 
                                 <!-- ============ 运行模式选择 ============ -->
-                                <TextBlock Text="🚀 启动方式" FontSize="13" FontWeight="SemiBold" Foreground="White" />
+                                <TextBlock Text="🚀 启动方式" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource ForegroundPrimary}" />
 
                                 <StackPanel Spacing="4">
-                                    <TextBlock Text="运行模式 *" FontSize="11" Foreground="#99BFcbd9" />
+                                    <TextBlock Text="运行模式 *" FontSize="11" Foreground="{DynamicResource ForegroundSecondary}" />
                                     <ComboBox HorizontalAlignment="Stretch"
                                               ItemsSource="{Binding RunModeDisplayNames}"
                                               SelectedIndex="{Binding EditRunMode, Converter={StaticResource EnumToIntConverter}}" />
@@ -384,7 +384,7 @@
                                 <StackPanel Spacing="6"
                                             IsVisible="{Binding EditRunMode, Converter={StaticResource EnumEqualsConverter}, ConverterParameter=Script}">
                                     <StackPanel Spacing="4">
-                                        <TextBlock Text="编程语言 *（下拉中列出已检测到的运行环境）" FontSize="11" Foreground="#99BFcbd9" />
+                                        <TextBlock Text="编程语言 *（下拉中列出已检测到的运行环境）" FontSize="11" Foreground="{DynamicResource ForegroundSecondary}" />
                                         <ComboBox HorizontalAlignment="Stretch"
                                                   ItemsSource="{Binding AvailableEnvironments}"
                                                   SelectedItem="{Binding SelectedEnvironment, Mode=TwoWay}">
@@ -442,30 +442,30 @@
                                     <Grid ColumnDefinitions="*,Auto">
                                         <TextBlock Grid.Column="0" Text="📋 参数列表"
                                                    FontSize="13" FontWeight="SemiBold"
-                                                   Foreground="White" VerticalAlignment="Center" />
+                                                   Foreground="{DynamicResource ForegroundPrimary}" VerticalAlignment="Center" />
                                         <Button Grid.Column="1" Content="＋ 添加参数"
                                                 Command="{Binding AddParameterCommand}"
                                                 BorderBrush="#FF52C41A" Foreground="#FF52C41A"
                                                 FontSize="11" Padding="10,4" />
                                     </Grid>
 
-                                    <Border Background="#0DFFFFFF" CornerRadius="6" Padding="0"
-                                            BorderBrush="#22FFFFFF" BorderThickness="1"
+                                    <Border Background="{DynamicResource SubItemBackground}" CornerRadius="6" Padding="0"
+                                            BorderBrush="{DynamicResource CardBorder}" BorderThickness="1"
                                             Height="142">
                                         <Grid RowDefinitions="Auto,*">
                                             <!-- 表头（始终可见） -->
                                             <Border Grid.Row="0" Background="#1AFFFFFF" Padding="8,6">
                                                 <Grid ColumnDefinitions="100,*,*,50">
                                                     <TextBlock Grid.Column="0" Text="前缀" FontSize="11"
-                                                               Foreground="#99BFcbd9" VerticalAlignment="Center" />
+                                                               Foreground="{DynamicResource ForegroundSecondary}" VerticalAlignment="Center" />
                                                     <TextBlock Grid.Column="1" Text="参数名" FontSize="11"
-                                                               Foreground="#99BFcbd9" VerticalAlignment="Center"
+                                                               Foreground="{DynamicResource ForegroundSecondary}" VerticalAlignment="Center"
                                                                Margin="4,0,0,0" />
                                                     <TextBlock Grid.Column="2" Text="参数值" FontSize="11"
-                                                               Foreground="#99BFcbd9" VerticalAlignment="Center"
+                                                               Foreground="{DynamicResource ForegroundSecondary}" VerticalAlignment="Center"
                                                                Margin="4,0,0,0" />
                                                     <TextBlock Grid.Column="3" Text="操作" FontSize="11"
-                                                               Foreground="#99BFcbd9" VerticalAlignment="Center"
+                                                               Foreground="{DynamicResource ForegroundSecondary}" VerticalAlignment="Center"
                                                                HorizontalAlignment="Center" />
                                                 </Grid>
                                             </Border>
@@ -517,7 +517,7 @@
                                             Command="{Binding CancelEditCommand}" />
                                     <Button Content="💾 保存" Width="100"
                                             Background="#FF1976D2" BorderBrush="#FF1976D2"
-                                            Foreground="White"
+                                            Foreground="{DynamicResource ForegroundPrimary}"
                                             Command="{Binding SaveProjectCommand}" />
                                 </StackPanel>
                             </StackPanel>
@@ -527,7 +527,7 @@
                         <TabItem Header="📢 通知">
                             <StackPanel Spacing="10">
                                 <TextBlock Text="📢 通知配置（Q3-C：默认继承全局设置）"
-                                           FontSize="13" FontWeight="SemiBold" Foreground="White" />
+                                           FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource ForegroundPrimary}" />
 
                                 <!-- 顶部操作行：使用全局设置 + 显隐 + 测试 -->
                                 <Grid ColumnDefinitions="*,Auto,Auto">
@@ -553,7 +553,7 @@
                                 <Grid ColumnDefinitions="Auto,*">
                                     <TextBlock Grid.Column="0" Text="脚本输出最大字符数："
                                                VerticalAlignment="Center" Margin="0,0,8,0"
-                                               Foreground="#FFBFcbd9" />
+                                               Foreground="{DynamicResource ForegroundPrimary}" />
                                     <NumericUpDown Grid.Column="1"
                                                    Value="{Binding EditNotification.MaxOutputChars}"
                                                    Minimum="0" Maximum="100000" />
@@ -562,7 +562,7 @@
                                 <Separator />
 
                                 <!-- 渠道列表：继承全局时禁用 -->
-                                <TextBlock Text="📡 通知渠道（继承全局时禁用）" FontSize="12" Foreground="#99BFcbd9" />
+                                <TextBlock Text="📡 通知渠道（继承全局时禁用）" FontSize="12" Foreground="{DynamicResource ForegroundSecondary}" />
                                 <Border IsEnabled="{Binding EditNotification.UseGlobalSettings, Converter={StaticResource BooleanInverseConverter}}"
                                         local:FeishuChannelEditor.RemoveRequested="OnNotificationChannelRemoveRequested"
                                         local:FeishuChannelEditor.TestRequested="OnNotificationChannelTestRequested">
@@ -585,7 +585,7 @@
                                     <Button Content="取消" Width="80" Command="{Binding CancelEditCommand}" />
                                     <Button Content="💾 保存" Width="100"
                                             Background="#FF1976D2" BorderBrush="#FF1976D2"
-                                            Foreground="White"
+                                            Foreground="{DynamicResource ForegroundPrimary}"
                                             Command="{Binding SaveProjectCommand}" />
                                 </StackPanel>
                             </StackPanel>

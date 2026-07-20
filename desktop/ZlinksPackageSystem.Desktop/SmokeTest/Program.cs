@@ -568,6 +568,22 @@ namespace ZlinksPackageSystem.SmokeTest
                 }
             });
 
+            // ===== SettingsViewModel 构造冒烟测试 =====
+            Test("SettingsViewModel 构造不抛异常", () =>
+            {
+                var fp = new FilePickerService();
+                var gns = new InMemoryGlobalNotificationService(new GlobalNotificationConfig());
+                var nfs = new StubNotificationService();
+                var dlg = new StubDialogService();
+                var sp = new StubServiceProvider();
+                var mvm = new MainViewModel(null!, sp, dlg);
+                var vm = new SettingsViewModel(mvm, fp, gns, nfs, dlg);
+                if (vm.Categories.Count == 0) throw new Exception("Categories 为空");
+                if (vm.SelectedCategory == null) throw new Exception("SelectedCategory 为空");
+                if (vm.IsAppearanceVisible != true) throw new Exception("默认分类不是外观");
+                Console.WriteLine($"     [info] Categories={vm.Categories.Count}, SelectedCategory={vm.SelectedCategory?.Title}, IsAppearanceVisible={vm.IsAppearanceVisible}");
+            });
+
             Console.WriteLine();
             Console.WriteLine($"=== 结果：通过 {_passed}，失败 {_failed} ===");
             Environment.Exit(_failed == 0 ? 0 : 1);
@@ -632,6 +648,43 @@ namespace ZlinksPackageSystem.SmokeTest
             public string DefaultFilePath => "(in-memory)";
             public Task<GlobalNotificationConfig> LoadAsync(CancellationToken ct = default) => Task.FromResult(_config);
             public Task SaveAsync(GlobalNotificationConfig config, CancellationToken ct = default) => Task.CompletedTask;
+        }
+
+        class StubNotificationService : INotificationService
+        {
+            public Task<List<NotificationSendResult>> SendAsync(ToolProject project, ToolRunSnapshot snapshot, CancellationToken ct) =>
+                Task.FromResult(new List<NotificationSendResult>());
+        }
+
+        class StubDialogService : IDialogService
+        {
+            public Task ShowMessageAsync(string title, string message) => Task.CompletedTask;
+            public Task<bool> ShowNotificationDetailAsync(NotificationItem item) => Task.FromResult(true);
+            public Task<Dictionary<string, string>?> PromptArgumentsAsync(IEnumerable<ToolArgument> arguments) => Task.FromResult<Dictionary<string, string>?>(null);
+            public Task ShowOutputAsync(string toolName, ProcessRunResult result) => Task.CompletedTask;
+            public Task ShowEnvironmentResultAsync(string title, string message, bool success) => Task.CompletedTask;
+            public Task<RunConfirmation?> ShowRunConfirmationAsync(ToolProject project, string initialCommandLine, IEnumerable<EditableArgument> arguments) => Task.FromResult<RunConfirmation?>(null);
+            public Task<string?> PickScriptFileInDirectoryAsync(string directory) => Task.FromResult<string?>(null);
+            public Task ShowCloneLogAsync(string title, string message, IReadOnlyList<string> logs, bool success) => Task.CompletedTask;
+        }
+
+        class StubServiceProvider : IServiceProvider
+        {
+            public object? GetService(Type serviceType)
+            {
+                if (serviceType == typeof(LoginViewModel)) return new LoginViewModel();
+                return null;
+            }
+        }
+
+        class StubApiService : IApiService
+        {
+            public string BaseUrl => "http://localhost";
+            public void SetAuthToken(string token) { }
+            public Task<T?> GetAsync<T>(string endpoint) where T : class => Task.FromResult<T?>(null);
+            public Task<T?> PostAsync<T>(string endpoint, object? data = null) where T : class => Task.FromResult<T?>(null);
+            public Task<T?> PutAsync<T>(string endpoint, object? data = null) where T : class => Task.FromResult<T?>(null);
+            public Task<bool> DeleteAsync(string endpoint) => Task.FromResult(false);
         }
     }
 }

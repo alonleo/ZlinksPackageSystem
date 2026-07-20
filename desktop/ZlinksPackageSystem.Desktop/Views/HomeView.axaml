@@ -17,7 +17,7 @@
                     CornerRadius="8">
                 <StackPanel>
                     <TextBlock Text="🎮 游戏数量" Foreground="#FF1976D2" FontSize="14" FontWeight="Bold" />
-                    <TextBlock Text="{Binding GameCount}" Foreground="White" FontSize="36" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,6,0,0" />
+                    <TextBlock Text="{Binding GameCount}" Foreground="{DynamicResource ForegroundPrimary}" FontSize="36" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,6,0,0" />
                     <TextBlock Foreground="#80FFFFFF" FontSize="11" HorizontalAlignment="Center" Margin="0,2,0,0">
                         <Run Text="{Binding PendingGameCount}" /><Run Text=" 个待处理" />
                     </TextBlock>
@@ -30,7 +30,7 @@
                     CornerRadius="8">
                 <StackPanel>
                     <TextBlock Text="📦 产品数量" Foreground="#FFFF4081" FontSize="14" FontWeight="Bold" />
-                    <TextBlock Text="{Binding ProductCount}" Foreground="White" FontSize="36" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,6,0,0" />
+                    <TextBlock Text="{Binding ProductCount}" Foreground="{DynamicResource ForegroundPrimary}" FontSize="36" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,6,0,0" />
                     <TextBlock Foreground="#80FFFFFF" FontSize="11" HorizontalAlignment="Center" Margin="0,2,0,0">
                         <Run Text="{Binding PendingProductCount}" /><Run Text=" 个待处理" />
                     </TextBlock>
@@ -43,7 +43,7 @@
                     CornerRadius="8">
                 <StackPanel>
                     <TextBlock Text="🧪 测试数量" Foreground="#FFE6A23C" FontSize="14" FontWeight="Bold" />
-                    <TextBlock Text="{Binding TestCount}" Foreground="White" FontSize="36" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,6,0,0" />
+                    <TextBlock Text="{Binding TestCount}" Foreground="{DynamicResource ForegroundPrimary}" FontSize="36" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,6,0,0" />
                     <TextBlock Foreground="#80FFFFFF" FontSize="11" HorizontalAlignment="Center" Margin="0,2,0,0">
                         <Run Text="{Binding PendingTestCount}" /><Run Text=" 个待处理" />
                     </TextBlock>
@@ -82,7 +82,7 @@
                                                        VerticalAlignment="Center" />
                                         </Grid>
                                         <TextBlock Grid.Row="1" Text="{Binding Content}"
-                                                   FontSize="13" Foreground="#FFBFcbd9"
+                                                   FontSize="13" Foreground="{DynamicResource ForegroundPrimary}"
                                                    TextWrapping="Wrap" Margin="0,4,0,0" />
                                         <TextBlock Grid.Row="2"
                                                    Text="{Binding Publisher, StringFormat='发布: {0}'}"
@@ -101,11 +101,11 @@
         <Grid Grid.Row="2" Margin="8,0,8,8" RowDefinitions="Auto,*">
             <Grid Grid.Row="0" Margin="0,0,0,6">
                 <TextBlock Text="🔔 最新通知" FontSize="16" FontWeight="Bold"
-                           Foreground="White" VerticalAlignment="Center" />
+                           Foreground="{DynamicResource ForegroundPrimary}" VerticalAlignment="Center" />
                 <Border Background="#FF52C41A" CornerRadius="10"
                         Padding="6,2" HorizontalAlignment="Right"
                         IsVisible="{Binding UnreadCount, Converter={StaticResource IntPositiveToBoolConverter}}">
-                    <TextBlock Foreground="White" FontSize="11">
+                    <TextBlock Foreground="{DynamicResource ForegroundPrimary}" FontSize="11">
                         <Run Text="{Binding UnreadCount}" /><Run Text=" 条未读" />
                     </TextBlock>
                 </Border>
@@ -143,11 +143,11 @@
                                     <TextBlock Grid.Column="2" Text="{Binding Message}"
                                                FontSize="13" VerticalAlignment="Center"
                                                TextWrapping="Wrap"
-                                               Foreground="#FFBFcbd9"
+                                               Foreground="{DynamicResource ForegroundPrimary}"
                                                Opacity="{Binding IsRead, Converter={StaticResource ReadToOpacityConverter}}" />
                                     <TextBlock Grid.Column="3" Text="{Binding Time, StringFormat='{}{0:MM-dd HH:mm}'}"
                                                FontSize="11" VerticalAlignment="Center"
-                                               Foreground="#99FFFFFF"
+                                               Foreground="{DynamicResource ForegroundSecondary}"
                                                Opacity="{Binding IsRead, Converter={StaticResource ReadToOpacityConverter}}" />
                                 </Grid>
                                 <Grid Grid.Row="1" Margin="14,4,0,0">

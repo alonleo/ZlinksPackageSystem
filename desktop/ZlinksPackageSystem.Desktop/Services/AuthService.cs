@@ -82,5 +82,23 @@ namespace ZlinksPackageSystem.Desktop.Services
                 return new List<string> { "all" };
             }
         }
+
+        public async Task<bool> ChangeAccountAsync(string oldPassword, string? newPassword, string? newUsername)
+        {
+            if (string.IsNullOrEmpty(oldPassword))
+            {
+                return false;
+            }
+
+            var payload = new Dictionary<string, string?>
+            {
+                ["oldPassword"] = oldPassword,
+                ["newPassword"] = string.IsNullOrWhiteSpace(newPassword) ? null : newPassword,
+                ["newUsername"] = string.IsNullOrWhiteSpace(newUsername) ? null : newUsername,
+            };
+
+            var result = await _apiService.PostAsync<User>("/auth/change-password", payload);
+            return result != null;
+        }
     }
 }

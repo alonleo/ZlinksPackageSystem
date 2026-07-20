@@ -76,17 +76,20 @@ public partial class App : Application
         AvaloniaXamlLoader.Load(this);
     }
 
-    public override async void OnFrameworkInitializationCompleted()
-    {
-        if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+public override async void OnFrameworkInitializationCompleted()
         {
-            await _host.StartAsync();
+            if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+            {
+                await _host.StartAsync();
 
-            var mainWindow = _host.Services.GetRequiredService<MainWindow>();
-            desktop.MainWindow = mainWindow;
-            mainWindow.Show();
+                // 在窗口创建之前应用已保存的主题,避免点击设置时才切换
+                SettingsViewModel.ApplyStartupTheme();
+
+                var mainWindow = _host.Services.GetRequiredService<MainWindow>();
+                desktop.MainWindow = mainWindow;
+                mainWindow.Show();
+            }
+
+            base.OnFrameworkInitializationCompleted();
         }
-
-        base.OnFrameworkInitializationCompleted();
-    }
 }

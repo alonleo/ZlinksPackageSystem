@@ -46,10 +46,10 @@
             <StackPanel Spacing="12" HorizontalAlignment="Center" VerticalAlignment="Center">
                 <TextBlock Text="📦 暂无平台数据"
                            FontSize="22" FontWeight="Bold"
-                           Foreground="White"
+                           Foreground="{DynamicResource ForegroundPrimary}"
                            HorizontalAlignment="Center" />
                 <TextBlock Text="{Binding EmptyStateMessage}"
-                           Foreground="#88FFFFFF"
+                           Foreground="{DynamicResource ForegroundSecondary}"
                            HorizontalAlignment="Center" />
                 <Button Content="↻ 重新加载"
                         Width="120" Margin="0,12,0,0"
@@ -121,7 +121,7 @@
             <!-- 分页 -->
             <StackPanel Grid.Row="3" Orientation="Horizontal" HorizontalAlignment="Center" Spacing="10" Margin="0,12,0,0">
                 <Button Content="◀ 上一页" Command="{Binding PreviousPageCommand}" Width="90" />
-                <TextBlock Text="{Binding CurrentPage}" VerticalAlignment="Center" Foreground="White" FontSize="14" />
+                <TextBlock Text="{Binding CurrentPage}" VerticalAlignment="Center" Foreground="{DynamicResource ForegroundPrimary}" FontSize="14" />
                 <TextBlock Text="/" VerticalAlignment="Center" Foreground="#66FFFFFF" FontSize="14" />
                 <TextBlock Text="{Binding TotalCount}" VerticalAlignment="Center" Foreground="#66FFFFFF" FontSize="14" />
                 <Button Content="下一页 ▶" Command="{Binding NextPageCommand}" Width="90" />
@@ -134,10 +134,10 @@
                 VerticalAlignment="Stretch" HorizontalAlignment="Stretch">
             <Border VerticalAlignment="Center" HorizontalAlignment="Center"
                     Width="520" Padding="24" CornerRadius="12"
-                    Background="#F01e1e2e"
-                    BorderBrush="#33FFFFFF" BorderThickness="1">
+                    Background="{DynamicResource WindowBackground}"
+                    BorderBrush="{DynamicResource CardBorder}" BorderThickness="1">
                 <StackPanel Spacing="10">
-                    <TextBlock Text="{Binding EditTitle}" FontSize="16" FontWeight="Bold" Foreground="White" />
+                    <TextBlock Text="{Binding EditTitle}" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource ForegroundPrimary}" />
 
                     <ScrollViewer MaxHeight="500" VerticalScrollBarVisibility="Auto">
                         <ItemsControl ItemsSource="{Binding EditFieldRows}">
@@ -169,7 +169,7 @@
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10" Margin="0,8,0,0">
                         <Button Content="取消" Width="80" Command="{Binding CancelEditCommand}" />
                         <Button Content="保存" Width="80"
-                                Background="#FF1976D2" BorderBrush="#FF1976D2" Foreground="White"
+                                Background="#FF1976D2" BorderBrush="#FF1976D2" Foreground="{DynamicResource ForegroundPrimary}"
                                 Command="{Binding SaveProductCommand}" />
                     </StackPanel>
                 </StackPanel>

@@ -45,10 +45,10 @@
             <StackPanel Spacing="12" HorizontalAlignment="Center" VerticalAlignment="Center">
                 <TextBlock Text="🎮 暂无游戏数据"
                            FontSize="22" FontWeight="Bold"
-                           Foreground="White"
+                           Foreground="{DynamicResource ForegroundPrimary}"
                            HorizontalAlignment="Center" />
                 <TextBlock Text="{Binding EmptyStateMessage}"
-                           Foreground="#88FFFFFF"
+                           Foreground="{DynamicResource ForegroundSecondary}"
                            HorizontalAlignment="Center"
                            TextWrapping="Wrap"
                            MaxWidth="500" />
@@ -71,7 +71,7 @@
             <!-- Header -->
             <Grid Grid.Row="0" Margin="0,0,0,16" ColumnDefinitions="Auto,*,Auto,Auto">
                 <TextBlock Grid.Column="0" Text="🎮 游戏列表" FontSize="18" FontWeight="Bold"
-                           Foreground="White" VerticalAlignment="Center" />
+                           Foreground="{DynamicResource ForegroundPrimary}" VerticalAlignment="Center" />
                 <Button Grid.Column="2" Content="↻ 刷新"
                         Command="{Binding LoadGamesCommand}"
                         Width="80" Margin="0,0,8,0"
@@ -138,7 +138,7 @@
                         Command="{Binding PreviousPageCommand}"
                         Width="90" />
                 <TextBlock Text="{Binding CurrentPage}" VerticalAlignment="Center"
-                           Foreground="White" FontSize="14" />
+                           Foreground="{DynamicResource ForegroundPrimary}" FontSize="14" />
                 <TextBlock Text="/" VerticalAlignment="Center"
                            Foreground="#66FFFFFF" FontSize="14" />
                 <TextBlock Text="{Binding TotalCount}" VerticalAlignment="Center"
@@ -155,11 +155,11 @@
                 VerticalAlignment="Stretch" HorizontalAlignment="Stretch">
             <Border VerticalAlignment="Center" HorizontalAlignment="Center"
                     Width="440" Padding="24" CornerRadius="12"
-                    Background="#F01e1e2e"
-                    BorderBrush="#33FFFFFF" BorderThickness="1">
+                    Background="{DynamicResource WindowBackground}"
+                    BorderBrush="{DynamicResource CardBorder}" BorderThickness="1">
                 <StackPanel Spacing="12">
                     <TextBlock Text="游戏信息" FontSize="16" FontWeight="Bold"
-                               Foreground="White" />
+                               Foreground="{DynamicResource ForegroundPrimary}" />
 
                     <TextBox Text="{Binding EditGameName}" Watermark="🎮 游戏名称" />
                     <Grid ColumnDefinitions="*,*">
@@ -182,7 +182,7 @@
                                 Command="{Binding CancelEditCommand}" />
                         <Button Content="保存" Width="80"
                                 Background="#FF1976D2" BorderBrush="#FF1976D2"
-                                Foreground="White"
+                                Foreground="{DynamicResource ForegroundPrimary}"
                                 Command="{Binding SaveGameCommand}" />
                     </StackPanel>
                 </StackPanel>

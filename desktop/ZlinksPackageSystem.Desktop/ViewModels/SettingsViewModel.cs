@@ -69,6 +69,8 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "ZlinksPackageSystem", "settings.json");
 
+        internal static string GetSettingsPath() => SettingsPath;
+
         private static readonly string FontsDirectory = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
             "ZlinksPackageSystem", "Fonts");
@@ -115,6 +117,12 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
         private bool _fontIsItalic;
 
         [ObservableProperty]
+        [NotifyPropertyChangedFor(nameof(IsAppearanceVisible))]
+        [NotifyPropertyChangedFor(nameof(IsFontVisible))]
+        [NotifyPropertyChangedFor(nameof(IsBackgroundVisible))]
+        [NotifyPropertyChangedFor(nameof(IsUpdatesVisible))]
+        [NotifyPropertyChangedFor(nameof(IsNotificationVisible))]
+        [NotifyPropertyChangedFor(nameof(IsAboutVisible))]
         private SettingsCategoryItem? _selectedCategory;
 
         // 静态信息(关于页面用)
@@ -162,7 +170,6 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
             LoadInstalledFonts();
             SelectedCategory = Categories[0];
             LoadSettings();
-            ApplyTheme(IsDarkTheme);
             ApplyFont(FontFamily, FontSize, FontIsBold, FontIsItalic);
             _ = LoadGlobalNotificationAsync();
         }
@@ -577,6 +584,25 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
             _isLoading = false;
         }
 
+        /// <summary>
+        /// 在 App 启动时读取已保存的主题并立即应用,避免打开「设置」页面时才切换主题。
+        /// </summary>
+        public static void ApplyStartupTheme()
+        {
+            try
+            {
+                var path = GetSettingsPath();
+                if (!File.Exists(path)) return;
+                var json = File.ReadAllText(path);
+                var settings = JsonSerializer.Deserialize<AppSettings>(json);
+                if (settings == null) return;
+                ApplyTheme(settings.Theme != "Light");
+            }
+            catch
+            {
+            }
+        }
+
         private void SaveSettings()
         {
             try
@@ -609,7 +635,72 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
         private static void ApplyTheme(bool isDark)
         {
             Application.Current!.RequestedThemeVariant = isDark ? ThemeVariant.Dark : ThemeVariant.Light;
+            SwapThemeBrushes(isDark);
+            ThemeChanged?.Invoke(isDark);
         }
+
+        private static void SwapThemeBrushes(bool isDark)
+        {
+            if (Application.Current?.Resources is not { } res) return;
+
+            // 暗色主题
+            var dark = new Dictionary<string, string>
+            {
+                ["ForegroundPrimary"] = "#FFBFcbd9",
+                ["ForegroundSecondary"] = "#FF909399",
+                ["WindowBackground"] = "#FF1e1e2e",
+                ["WindowDimOverlay"] = "#CC1e1e2e",
+                ["CardBackground"] = "#1A2d2d44",
+                ["CardBorder"] = "#22FFFFFF",
+                ["CardHover"] = "#22FFFFFF",
+                ["SubItemBackground"] = "#0DFFFFFF",
+                ["ButtonBackground"] = "#FF3d3d5c",
+                ["ButtonForeground"] = "#FFBFcbd9",
+                ["ButtonHoverBackground"] = "#FF4d4d6c",
+                ["ButtonPressedBackground"] = "#FF2d2d4c",
+                ["TextBoxBackground"] = "#FF2d2d44",
+                ["TextBoxForeground"] = "#FFBFcbd9",
+                ["TextBoxHoverBackground"] = "#1AFFFFFF",
+                ["ListBoxItemSelectedBackground"] = "#44333333",
+                ["SeparatorBackground"] = "#FF444466",
+                ["NavItemHoverBackground"] = "#15FFFFFF",
+                ["NavItemSelectedBackground"] = "#331976D2",
+            };
+            // 浅色主题
+            var light = new Dictionary<string, string>
+            {
+                ["ForegroundPrimary"] = "#FF2d2d44",
+                ["ForegroundSecondary"] = "#FF606266",
+                ["WindowBackground"] = "#FFFAFAFA",
+                ["WindowDimOverlay"] = "#33000000",
+                ["CardBackground"] = "#FFFFFFFF",
+                ["CardBorder"] = "#FFE0E0E0",
+                ["CardHover"] = "#FFF5F5F5",
+                ["SubItemBackground"] = "#FFF5F5F5",
+                ["ButtonBackground"] = "#FFE8E8E8",
+                ["ButtonForeground"] = "#FF2d2d44",
+                ["ButtonHoverBackground"] = "#FFD8D8D8",
+                ["ButtonPressedBackground"] = "#FFC8C8C8",
+                ["TextBoxBackground"] = "#FFFFFFFF",
+                ["TextBoxForeground"] = "#FF2d2d44",
+                ["TextBoxHoverBackground"] = "#FFF5F5F5",
+                ["ListBoxItemSelectedBackground"] = "#331976D2",
+                ["SeparatorBackground"] = "#FFE0E0E0",
+                ["NavItemHoverBackground"] = "#FFF0F0F0",
+                ["NavItemSelectedBackground"] = "#221976D2",
+            };
+
+            var table = isDark ? dark : light;
+            foreach (var kv in table)
+            {
+                if (res.ContainsKey(kv.Key) && res[kv.Key] is Avalonia.Media.SolidColorBrush brush)
+                {
+                    brush.Color = Avalonia.Media.Color.Parse(kv.Value);
+                }
+            }
+        }
+
+        public static event Action<bool>? ThemeChanged;
 
         private static string GetVersionString()
         {

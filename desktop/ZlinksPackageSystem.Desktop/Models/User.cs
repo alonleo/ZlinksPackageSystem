@@ -13,6 +13,7 @@ namespace ZlinksPackageSystem.Desktop.Models
         public string RealName { get; set; } = string.Empty;
         public string Status { get; set; } = string.Empty;
         public long GroupId { get; set; }
+        public List<string> GroupNames { get; set; } = new();
         public string Remark { get; set; } = string.Empty;
         public DateTime CreateTime { get; set; }
         public DateTime UpdateTime { get; set; }

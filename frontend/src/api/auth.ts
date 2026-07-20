@@ -12,6 +12,12 @@ export interface LoginResponse {
   data: string
 }
 
+export interface ChangePasswordRequest {
+  oldPassword: string
+  newPassword?: string
+  newUsername?: string
+}
+
 export const authApi = {
   login(data: LoginRequest): Promise<LoginResponse> {
     return api.post('/auth/login', data)
@@ -23,5 +29,9 @@ export const authApi = {
 
   register(user: Partial<User>): Promise<any> {
     return api.post('/auth/register', user)
+  },
+
+  changePassword(data: ChangePasswordRequest): Promise<any> {
+    return api.post('/auth/change-password', data)
   },
 }

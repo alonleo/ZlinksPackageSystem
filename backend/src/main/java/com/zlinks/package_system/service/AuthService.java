@@ -14,4 +14,6 @@ public interface AuthService {
     UserVO getCurrentUser();
 
     List<String> mergeModulesByUser(Long userId, String scope);
+
+    User changePassword(String oldPassword, String newPassword, String newUsername);
 }

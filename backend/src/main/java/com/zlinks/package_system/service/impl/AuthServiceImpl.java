@@ -135,4 +135,37 @@ public class AuthServiceImpl implements AuthService {
         }
         return new ArrayList<>(merged);
     }
+
+    @Override
+    public User changePassword(String oldPassword, String newPassword, String newUsername) {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !authentication.isAuthenticated()) {
+            throw new BusinessException("用户未登录");
+        }
+
+        UserDetailsImpl userDetails = (UserDetailsImpl) authentication.getPrincipal();
+        String currentUsername = userDetails.getUsername();
+
+        authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(currentUsername, oldPassword));
+
+        User user = userService.getById(userDetails.getUserId());
+        if (user == null) {
+            throw new BusinessException("用户不存在");
+        }
+
+        if (newUsername != null && !newUsername.isBlank() && !newUsername.equals(user.getUsername())) {
+            if (userService.existsByUsername(newUsername)) {
+                throw new BusinessException("用户名已被占用");
+            }
+            user.setUsername(newUsername);
+        }
+
+        if (newPassword != null && !newPassword.isBlank()) {
+            user.setPassword(passwordEncoder.encode(newPassword));
+        }
+
+        userService.updateById(user);
+        return user;
+    }
 }

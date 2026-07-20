@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useUserStore } from '@/stores/user'
 import { useTabsStore } from '@/stores/tabs'
@@ -15,14 +15,21 @@ import {
   Close,
   Box,
   Tools,
+  Edit,
 } from '@element-plus/icons-vue'
 import { ElMessageBox } from 'element-plus'
+import ChangePasswordDialog from '@/components/ChangePasswordDialog.vue'
 
 const router = useRouter()
 const route = useRoute()
 const userStore = useUserStore()
 const tabsStore = useTabsStore()
 const isCollapse = ref(false)
+const changePwdDialogVisible = ref(false)
+
+const primaryRole = computed(
+  () => userStore.currentUser?.groupNames?.[0] || '普通用户',
+)
 
 const canShow = (key: string) => {
   const mods = userStore.backendModules || []
@@ -79,6 +86,14 @@ const handleMenuSelect = (index: string) => {
 const handleLogout = () => {
   userStore.logout()
   router.push({ name: 'login' })
+}
+
+const handleCommand = (command: string) => {
+  if (command === 'logout') {
+    handleLogout()
+  } else if (command === 'changePassword') {
+    changePwdDialogVisible.value = true
+  }
 }
 
 const handleTabClick = (path: string) => {
@@ -201,23 +216,36 @@ const handleCloseAll = async () => {
           </el-breadcrumb>
         </div>
         <div class="header-right">
-          <el-dropdown @command="handleLogout">
+          <el-dropdown @command="handleCommand">
             <span class="user-info">
-              <el-icon><User /></el-icon>
-              {{ userStore.currentUser?.realName || '用户' }}
               <el-tag
                 v-for="name in userStore.currentUser?.groupNames"
                 :key="name"
                 size="small"
+                type="primary"
                 effect="plain"
                 class="role-tag"
               >
                 {{ name }}
               </el-tag>
+              <el-icon><User /></el-icon>
+              <span class="username">{{ userStore.currentUser?.realName || '用户' }}</span>
               <el-icon class="el-icon--right"><ArrowDown /></el-icon>
             </span>
             <template #dropdown>
               <el-dropdown-menu>
+                <el-dropdown-item disabled>
+                  <span class="dropdown-label">角色</span>
+                  <span class="dropdown-value">{{ primaryRole }}</span>
+                </el-dropdown-item>
+                <el-dropdown-item disabled>
+                  <span class="dropdown-label">用户名</span>
+                  <span class="dropdown-value">{{ userStore.currentUser?.username || '-' }}</span>
+                </el-dropdown-item>
+                <el-dropdown-item divided command="changePassword">
+                  <el-icon><Edit /></el-icon>
+                  修改账号
+                </el-dropdown-item>
                 <el-dropdown-item command="logout">
                   <el-icon><SwitchButton /></el-icon>
                   退出登录
@@ -227,6 +255,8 @@ const handleCloseAll = async () => {
           </el-dropdown>
         </div>
       </el-header>
+
+      <ChangePasswordDialog v-model="changePwdDialogVisible" />
       <div v-if="tabsStore.tabs.length > 0" class="tab-bar">
         <div class="tab-list">
           <div
@@ -333,7 +363,23 @@ const handleCloseAll = async () => {
 }
 
 .role-tag {
-  margin-left: 8px;
+  margin-right: 8px;
+}
+
+.username {
+  margin-left: 4px;
+}
+
+.dropdown-label {
+  display: inline-block;
+  width: 56px;
+  color: #909399;
+  font-size: 13px;
+}
+
+.dropdown-value {
+  color: #303133;
+  font-weight: 500;
 }
 
 .main {

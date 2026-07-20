@@ -38,6 +38,16 @@ public class AuthController {
         return Result.success(registeredUser);
     }
 
+    @Operation(summary = "修改当前用户账号信息(需验证旧密码)")
+    @PostMapping("/change-password")
+    public Result<User> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
+        User updated = authService.changePassword(
+                request.getOldPassword(),
+                request.getNewPassword(),
+                request.getNewUsername());
+        return Result.success(updated);
+    }
+
     @Operation(summary = "获取当前用户信息")
     @GetMapping("/info")
     public Result<UserVO> getCurrentUser() {
@@ -49,5 +59,12 @@ public class AuthController {
     public static class LoginRequest {
         private String username;
         private String password;
+    }
+
+    @Data
+    public static class ChangePasswordRequest {
+        private String oldPassword;
+        private String newPassword;
+        private String newUsername;
     }
 }

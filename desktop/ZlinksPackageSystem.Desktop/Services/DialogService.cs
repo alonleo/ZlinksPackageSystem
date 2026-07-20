@@ -833,7 +833,7 @@ namespace ZlinksPackageSystem.Desktop.Services
                 // 入口（解释器 / 脚本 / 可执行）
                 string entry;
                 bool interpreterIsScript = false;
-                if (project.RunMode == ToolRunMode.LocalExecutable)
+                if (project.RunModeEnum == ToolRunMode.LocalExecutable)
                 {
                     entry = project.ExecutablePath;
                 }
@@ -857,13 +857,13 @@ namespace ZlinksPackageSystem.Desktop.Services
 
                 var sb = new StringBuilder();
                 sb.Append(QuoteIfNeeded(entry));
-                if (project.RunMode == ToolRunMode.Script
+                if (project.RunModeEnum == ToolRunMode.Script
                     && !interpreterIsScript
                     && !string.IsNullOrEmpty(project.ScriptPath))
                 {
                     sb.Append(' ').Append(QuoteIfNeeded(project.ScriptPath));
                 }
-                else if (project.RunMode == ToolRunMode.Script
+                else if (project.RunModeEnum == ToolRunMode.Script
                     && interpreterIsScript
                     && !string.IsNullOrEmpty(project.ScriptPath))
                 {

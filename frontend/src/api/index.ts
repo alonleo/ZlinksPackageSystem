@@ -1,7 +1,8 @@
-import axios from 'axios'
+import axios, { AxiosError } from 'axios'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import router from '@/router'
+import type { Result } from '@/types/common'
 
 const api = axios.create({
   baseURL: '/api',
@@ -19,18 +20,14 @@ api.interceptors.request.use(
     }
     return config
   },
-  (error) => {
-    return Promise.reject(error)
-  }
+  (error) => Promise.reject(error)
 )
 
 api.interceptors.response.use(
-  (response) => {
-    return response.data
-  },
-  (error) => {
+  (response) => response.data,
+  (error: AxiosError<Result<unknown>>) => {
     if (error.response) {
-      const { status } = error.response
+      const { status, data } = error.response
       const userStore = useUserStore()
 
       if (status === 401) {
@@ -39,7 +36,10 @@ api.interceptors.response.use(
       } else if (status === 403) {
         ElMessage.error('您没有该操作权限')
       } else if (status >= 500) {
-        ElMessage.error(error.response.data?.msg ?? '服务异常')
+        ElMessage.error((data as any)?.message ?? '服务异常')
+      } else {
+        // 4xx 业务错误,返回的 data 可能是 {code,message,data:{...field errors}}
+        ElMessage.error((data as any)?.message ?? `请求失败 (${status})`)
       }
     } else {
       ElMessage.error('网络异常,请稍后重试')

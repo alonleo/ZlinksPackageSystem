@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS `permission_scope` (
     `group_id` BIGINT NOT NULL,
     `scope` VARCHAR(16) NOT NULL,
     `modules_text` TEXT,
+    `remark` TEXT,
     `create_by` VARCHAR(64) DEFAULT '',
     `create_time` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     `update_by` VARCHAR(64) DEFAULT '',
@@ -150,6 +151,8 @@ CREATE TABLE IF NOT EXISTS `platform_match` (
     `apk_version` VARCHAR(20),
     `platform_status` VARCHAR(20) DEFAULT 'pending',
     `remark` TEXT,
+    `create_by` VARCHAR(64) DEFAULT '',
+    `update_by` VARCHAR(64) DEFAULT '',
     `create_time` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     `update_time` TIMESTAMP,
     `is_deleted` TINYINT DEFAULT 0
@@ -241,6 +244,8 @@ CREATE TABLE IF NOT EXISTS `notification` (
     `receiver_ids` TEXT,
     `receiver_type` VARCHAR(20),
     `is_pinned` TINYINT DEFAULT 0,
+    `status` VARCHAR(20) DEFAULT 'unread',
+    `remark` TEXT,
     `create_by` VARCHAR(64) DEFAULT '',
     `create_time` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     `update_by` VARCHAR(64) DEFAULT '',
@@ -257,6 +262,7 @@ CREATE TABLE IF NOT EXISTS operation_log (
     `action` VARCHAR(20),
     `target` VARCHAR(200),
     `ip_address` VARCHAR(50),
+    `remark` TEXT,
     `create_by` VARCHAR(64) DEFAULT '',
     `create_time` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     `update_by` VARCHAR(64) DEFAULT '',
@@ -463,4 +469,34 @@ CREATE TABLE IF NOT EXISTS sys_job_log (
     status          CHAR(1)      DEFAULT '0',
     job_message     VARCHAR(1000) DEFAULT '',
     exception_info  CLOB
+);
+
+-- 工具库表
+CREATE TABLE IF NOT EXISTS `tool` (
+    `id` BIGINT AUTO_INCREMENT PRIMARY KEY,
+    `name` VARCHAR(100) NOT NULL,
+    `description` VARCHAR(500),
+    `category` VARCHAR(50),
+    `version` VARCHAR(50),
+    `status` VARCHAR(20) DEFAULT '未运行',
+    `manager` VARCHAR(50),
+    `run_mode` VARCHAR(20) DEFAULT 'Script',
+    `language` VARCHAR(20),
+    `interpreter_path` VARCHAR(500),
+    `script_path` VARCHAR(500),
+    `executable_path` VARCHAR(500),
+    `working_directory` VARCHAR(500),
+    `environment_variables` CLOB,
+    `default_argument_prefix` VARCHAR(10) DEFAULT '--',
+    `git_url` VARCHAR(500),
+    `clone_directory` VARCHAR(500),
+    `arguments_json` CLOB,
+    `notification_json` CLOB,
+    `is_system_builtin` TINYINT DEFAULT 0,
+    `remark` TEXT,
+    `create_by` VARCHAR(64) DEFAULT '',
+    `create_time` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    `update_by` VARCHAR(64) DEFAULT '',
+    `update_time` TIMESTAMP,
+    `is_deleted` TINYINT DEFAULT 0
 );

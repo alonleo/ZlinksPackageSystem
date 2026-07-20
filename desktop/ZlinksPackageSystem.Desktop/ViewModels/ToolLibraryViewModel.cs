@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Avalonia.Threading;
@@ -26,9 +27,18 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
         private readonly IToolPersistenceService _persistence;
         private readonly INotificationService _notificationService;
         private CancellationTokenSource? _cloneCts;
+        private CancellationTokenSource? _pullCts;
 
         [ObservableProperty]
         private ObservableCollection<ToolProject> _projects = new();
+
+        /// <summary>
+        /// 仅本地、尚未推送到后端的用户工具（IsUserOnly=true）。
+        /// 这些工具默认不显示在主页面上，仅持久化到本地缓存，待同步按钮触发后再 POST 到后端。
+        /// </summary>
+        public ObservableCollection<ToolProject> PendingSyncTools { get; } = new();
+
+        public bool HasPendingSync => PendingSyncTools.Count > 0;
 
         [ObservableProperty]
         private ToolProject? _selectedProject;
@@ -47,7 +57,7 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
         [ObservableProperty] private string _editStatus = string.Empty;
         [ObservableProperty] private string _editManager = string.Empty;
 
-        // ===== 编辑表单字段 - 运行模式 =====
+        // ===== 编辑表单字段 - 运行模式(用枚举方便 UI 绑定,保存时转字符串) =====
         [ObservableProperty] private ToolRunMode _editRunMode = ToolRunMode.Script;
 
         /// <summary>给弹窗里下拉用的模式显示文案（与 RunModes 一一对应）</summary>
@@ -93,6 +103,8 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
         [ObservableProperty] private bool _isDetectingGit;
         [ObservableProperty] private bool _isCloning;
         [ObservableProperty] private string _cloneProgressText = string.Empty;
+        [ObservableProperty] private bool _isPulling;
+        [ObservableProperty] private string _pullProgressText = string.Empty;
         [ObservableProperty] private bool _isNewProject;
 
         // ===== 通知 Tab =====
@@ -135,20 +147,64 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
             IsBusy = true;
             try
             {
-                var loaded = await _persistence.LoadAsync();
-                if (loaded.Count > 0)
+                // 从后台管理系统拉取（按 create_time 倒序，一次取 200 条；量更大时分页）
+                var page = await _apiService.GetAsync<PageResponse<ToolEntity>>(
+                    "/tools?current=1&size=200");
+
+                var backendIds = new HashSet<long>();
+                if (page?.Records != null && page.Records.Count > 0)
                 {
-                    Projects = new ObservableCollection<ToolProject>(loaded);
+                    var backendProjects = page.Records.Select(MapToProject).ToList();
+                    foreach (var p in backendProjects) backendIds.Add(p.Id);
+                    Projects = new ObservableCollection<ToolProject>(backendProjects);
                 }
                 else
                 {
-                    LoadMockData();
-                    _ = _persistence.SaveAsync(Projects);
+                    Projects = new ObservableCollection<ToolProject>();
                 }
+
+                // 找出本地缓存中尚未推送到后端的用户工具 → PendingSyncTools
+                try
+                {
+                    var cached = await _persistence.LoadAsync();
+                    PendingSyncTools.Clear();
+                    foreach (var c in cached)
+                    {
+                        // 后端已有 (id > 0) 或 IsUserOnly=true 的视为待同步
+                        if (!backendIds.Contains(c.Id) && c.Id > 0 == false || c.IsUserOnly || c.Id == 0)
+                        {
+                            c.IsUserOnly = true;
+                            PendingSyncTools.Add(c);
+                        }
+                    }
+                    OnPropertyChanged(nameof(HasPendingSync));
+                }
+                catch { /* 忽略 */ }
+
+                // write-through offline cache：仅保存后端已确认 + 待同步用户工具
+                var allPersistable = Projects.Concat(PendingSyncTools).ToList();
+                _ = _persistence.SaveAsync(allPersistable);
             }
-            catch
+            catch (Exception ex)
             {
-                LoadMockData();
+                Debug.WriteLine($"[ToolLibrary] 加载工具列表失败：{ex.Message}");
+                // 回退本地缓存：所有都暂定为待同步用户工具
+                try
+                {
+                    var cached = await _persistence.LoadAsync();
+                    Projects = new ObservableCollection<ToolProject>();
+                    PendingSyncTools.Clear();
+                    foreach (var c in cached)
+                    {
+                        c.IsUserOnly = true;
+                        PendingSyncTools.Add(c);
+                    }
+                    OnPropertyChanged(nameof(HasPendingSync));
+                }
+                catch
+                {
+                    Projects = new ObservableCollection<ToolProject>();
+                }
             }
             finally
             {
@@ -156,18 +212,86 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
             }
         }
 
-        private void LoadMockData()
+        /// <summary>
+        /// 后端实体 → 桌面端模型，并反序列化 argumentsJson / notificationJson。
+        /// </summary>
+        private static ToolProject MapToProject(ToolEntity e)
         {
-            Projects = new ObservableCollection<ToolProject>
+            var p = new ToolProject
             {
-                new() { Id = 1, Name = "APK 打包工具", Description = "Android APK 自动化打包、签名、对齐一站式工具", Category = "打包", Version = "v2.1.0", Status = "未运行", Manager = "张三", CreateTime = DateTime.Now.AddDays(-30), Language = "python", ScriptPath = @"C:\tools\apk_builder.py", DefaultArgumentPrefix = "--" },
-                new() { Id = 2, Name = "资源压缩器", Description = "图片/音频资源无损压缩，减小包体积", Category = "优化", Version = "v1.5.3", Status = "未运行", Manager = "李四", CreateTime = DateTime.Now.AddDays(-20), Language = "node", ScriptPath = @"C:\tools\compress.js", DefaultArgumentPrefix = "--" },
-                new() { Id = 3, Name = "渠道分包", Description = "多渠道自动分包与渠道号注入工具", Category = "分发", Version = "v3.0.0", Status = "未运行", Manager = "王五", CreateTime = DateTime.Now.AddDays(-15), Language = "java", ScriptPath = @"C:\tools\ChannelPackage.java", DefaultArgumentPrefix = "--" },
-                new() { Id = 4, Name = "崩溃分析", Description = "Crash 日志采集、符号化、趋势分析平台", Category = "监控", Version = "v1.8.2", Status = "未运行", Manager = "赵六", CreateTime = DateTime.Now.AddDays(-10), Language = "go", ScriptPath = @"C:\tools\crash_analyzer.go", DefaultArgumentPrefix = "--" },
-                new() { Id = 5, Name = "热更新平台", Description = "基于 IL2CPP 的热更新补丁生成与下发", Category = "更新", Version = "v2.3.1", Status = "未运行", Manager = "孙七", CreateTime = DateTime.Now.AddDays(-5), Language = "python", ScriptPath = @"C:\tools\hot_patch.py", DefaultArgumentPrefix = "--" },
-                new() { Id = 6, Name = "性能测试", Description = "游戏帧率、内存、CPU 性能自动化测试", Category = "测试", Version = "v1.2.0", Status = "未运行", Manager = "周八", CreateTime = DateTime.Now.AddDays(-3), Language = "python", ScriptPath = @"C:\tools\perf_test.py", DefaultArgumentPrefix = "--" },
-                new() { Id = 7, Name = "ffmpeg 转码器", Description = "直接调用本地 ffmpeg.exe 批量转码", Category = "本地工具", Version = "v6.0", Status = "未运行", Manager = "吴九", CreateTime = DateTime.Now.AddDays(-1), RunMode = ToolRunMode.LocalExecutable, ExecutablePath = @"C:\tools\ffmpeg.exe", DefaultArgumentPrefix = "-" }
+                Id = e.Id,
+                Name = e.Name,
+                Description = e.Description,
+                Category = e.Category,
+                Version = e.Version,
+                Status = e.Status,
+                Manager = e.Manager,
+                Language = e.Language,
+                InterpreterPath = e.InterpreterPath,
+                ScriptPath = e.ScriptPath,
+                ExecutablePath = e.ExecutablePath,
+                WorkingDirectory = e.WorkingDirectory,
+                DefaultArgumentPrefix = string.IsNullOrEmpty(e.DefaultArgumentPrefix) ? "--" : e.DefaultArgumentPrefix,
+                GitUrl = e.GitUrl,
+                CloneDirectory = e.CloneDirectory,
+                RunMode = ToolRunModes.ToStringValue(ToolRunModes.Parse(e.RunMode)),
+                IsSystemBuiltin = e.IsSystemBuiltin == 1,
+                IsUserOnly = false,  // 后端拉来的数据天然不是 user-only
+                CreateTime = ParseDateTime(e.CreateTime) ?? DateTime.Now
             };
+            if (!string.IsNullOrEmpty(e.ArgumentsJson))
+            {
+                try
+                {
+                    var args = JsonSerializer.Deserialize<List<ToolArgument>>(e.ArgumentsJson);
+                    if (args != null) p.Arguments = args;
+                }
+                catch { /* 忽略坏 JSON */ }
+            }
+            if (!string.IsNullOrEmpty(e.NotificationJson))
+            {
+                try
+                {
+                    var n = JsonSerializer.Deserialize<NotificationConfig>(e.NotificationJson);
+                    if (n != null) p.Notification = n;
+                }
+                catch { /* 忽略坏 JSON */ }
+            }
+            return p;
+        }
+
+        /// <summary>
+        /// 桌面端模型 → 后端实体，并把 Arguments / Notification 序列化为 JSON 列。
+        /// </summary>
+        private static ToolEntity MapToEntity(ToolProject p) => new()
+        {
+            Id = p.Id,
+            Name = p.Name,
+            Description = p.Description,
+            Category = p.Category,
+            Version = p.Version,
+            Status = p.Status,
+            Manager = p.Manager,
+            RunMode = ToolRunModes.ToStringValue(p.RunModeEnum),
+            Language = p.Language,
+            InterpreterPath = p.InterpreterPath,
+            ScriptPath = p.ScriptPath,
+            ExecutablePath = p.ExecutablePath,
+            WorkingDirectory = p.WorkingDirectory,
+            DefaultArgumentPrefix = string.IsNullOrEmpty(p.DefaultArgumentPrefix) ? "--" : p.DefaultArgumentPrefix,
+            GitUrl = p.GitUrl,
+            CloneDirectory = p.CloneDirectory,
+            ArgumentsJson = p.Arguments == null ? "[]" : JsonSerializer.Serialize(p.Arguments),
+            NotificationJson = JsonSerializer.Serialize(p.Notification ?? new NotificationConfig()),
+            // 用户自己新建的工具始终标记为非系统内置；后端管理员可后续通过 PUT 翻转该字段
+            IsSystemBuiltin = p.IsSystemBuiltin ? 1 : 0
+        };
+
+        private static DateTime? ParseDateTime(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return null;
+            if (DateTime.TryParse(s, out var d)) return d;
+            return null;
         }
 
         [RelayCommand]
@@ -267,7 +391,7 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
             EditStatus = project.Status;
             EditManager = project.Manager;
 
-            EditRunMode = project.RunMode;
+            EditRunMode = project.RunModeEnum;
             EditLanguage = project.Language;
             SelectedEnvironment = AvailableEnvironments.FirstOrDefault(e => e.Language == project.Language);
             EditInterpreterPath = project.InterpreterPath;
@@ -345,15 +469,25 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
         }
 
         [RelayCommand]
-        private void SaveProject()
+        private async Task SaveProjectAsync()
         {
-            if (string.IsNullOrWhiteSpace(EditName)) return;
-
-            if (SelectedProject == null)
+            if (string.IsNullOrWhiteSpace(EditName))
             {
-                var newProject = new ToolProject
+                await _dialogService.ShowMessageAsync("提示", "请先填写工具名称。");
+                return;
+            }
+
+            // 同步参数列表：从 EditParameters (ParameterRow) 转换成 ToolArgument
+            var args = BuildArgumentsFromEditRows();
+
+            ToolProject? newProject;
+            long? updateId = null;
+            bool isNew = SelectedProject == null;
+            if (isNew)
+            {
+                newProject = new ToolProject
                 {
-                    Id = Projects.Count > 0 ? Projects.Max(p => p.Id) + 1 : 1,
+                    Id = 0, // 由后端生成
                     Name = EditName,
                     Description = EditDescription,
                     Category = EditCategory,
@@ -361,7 +495,7 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
                     Status = string.IsNullOrEmpty(EditStatus) ? "未运行" : EditStatus,
                     Manager = EditManager,
                     CreateTime = DateTime.Now,
-                    RunMode = EditRunMode,
+                    RunMode = ToolRunModes.ToStringValue(EditRunMode),
                     Language = EditLanguage,
                     InterpreterPath = EditInterpreterPath,
                     ScriptPath = EditScriptPath,
@@ -371,45 +505,148 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
                         : EditWorkingDirectory,
                     GitUrl = EditGitUrl,
                     CloneDirectory = EditCloneDirectory,
-                    Notification = CloneNotification(EditNotification)
+                    Arguments = args,
+                    Notification = CloneNotification(EditNotification),
+                    IsSystemBuiltin = false, // 用户新建的工具总是非系统内置
+                    IsUserOnly = false
                 };
-                Projects.Add(newProject);
             }
             else
             {
-                var index = Projects.IndexOf(SelectedProject);
-                if (index >= 0)
+                newProject = new ToolProject
                 {
-                    Projects[index] = new ToolProject
-                    {
-                        Id = SelectedProject.Id,
-                        Name = EditName,
-                        Description = EditDescription,
-                        Category = EditCategory,
-                        Version = EditVersion,
-                        Status = string.IsNullOrEmpty(EditStatus) ? "未运行" : EditStatus,
-                        Manager = EditManager,
-                        CreateTime = SelectedProject.CreateTime,
-                        RunMode = EditRunMode,
-                        Language = EditLanguage,
-                        InterpreterPath = EditInterpreterPath,
-                        ScriptPath = EditScriptPath,
-                        ExecutablePath = EditExecutablePath,
-                        WorkingDirectory = string.IsNullOrWhiteSpace(EditWorkingDirectory)
-                            ? ResolveDefaultWorkingDirectory()
-                            : EditWorkingDirectory,
-                        GitUrl = SelectedProject.GitUrl,
-                        CloneDirectory = SelectedProject.CloneDirectory,
-                        Notification = CloneNotification(EditNotification),
-                        // 保留运行状态
-                        IsRunning = SelectedProject.IsRunning,
-                        ProcessId = SelectedProject.ProcessId
-                    };
-                }
+                    Id = SelectedProject!.Id,
+                    Name = EditName,
+                    Description = EditDescription,
+                    Category = EditCategory,
+                    Version = EditVersion,
+                    Status = string.IsNullOrEmpty(EditStatus) ? SelectedProject.Status : EditStatus,
+                    Manager = EditManager,
+                    CreateTime = SelectedProject.CreateTime,
+                    RunMode = ToolRunModes.ToStringValue(EditRunMode),
+                    Language = EditLanguage,
+                    InterpreterPath = EditInterpreterPath,
+                    ScriptPath = EditScriptPath,
+                    ExecutablePath = EditExecutablePath,
+                    WorkingDirectory = string.IsNullOrWhiteSpace(EditWorkingDirectory)
+                        ? ResolveDefaultWorkingDirectory()
+                        : EditWorkingDirectory,
+                    GitUrl = SelectedProject.GitUrl,
+                    CloneDirectory = SelectedProject.CloneDirectory,
+                    Arguments = args,
+                    Notification = CloneNotification(EditNotification),
+                    IsSystemBuiltin = SelectedProject.IsSystemBuiltin,
+                    IsRunning = SelectedProject.IsRunning,
+                    ProcessId = SelectedProject.ProcessId
+                };
+                updateId = SelectedProject.Id;
             }
 
-            _ = _persistence.SaveAsync(Projects);
+            try
+            {
+                ToolEntity? saved;
+                if (updateId is long id && id > 0)
+                {
+                    saved = await _apiService.PutAsync<ToolEntity>($"/tools/{id}", MapToEntity(newProject));
+                }
+                else
+                {
+                    saved = await _apiService.PostAsync<ToolEntity>("/tools", MapToEntity(newProject));
+                }
+
+                if (saved != null)
+                {
+                    var refreshed = MapToProject(saved);
+                    // 保留客户端维护的运行状态
+                    refreshed.IsRunning = newProject.IsRunning;
+                    refreshed.ProcessId = newProject.ProcessId;
+
+                    if (updateId is long uid)
+                    {
+                        var index = Projects.IndexOf(SelectedProject!);
+                        if (index >= 0) Projects[index] = refreshed;
+                        SelectedProject = refreshed;
+                    }
+                    else
+                    {
+                        // 新建工具成功 → 推到主列表
+                        Projects.Insert(0, refreshed);
+                        SelectedProject = refreshed;
+                    }
+                    _ = _persistence.SaveAsync(Projects); // 离线缓存写穿
+                }
+                else
+                {
+                    // 后端无响应（或超时） → 兜底为本地用户工具
+                    await FallbackToPendingAsync(newProject, isNew);
+                }
+            }
+            catch (Exception ex)
+            {
+                await _dialogService.ShowMessageAsync("保存失败", ex.Message);
+                await FallbackToPendingAsync(newProject, isNew);
+            }
+
             IsEditing = false;
+        }
+
+        /// <summary>
+        /// 后端不可达时，把新建/编辑的工具作为「待同步用户工具」存到本地，不在主列表显示。
+        /// </summary>
+        private async Task FallbackToPendingAsync(ToolProject project, bool isNew)
+        {
+            project.IsUserOnly = true;
+            project.IsSystemBuiltin = false;
+            // 给它一个稳定本地负数 ID（仅运行期），避免与后端真实 ID 冲突
+            if (project.Id <= 0)
+                project.Id = -((long)DateTime.UtcNow.Ticks);
+
+            if (isNew)
+            {
+                PendingSyncTools.Add(project);
+            }
+            else
+            {
+                var match = PendingSyncTools.FirstOrDefault(p => p.Id == project.Id);
+                if (match != null)
+                {
+                    var idx = PendingSyncTools.IndexOf(match);
+                    if (idx >= 0) PendingSyncTools[idx] = project;
+                }
+                else
+                {
+                    PendingSyncTools.Add(project);
+                }
+            }
+            OnPropertyChanged(nameof(HasPendingSync));
+            await _dialogService.ShowMessageAsync("已保存为本地用户工具",
+                "后台管理系统暂不可达，该工具已保存到本地待同步列表（不在主页显示）。点击「📤 同步本地工具」按钮可稍后重试推送。");
+        }
+
+        /// <summary>
+        /// 把弹窗内的 ParameterRow 列表转成 ToolArgument 列表（提交给后端）。
+        /// </summary>
+        private List<ToolArgument> BuildArgumentsFromEditRows()
+        {
+            var list = new List<ToolArgument>();
+            int order = 0;
+            foreach (var row in EditParameters)
+            {
+                if (string.IsNullOrWhiteSpace(row.Name)) continue;
+                // 将 "Value" 既作为 DefaultValue 也作为 RequireInput=true 时用户回填的初值
+                list.Add(new ToolArgument
+                {
+                    Name = row.Name.Trim(),
+                    DefaultValue = row.Value ?? string.Empty,
+                    RequireInput = false,
+                    InputType = ToolArgumentInputType.Text,
+                    Description = string.Empty,
+                    Order = order++,
+                    UseDefaultPrefix = string.IsNullOrEmpty(row.Prefix) || row.Prefix == "--",
+                    Prefix = row.Prefix ?? string.Empty
+                });
+            }
+            return list;
         }
 
         private string ResolveDefaultWorkingDirectory()
@@ -434,9 +671,68 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
             // 若正在运行，先杀掉
             if (project.IsRunning && project.ProcessId is int pid)
                 _processManager.Kill(pid);
-            Projects.Remove(project);
+
+            try
+            {
+                if (project.Id > 0)
+                {
+                    var ok = await _apiService.DeleteAsync($"/tools/{project.Id}");
+                    if (!ok)
+                    {
+                        await _dialogService.ShowMessageAsync("删除失败", "后台管理系统拒绝了删除请求。");
+                        return;
+                    }
+                }
+                Projects.Remove(project);
+                _ = _persistence.SaveAsync(Projects); // 离线缓存同步
+            }
+            catch (Exception ex)
+            {
+                await _dialogService.ShowMessageAsync("删除失败", ex.Message);
+            }
+        }
+
+        [RelayCommand]
+        private async Task SyncLocalToolsAsync()
+        {
+            if (PendingSyncTools.Count == 0)
+            {
+                await _dialogService.ShowMessageAsync("提示", "当前无待同步的用户工具。");
+                return;
+            }
+
+            int success = 0, failed = 0;
+            var snapshot = PendingSyncTools.ToList();
+            foreach (var pending in snapshot)
+            {
+                try
+                {
+                    var saved = await _apiService.PostAsync<ToolEntity>("/tools", MapToEntity(pending));
+                    if (saved != null)
+                    {
+                        var refreshed = MapToProject(saved);
+                        refreshed.IsUserOnly = false;
+                        Projects.Insert(0, refreshed);
+                        PendingSyncTools.Remove(pending);
+                        success++;
+                    }
+                    else
+                    {
+                        failed++;
+                    }
+                }
+                catch
+                {
+                    failed++;
+                }
+            }
+
+            OnPropertyChanged(nameof(HasPendingSync));
             _ = _persistence.SaveAsync(Projects);
-            await Task.CompletedTask;
+            _ = _persistence.SaveAsync(PendingSyncTools);
+
+            await _dialogService.ShowMessageAsync("同步完成",
+                $"成功推送 {success} 个工具到后台管理系统。\n失败 {failed} 个（请检查网络/后端状态后重试）。");
         }
 
         [RelayCommand]
@@ -465,7 +761,7 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
             }
 
             // 1) 校验
-            if (project.RunMode == ToolRunMode.Script)
+            if (project.RunModeEnum == ToolRunMode.Script)
             {
                 if (string.IsNullOrEmpty(project.ScriptPath))
                 {
@@ -631,7 +927,7 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
 
             string entry;
             bool interpreterIsScript = false;
-            if (project.RunMode == ToolRunMode.LocalExecutable)
+            if (project.RunModeEnum == ToolRunMode.LocalExecutable)
             {
                 entry = project.ExecutablePath;
             }
@@ -655,7 +951,7 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
 
             var sb = new StringBuilder();
             sb.Append(QuoteIfNeeded(entry));
-            if (project.RunMode == ToolRunMode.Script && !string.IsNullOrEmpty(project.ScriptPath))
+            if (project.RunModeEnum == ToolRunMode.Script && !string.IsNullOrEmpty(project.ScriptPath))
                 sb.Append(' ').Append(QuoteIfNeeded(project.ScriptPath));
 
             var argSource = args?.ToList() ?? (project.Arguments ?? new List<ToolArgument>())
@@ -695,7 +991,7 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
         {
             string entry;
             bool interpreterIsScript = false;
-            if (project.RunMode == ToolRunMode.LocalExecutable)
+            if (project.RunModeEnum == ToolRunMode.LocalExecutable)
             {
                 entry = project.ExecutablePath;
             }
@@ -728,7 +1024,7 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
             };
 
             // 脚本：先加脚本路径
-            if (project.RunMode == ToolRunMode.Script && !string.IsNullOrEmpty(project.ScriptPath))
+            if (project.RunModeEnum == ToolRunMode.Script && !string.IsNullOrEmpty(project.ScriptPath))
             {
                 if (interpreterIsScript)
                 {
@@ -776,7 +1072,7 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
             // 评出命令行（用于 UI 展示）
             var sb = new StringBuilder();
             sb.Append(QuoteIfNeeded(entry));
-            if (project.RunMode == ToolRunMode.Script && !string.IsNullOrEmpty(project.ScriptPath))
+            if (project.RunModeEnum == ToolRunMode.Script && !string.IsNullOrEmpty(project.ScriptPath))
                 sb.Append(' ').Append(QuoteIfNeeded(project.ScriptPath));
             foreach (var ea in args)
             {
@@ -797,7 +1093,7 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
 
         private static string ResolveWorkingDirectory(ToolProject project)
         {
-            if (project.RunMode == ToolRunMode.LocalExecutable && !string.IsNullOrEmpty(project.ExecutablePath))
+            if (project.RunModeEnum == ToolRunMode.LocalExecutable && !string.IsNullOrEmpty(project.ExecutablePath))
                 return Path.GetDirectoryName(project.ExecutablePath) ?? Environment.CurrentDirectory;
             if (!string.IsNullOrEmpty(project.ScriptPath))
                 return Path.GetDirectoryName(project.ScriptPath) ?? Environment.CurrentDirectory;
@@ -935,6 +1231,76 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
         }
 
         // =========================================================
+        // 拉取更新（仅编辑现有项目时使用，对应工作目录里已有仓库）
+        // =========================================================
+
+        [RelayCommand]
+        private async Task StartPullAsync()
+        {
+            if (string.IsNullOrWhiteSpace(EditWorkingDirectory))
+            {
+                await _dialogService.ShowMessageAsync("提示", "工作目录为空，无法拉取。请先在「启动方式」设置工作目录。");
+                return;
+            }
+            if (GitEnvironment?.IsInstalled != true)
+            {
+                await _dialogService.ShowMessageAsync("提示", "未检测到本地 Git 环境，请先安装 Git。");
+                return;
+            }
+            _pullCts = new CancellationTokenSource();
+            _ = RunPullBackgroundAsync();
+        }
+
+        [RelayCommand]
+        private void CancelPull()
+        {
+            _pullCts?.Cancel();
+        }
+
+        private async Task RunPullBackgroundAsync()
+        {
+            IsPulling = true;
+            PullProgressText = "⏳ 准备拉取…";
+            var progress = new Progress<string>(line =>
+            {
+                PullProgressText = line.Length > 120 ? line[..120] + "…" : line;
+            });
+            try
+            {
+                var result = await _gitService.PullAsync(
+                    EditWorkingDirectory, progress, _pullCts!.Token);
+
+                if (result.Success)
+                {
+                    await _dialogService.ShowCloneLogAsync(
+                        "📥 拉取成功",
+                        $"已更新到最新：\n{EditWorkingDirectory}",
+                        result.Logs,
+                        success: true);
+                }
+                else
+                {
+                    await _dialogService.ShowCloneLogAsync(
+                        result.Cancelled ? "拉取已取消" : "拉取失败",
+                        result.Cancelled ? "操作已取消。" : result.ErrorMessage,
+                        result.Logs,
+                        success: false);
+                }
+            }
+            catch (Exception ex)
+            {
+                await _dialogService.ShowCloneLogAsync("拉取异常", ex.Message, Array.Empty<string>(), success: false);
+            }
+            finally
+            {
+                IsPulling = false;
+                PullProgressText = string.Empty;
+                _pullCts?.Dispose();
+                _pullCts = null;
+            }
+        }
+
+        // =========================================================
         // 导入 / 导出
         // =========================================================
 
@@ -997,24 +1363,14 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
         [RelayCommand]
         private async Task TestNotificationAsync()
         {
-            // 用一份 mock snapshot 测试当前配置
+            // 用一份 mock snapshot 测试当前配置（遍历全部渠道）
             var mockProject = new ToolProject
             {
                 Name = "测试工具",
                 WorkingDirectory = @"D:\tools",
                 Notification = CloneNotification(EditNotification)
             };
-            var mockSnapshot = new ToolRunSnapshot
-            {
-                StartTime = DateTime.Now.AddSeconds(-5),
-                EndTime = DateTime.Now,
-                ProcessId = 99999,
-                WorkingDirectory = @"D:\tools",
-                CommandLine = "test command",
-                ExitCode = 0,
-                Output = "这是一条测试通知消息。\n如看到此卡片说明配置正确。",
-                Trigger = NotificationTrigger.Success
-            };
+            var mockSnapshot = BuildMockSnapshot();
             var results = await _notificationService.SendAsync(mockProject, mockSnapshot);
 
             var message = results.Count == 0
@@ -1022,10 +1378,68 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
                 : string.Join("\n\n", results.Select(r =>
                     $"【{r.ChannelLabel}】\n{(r.Success ? "✅ 成功" : "❌ 失败")}\n{r.Message}"));
 
-            await _dialogService.ShowCloneLogAsync("📤 发送测试结果",
+            await _dialogService.ShowCloneLogAsync("🧪 一键测试全部结果",
                 $"测试渠道数：{results.Count}\n成功：{results.Count(r => r.Success)}\n失败：{results.Count(r => !r.Success)}",
                 message.Split('\n').ToList(),
                 results.All(r => r.Success) && results.Count > 0);
         }
+
+        [RelayCommand]
+        private async Task TestNotificationChannelAsync(FeishuConfig? channel)
+        {
+            if (channel == null) return;
+            // 构造一次性 mock project，仅包含当前渠道
+            var singleChannelNotification = CloneNotification(EditNotification);
+            singleChannelNotification.Channels = new ObservableCollection<FeishuConfig> { channel };
+            var mockProject = new ToolProject
+            {
+                Name = "测试工具",
+                WorkingDirectory = @"D:\tools",
+                Notification = singleChannelNotification
+            };
+            var mockSnapshot = BuildMockSnapshot();
+            var results = await _notificationService.SendAsync(mockProject, mockSnapshot);
+
+            var summary = channel.ChannelType switch
+            {
+                ChannelType.Feishu => $"{channel.ChannelType} · {channel.RobotType}",
+                ChannelType.WeChatWork => channel.ChannelType.ToString(),
+                _ => channel.ChannelType.ToString()
+            };
+
+            if (results.Count == 0)
+            {
+                await _dialogService.ShowCloneLogAsync("📤 单渠道测试",
+                    $"渠道类型：{summary}\n结果：当前配置下没有可用的渠道",
+                    new List<string>(), false);
+                return;
+            }
+
+            var r = results[0];
+            var lines = new List<string>
+            {
+                (r.Success ? "✅ 成功" : "❌ 失败"),
+                r.Message ?? string.Empty
+            };
+            await _dialogService.ShowCloneLogAsync("📤 单渠道测试",
+                $"渠道类型：{summary}\n结果：{(r.Success ? "成功" : "失败")}",
+                lines, r.Success);
+        }
+
+        /// <summary>
+        /// 构造通知测试用的模拟运行快照。
+        /// 公共方法，便于单渠道测试与一键全部测试共用。
+        /// </summary>
+        private static ToolRunSnapshot BuildMockSnapshot() => new()
+        {
+            StartTime = DateTime.Now.AddSeconds(-5),
+            EndTime = DateTime.Now,
+            ProcessId = 99999,
+            WorkingDirectory = @"D:\tools",
+            CommandLine = "test command",
+            ExitCode = 0,
+            Output = "这是一条测试通知消息。\n如看到此卡片说明配置正确。",
+            Trigger = NotificationTrigger.Success
+        };
     }
 }

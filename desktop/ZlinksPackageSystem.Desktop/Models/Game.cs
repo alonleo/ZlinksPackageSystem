@@ -4,7 +4,10 @@ namespace ZlinksPackageSystem.Desktop.Models
 {
     public class Game
     {
-        public int Id { get; set; }
+        /// <summary>
+        /// 游戏 ID(与后端 Java Long 对齐,避免 > 2^31 时的精度丢失)
+        /// </summary>
+        public long Id { get; set; }
         public string GameName { get; set; } = string.Empty;
         public string GameDirection { get; set; } = string.Empty;
         public string Source { get; set; } = string.Empty;

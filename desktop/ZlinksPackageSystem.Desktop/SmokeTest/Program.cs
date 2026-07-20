@@ -50,7 +50,7 @@ namespace ZlinksPackageSystem.SmokeTest
                 {
                     Id = 1,
                     Name = "test",
-                    RunMode = ToolRunMode.Script,
+                    RunMode = ToolRunModes.Script,
                     Language = "python",
                     InterpreterPath = "python",
                     ScriptPath = "C:\\tools\\build.py",
@@ -73,7 +73,7 @@ namespace ZlinksPackageSystem.SmokeTest
                 {
                     Id = 1,
                     Name = "test",
-                    RunMode = ToolRunMode.Script,
+                    RunMode = ToolRunModes.Script,
                     Language = "python",
                     InterpreterPath = "python",
                     ScriptPath = "C:\\tools\\build.py",
@@ -95,7 +95,7 @@ namespace ZlinksPackageSystem.SmokeTest
                 {
                     Id = 1,
                     Name = "ffmpeg",
-                    RunMode = ToolRunMode.LocalExecutable,
+                    RunMode = ToolRunModes.LocalExecutable,
                     ExecutablePath = "C:\\tools\\ffmpeg.exe",
                     DefaultArgumentPrefix = "-"
                 };
@@ -111,7 +111,7 @@ namespace ZlinksPackageSystem.SmokeTest
                 {
                     Id = 1,
                     Name = "ffmpeg",
-                    RunMode = ToolRunMode.LocalExecutable,
+                    RunMode = ToolRunModes.LocalExecutable,
                     ExecutablePath = "C:\\tools\\ffmpeg.exe",
                     DefaultArgumentPrefix = "-",
                     Arguments = new List<ToolArgument>
@@ -462,6 +462,110 @@ namespace ZlinksPackageSystem.SmokeTest
                 cfg.Channels.CollectionChanged += (_, _) => { fired = true; };
                 cfg.Channels.Add(new FeishuConfig());
                 Assert("CollectionChanged fired", fired);
+            });
+
+            // ===== 19. WeChatWork markdown 内容构造 =====
+            Test("NotificationService.BuildWeChatMarkdownContent 含关键字段", () =>
+            {
+                var proj = new ToolProject { Name = "demo", WorkingDirectory = "D:\\tools" };
+                var snap = new ToolRunSnapshot
+                {
+                    StartTime = new DateTime(2026, 7, 16, 10, 0, 0),
+                    EndTime = new DateTime(2026, 7, 16, 10, 0, 5),
+                    ProcessId = 1234,
+                    ExitCode = 0,
+                    WorkingDirectory = "D:\\tools",
+                    CommandLine = "python main.py",
+                    Output = "hello\nworld",
+                    Trigger = NotificationTrigger.Success
+                };
+                var md = NotificationService.BuildWeChatMarkdownContent(proj, snap, "hello\nworld");
+                Assert("contains 工具", md.Contains("工具"));
+                Assert("contains demo name", md.Contains("demo"));
+                Assert("contains 退出码", md.Contains("退出码"));
+                Assert("contains script output", md.Contains("脚本输出"));
+                Assert("contains 代码块", md.Contains("```"));
+                Assert("not empty", !string.IsNullOrEmpty(md));
+            });
+
+            // ===== 20. WeChatWork SendAsync 通过 Mock HTTP =====
+            Test("NotificationService WeChatWork 渠道单测", () =>
+            {
+                int hits = 0;
+                string? captured = null;
+                var handler = new MockHttpHandler(req =>
+                {
+                    hits++;
+                    captured = req.RequestUri?.ToString() ?? "";
+                    return MockHttpHandler.OkJson("{\"errcode\":0,\"errmsg\":\"ok\"}");
+                });
+                var global = new InMemoryGlobalNotificationService(new GlobalNotificationConfig
+                {
+                    IsEnabled = true,
+                    NotifyOnSuccess = true,
+                    Channels = new ObservableCollection<FeishuConfig>()
+                });
+                var svc = new NotificationService(global, handler);
+                var proj = new ToolProject
+                {
+                    Name = "demo",
+                    Notification = new NotificationConfig
+                    {
+                        UseGlobalSettings = false,
+                        NotifyOnSuccess = true,
+                        Channels = new ObservableCollection<FeishuConfig>
+                        {
+                            new()
+                            {
+                                ChannelType = ChannelType.WeChatWork,
+                                WebhookUrl = "https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=test",
+                                AtAll = true
+                            }
+                        }
+                    }
+                };
+                var snap = new ToolRunSnapshot { Trigger = NotificationTrigger.Success, Output = "ok" };
+                var results = svc.SendAsync(proj, snap).GetAwaiter().GetResult();
+                AssertEq("hits", 1, hits);
+                AssertEq("results count", 1, results.Count);
+                Assert("WeChat result success", results[0].Success);
+                AssertEq("label 微信企业机器人", "微信企业机器人", results[0].ChannelLabel);
+                Assert("URL hit WeChat endpoint", captured != null && captured.Contains("qyapi.weixin.qq.com"));
+            });
+
+            // ===== 21. GitService.PullAsync 输入校验（不调用真实 git pull）=====
+            Test("GitService.PullAsync 空路径", () =>
+            {
+                var svc = new GitService();
+                var r = svc.PullAsync("").GetAwaiter().GetResult();
+                Assert("not success", !r.Success);
+                Assert("error mentions 仓库根目录", r.ErrorMessage.Contains("仓库根目录"));
+            });
+
+            Test("GitService.PullAsync 不存在的目录", () =>
+            {
+                var svc = new GitService();
+                var r = svc.PullAsync(@"C:\nonexistent-zlinks-" + Guid.NewGuid().ToString("N"))
+                    .GetAwaiter().GetResult();
+                Assert("not success", !r.Success);
+                Assert("error mentions 不存在", r.ErrorMessage.Contains("不存在"));
+            });
+
+            Test("GitService.PullAsync 非 Git 目录", () =>
+            {
+                var tmp = Path.Combine(Path.GetTempPath(), "zlinks-notgit-" + Guid.NewGuid().ToString("N"));
+                Directory.CreateDirectory(tmp);
+                try
+                {
+                    var svc = new GitService();
+                    var r = svc.PullAsync(tmp).GetAwaiter().GetResult();
+                    Assert("not success", !r.Success);
+                    Assert("error mentions .git", r.ErrorMessage.Contains(".git"));
+                }
+                finally
+                {
+                    try { Directory.Delete(tmp); } catch { }
+                }
             });
 
             Console.WriteLine();

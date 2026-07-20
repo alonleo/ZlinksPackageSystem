@@ -52,7 +52,8 @@ const monitorItems = [
 const systemMgmtItems = [
   { index: '/system-mgmt/users', title: '用户管理' },
   { index: '/system-mgmt/roles', title: '角色管理' },
-  { index: '/system-mgmt/notice', title: '通知管理' },
+  { index: '/system-mgmt/notifications', title: '通知管理' },
+  { index: '/system-mgmt/notice', title: '系统公告' },
   { index: '/system-mgmt/permissions', title: '权限管理' },
 ]
 
@@ -64,7 +65,6 @@ const systemSettingsItems = [
 const packageItems = [
   { index: '/package/games', title: '游戏管理' },
   { index: '/package/products', title: '产品管理' },
-  { index: '/package/tests', title: '测试管理' },
   { index: '/package/ad-params', title: '广告参数' },
   { index: '/package/platforms', title: '平台管理' },
   { index: '/package/sign-files', title: '签名管理' },

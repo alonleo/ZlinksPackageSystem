@@ -43,6 +43,8 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.Http" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="8.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="8.0.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="Tmds.DBus.Protocol" Version="0.21.3" />
   </ItemGroup>
@@ -52,6 +54,13 @@
     <AvaloniaResource Include="Assets\icon.png" />
     <AvaloniaResource Include="Assets\icon.ico" />
     <AvaloniaResource Include="Assets\icon.icns" />
+  </ItemGroup>
+
+  <!-- 应用配置文件:复制到输出目录 -->
+  <ItemGroup>
+    <None Update="appsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
   </ItemGroup>
 
   <PropertyGroup Condition="$([MSBuild]::IsOSPlatform('windows'))">

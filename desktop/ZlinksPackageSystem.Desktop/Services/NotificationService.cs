@@ -105,6 +105,12 @@ namespace ZlinksPackageSystem.Desktop.Services
         private async Task<NotificationSendResult> SendOneAsync(
             ToolProject project, ToolRunSnapshot snapshot, string output, FeishuConfig channel, CancellationToken ct)
         {
+            // 渠道级别分发：飞书 → 内部 Custom/App 分派；微信企业 → markdown 推送
+            if (channel.ChannelType == ChannelType.WeChatWork)
+            {
+                return await SendWeChatWorkAsync(channel, project, snapshot, output, ct);
+            }
+
             var label = channel.RobotType == FeishuRobotType.Custom ? "自定义机器人" : $"应用({channel.AppId})";
             try
             {
@@ -181,6 +187,68 @@ namespace ZlinksPackageSystem.Desktop.Services
             };
         }
 
+        /// <summary>
+        /// 微信企业群机器人推送（markdown 模式）。
+        /// 企业微信 Webhook URL 已自带 key，POST body 为 markdown JSON。
+        /// </summary>
+        private async Task<NotificationSendResult> SendWeChatWorkAsync(
+            FeishuConfig ch, ToolProject project, ToolRunSnapshot snapshot, string output, CancellationToken ct)
+        {
+            const string label = "微信企业机器人";
+            if (string.IsNullOrWhiteSpace(ch.WebhookUrl))
+                return new NotificationSendResult { ChannelLabel = label, Success = false, Message = "Webhook URL 为空" };
+
+            var md = BuildWeChatMarkdownContent(project, snapshot, output);
+            var mentionedList = new List<string>();
+            var mentionedMobileList = new List<string>();
+            if (ch.AtAll)
+            {
+                mentionedList.Add("@all");
+            }
+            if (ch.AtMobiles != null && ch.AtMobiles.Count > 0)
+            {
+                mentionedMobileList.AddRange(ch.AtMobiles);
+            }
+
+            var payload = new
+            {
+                msgtype = "markdown",
+                markdown = new { content = md },
+                mentioned_list = mentionedList,
+                mentioned_mobile_list = mentionedMobileList
+            };
+            var json = JsonSerializer.Serialize(payload, JsonOptions);
+            try
+            {
+                var resp = await _http.PostAsync(ch.WebhookUrl, new StringContent(json, Encoding.UTF8, "application/json"), ct);
+                var body = await resp.Content.ReadAsStringAsync(ct);
+                // 企业微信返回 {"errcode":0,"errmsg":"ok"}；errcode=0 才算成功
+                bool ok = resp.IsSuccessStatusCode;
+                if (ok)
+                {
+                    try
+                    {
+                        using var doc = JsonDocument.Parse(body);
+                        if (doc.RootElement.TryGetProperty("errcode", out var ec))
+                        {
+                            ok = ec.GetInt32() == 0;
+                        }
+                    }
+                    catch { ok = resp.IsSuccessStatusCode; }
+                }
+                return new NotificationSendResult
+                {
+                    ChannelLabel = label,
+                    Success = ok,
+                    Message = $"HTTP {(int)resp.StatusCode}: {Truncate(body, 200)}"
+                };
+            }
+            catch (Exception ex)
+            {
+                return new NotificationSendResult { ChannelLabel = label, Success = false, Message = ex.Message };
+            }
+        }
+
         private async Task<string> GetAppTokenAsync(FeishuConfig ch, CancellationToken ct)
         {
             if (!string.IsNullOrEmpty(_appToken) && DateTime.UtcNow < _appTokenExpiry)
@@ -225,6 +293,49 @@ namespace ZlinksPackageSystem.Desktop.Services
             var output = Truncate(snapshot.Output ?? string.Empty, snapshot.Output?.Length ?? 0);
             var card = BuildCardObject(project, snapshot, output, channel);
             return JsonSerializer.Serialize(card, CardJsonOptions);
+        }
+
+        /// <summary>
+        /// 为微信企业机器人构造 markdown 文本。
+        /// 公开为 public static 便于单测验证内容。
+        /// </summary>
+        public static string BuildWeChatMarkdownContent(ToolProject project, ToolRunSnapshot snapshot, string output)
+        {
+            var (emoji, title) = snapshot.Trigger switch
+            {
+                NotificationTrigger.Start => ("▶", $"{project.Name} 启动"),
+                NotificationTrigger.Success => ("✅", $"{project.Name} 成功"),
+                NotificationTrigger.Failure => ("❌", $"{project.Name} 失败"),
+                _ => ("📋", project.Name)
+            };
+
+            var statusText = snapshot.Trigger switch
+            {
+                NotificationTrigger.Start => "运行中",
+                NotificationTrigger.Success => "退出码 0",
+                NotificationTrigger.Failure => $"退出码 {snapshot.ExitCode}",
+                _ => "-"
+            };
+
+            var sb = new StringBuilder();
+            sb.AppendLine($"# {emoji} <font color=\"info\">{title}</font>");
+            sb.AppendLine($"> **工具**: {project.Name}");
+            sb.AppendLine($"> **状态**: {statusText}");
+            sb.AppendLine($"> **耗时**: {snapshot.DurationMs} ms");
+            sb.AppendLine($"> **PID**: {snapshot.ProcessId?.ToString() ?? "-"}");
+            sb.AppendLine($"> **退出码**: {snapshot.ExitCode}");
+            sb.AppendLine($"> **工作目录**: {snapshot.WorkingDirectory}");
+            if (!string.IsNullOrEmpty(output))
+            {
+                sb.AppendLine();
+                sb.AppendLine("**脚本输出（截断）**");
+                sb.AppendLine("```");
+                sb.AppendLine(output);
+                sb.AppendLine("```");
+            }
+            sb.AppendLine();
+            sb.AppendLine($"<sub>{snapshot.StartTime:yyyy-MM-dd HH:mm:ss} → {snapshot.EndTime:HH:mm:ss}</sub>");
+            return sb.ToString();
         }
 
         private static object BuildCardObject(ToolProject project, ToolRunSnapshot snapshot, string output, FeishuConfig channel)

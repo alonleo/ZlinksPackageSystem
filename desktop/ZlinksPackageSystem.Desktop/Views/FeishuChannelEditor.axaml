@@ -10,38 +10,71 @@
     <Border Margin="0,0,0,8" Padding="10" CornerRadius="6"
             Background="#0DFFFFFF" BorderBrush="#22FFFFFF" BorderThickness="1">
         <StackPanel Spacing="6" DataContext="{Binding $parent.DataContext}">
-            <!-- 类型下拉 + 删除 -->
-            <Grid ColumnDefinitions="Auto,*,Auto">
-                <TextBlock Grid.Column="0" Text="类型" VerticalAlignment="Center"
+
+            <!-- 渠道类型下拉 + 飞书子类型下拉 + 测试 + 删除（同一行） -->
+            <Grid ColumnDefinitions="Auto,*,Auto,*,Auto,Auto">
+                <TextBlock Grid.Column="0" Text="渠道类型" VerticalAlignment="Center"
                            Margin="0,0,8,0" Foreground="#99BFcbd9" />
                 <ComboBox Grid.Column="1"
-                          SelectedIndex="{Binding RobotType, Converter={StaticResource EnumToIntConverter}}">
-                    <ComboBoxItem Content="自定义机器人（Webhook）" />
-                    <ComboBoxItem Content="应用机器人（App ID + Secret）" />
+                          SelectedIndex="{Binding ChannelType, Converter={StaticResource EnumToIntConverter}}">
+                    <ComboBoxItem Content="飞书机器人" />
+                    <ComboBoxItem Content="微信企业机器人" />
                 </ComboBox>
-                <Button Grid.Column="2" Content="🗑 删除" Margin="8,0,0,0"
+                <TextBlock Grid.Column="2" Text="子类型" VerticalAlignment="Center"
+                           Margin="8,0,8,0" Foreground="#99BFcbd9"
+                           IsVisible="{Binding ChannelType, Converter={StaticResource EnumEqualsConverter}, ConverterParameter=Feishu}" />
+                <ComboBox Grid.Column="3"
+                          SelectedIndex="{Binding RobotType, Converter={StaticResource EnumToIntConverter}}"
+                          IsVisible="{Binding ChannelType, Converter={StaticResource EnumEqualsConverter}, ConverterParameter=Feishu}">
+                    <ComboBoxItem Content="自定义（Webhook）" />
+                    <ComboBoxItem Content="应用（App ID+Secret）" />
+                </ComboBox>
+                <Button Grid.Column="4" Content="📤 发送测试" Margin="6,0,0,0"
+                        Padding="8,4" FontSize="10"
+                        Click="OnTestClicked" />
+                <Button Grid.Column="5" Content="🗑 删除" Margin="4,0,0,0"
                         Padding="8,4" FontSize="10"
                         BorderBrush="#FFF56C6C" Foreground="#FFF56C6C"
                         Click="OnRemoveClicked" />
             </Grid>
 
-            <!-- 自定义机器人 -->
-            <TextBox Text="{Binding WebhookUrl}"
-                     Watermark="Webhook URL（含 access_token 查询参数）" />
+            <!-- ============ 飞书 Custom：Webhook URL + @人 ============ -->
+            <StackPanel Spacing="6"
+                        IsVisible="{Binding ChannelType, Converter={StaticResource EnumEqualsConverter}, ConverterParameter=Feishu}">
+                <StackPanel Spacing="6"
+                            IsVisible="{Binding RobotType, Converter={StaticResource EnumEqualsConverter}, ConverterParameter=Custom}">
+                    <TextBox Text="{Binding WebhookUrl}"
+                             Watermark="Webhook URL（含 access_token 查询参数）" />
+                    <CheckBox Content="@所有人" IsChecked="{Binding AtAll}" />
+                    <TextBox Text="{Binding AtMobilesText, Mode=TwoWay}"
+                             Watermark="@手机号列表（逗号或换行分隔）" />
+                </StackPanel>
 
-            <!-- 应用机器人 -->
-            <TextBox Text="{Binding AppId}"
-                     Watermark="App ID（飞书开放平台 CLI_xxx）" />
-            <TextBox Text="{Binding AppSecret}"
-                     PasswordChar="{Binding DataContext.IsSecretsVisible, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToPasswordCharConverter}}"
-                     Watermark="App Secret" />
-            <TextBox Text="{Binding ReceiveId}"
-                     Watermark="Receive ID（chat_id / open_id / email）" />
+                <!-- ============ 飞书 App：AppId / Secret / ReceiveId + @人 ============ -->
+                <StackPanel Spacing="6"
+                            IsVisible="{Binding RobotType, Converter={StaticResource EnumEqualsConverter}, ConverterParameter=App}">
+                    <TextBox Text="{Binding AppId}"
+                             Watermark="App ID（飞书开放平台 CLI_xxx）" />
+                    <TextBox Text="{Binding AppSecret}"
+                             PasswordChar="{Binding DataContext.IsSecretsVisible, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToPasswordCharConverter}}"
+                             Watermark="App Secret" />
+                    <TextBox Text="{Binding ReceiveId}"
+                             Watermark="Receive ID（chat_id / open_id / email）" />
+                    <CheckBox Content="@所有人" IsChecked="{Binding AtAll}" />
+                    <TextBox Text="{Binding AtMobilesText, Mode=TwoWay}"
+                             Watermark="@手机号列表（逗号或换行分隔）" />
+                </StackPanel>
+            </StackPanel>
 
-            <!-- @人 -->
-            <CheckBox Content="@所有人" IsChecked="{Binding AtAll}" />
-            <TextBox Text="{Binding AtMobilesText, Mode=TwoWay}"
-                     Watermark="@手机号列表（逗号或换行分隔）" />
+            <!-- ============ 微信企业机器人：Webhook URL + @人 ============ -->
+            <StackPanel Spacing="6"
+                        IsVisible="{Binding ChannelType, Converter={StaticResource EnumEqualsConverter}, ConverterParameter=WeChatWork}">
+                <TextBox Text="{Binding WebhookUrl}"
+                         Watermark="Webhook URL（企业微信含 key）" />
+                <CheckBox Content="@所有人" IsChecked="{Binding AtAll}" />
+                <TextBox Text="{Binding AtMobilesText, Mode=TwoWay}"
+                         Watermark="@手机号列表（逗号或换行分隔）" />
+            </StackPanel>
         </StackPanel>
     </Border>
 </UserControl>

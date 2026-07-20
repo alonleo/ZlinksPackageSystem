@@ -44,14 +44,6 @@ const rules = {
   groupName: [{ required: true, message: '请输入权限组名称', trigger: 'blur' }],
 }
 
-const parseScopeModules = (modulesText?: string) => {
-  if (!modulesText) return []
-  try {
-    const modules = JSON.parse(modulesText)
-    return Array.isArray(modules) ? modules.map(String) : []
-  } catch { return [] }
-}
-
 const fetchList = async () => {
   loading.value = true
   try {
@@ -94,8 +86,8 @@ const handleUpdate = async (row?: any) => {
     const { data: scopes } = await permissionScopeApi.list(id)
     const backend = scopes.find(scope => scope.scope === 'backend')
     const desktop = scopes.find(scope => scope.scope === 'desktop')
-    backendModulesSelection.value = backend?.modules ?? parseScopeModules(backend?.modulesText)
-    desktopModulesSelection.value = desktop?.modules ?? parseScopeModules(desktop?.modulesText)
+    backendModulesSelection.value = backend?.modules ?? []
+    desktopModulesSelection.value = desktop?.modules ?? []
     ids.value = [id]
     title.value = '修改权限组'
     open.value = true

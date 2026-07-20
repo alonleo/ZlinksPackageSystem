@@ -48,5 +48,14 @@ namespace ZlinksPackageSystem.Desktop.Views
                 vm.RemoveGlobalNotificationChannelCommand.Execute(channel);
             }
         }
+
+        private void OnGlobalChannelTestRequested(object? sender, RoutedEventArgs e)
+        {
+            if (e.Source is Control { DataContext: FeishuConfig channel }
+                && DataContext is SettingsViewModel vm)
+            {
+                vm.TestGlobalNotificationChannelCommand.Execute(channel);
+            }
+        }
     }
 }

@@ -5,6 +5,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text.Json;
+using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -78,6 +79,8 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
         private readonly MainViewModel _mainViewModel;
         private readonly IFilePickerService _filePickerService;
         private readonly IGlobalNotificationService _globalNotificationService;
+        private readonly INotificationService _notificationService;
+        private readonly IDialogService _dialogService;
         private bool _isLoading;
 
         [ObservableProperty]
@@ -147,11 +150,13 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
         public FontStyle PreviewFontStyle => FontIsItalic ? FontStyle.Italic : FontStyle.Normal;
         public Avalonia.Media.FontFamily PreviewFontFamily => BuildFontFamily(FontFamily);
 
-        public SettingsViewModel(MainViewModel mainViewModel, IFilePickerService filePickerService, IGlobalNotificationService globalNotificationService)
+        public SettingsViewModel(MainViewModel mainViewModel, IFilePickerService filePickerService, IGlobalNotificationService globalNotificationService, INotificationService notificationService, IDialogService dialogService)
         {
             _mainViewModel = mainViewModel;
             _filePickerService = filePickerService;
             _globalNotificationService = globalNotificationService;
+            _notificationService = notificationService;
+            _dialogService = dialogService;
             Title = "设置";
 
             LoadInstalledFonts();
@@ -192,6 +197,63 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
         private void ToggleGlobalSecretsVisibility()
         {
             IsGlobalSecretsVisible = !IsGlobalSecretsVisible;
+        }
+
+        [RelayCommand]
+        private async Task TestGlobalNotificationChannelAsync(FeishuConfig? channel)
+        {
+            if (channel == null) return;
+
+            // 构造只含该渠道的临时配置
+            var singleChannelConfig = new GlobalNotificationConfig
+            {
+                IsEnabled = true,
+                NotifyOnStart = GlobalNotification.NotifyOnStart,
+                NotifyOnSuccess = GlobalNotification.NotifyOnSuccess,
+                NotifyOnFailure = GlobalNotification.NotifyOnFailure,
+                MaxOutputChars = GlobalNotification.MaxOutputChars,
+                Channels = new ObservableCollection<FeishuConfig> { channel }
+            };
+            var mockProject = new ToolProject
+            {
+                Name = "测试工具",
+                WorkingDirectory = @"D:\tools",
+                Notification = new NotificationConfig
+                {
+                    UseGlobalSettings = true
+                }
+            };
+            var mockSnapshot = new ToolRunSnapshot
+            {
+                StartTime = DateTime.Now.AddSeconds(-5),
+                EndTime = DateTime.Now,
+                ProcessId = 99999,
+                WorkingDirectory = @"D:\tools",
+                CommandLine = "test command",
+                ExitCode = 0,
+                Output = "这是一条测试通知消息。\n如看到此卡片说明配置正确。",
+                Trigger = NotificationTrigger.Success
+            };
+
+            var results = await _notificationService.SendAsync(mockProject, mockSnapshot, CancellationToken.None);
+
+            if (results.Count == 0)
+            {
+                await _dialogService.ShowCloneLogAsync("📤 全局单渠道测试",
+                    $"渠道类型：{channel.ChannelType}\n结果：当前配置下没有可用的渠道",
+                    new List<string>(), false);
+                return;
+            }
+
+            var r = results[0];
+            var lines = new List<string>
+            {
+                (r.Success ? "✅ 成功" : "❌ 失败"),
+                r.Message ?? string.Empty
+            };
+            await _dialogService.ShowCloneLogAsync("📤 全局单渠道测试",
+                $"渠道类型：{channel.ChannelType}",
+                lines, r.Success);
         }
 
         // ===== 分类变化 =====

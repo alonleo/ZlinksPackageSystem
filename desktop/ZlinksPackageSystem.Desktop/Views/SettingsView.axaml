@@ -472,7 +472,8 @@
                                 <Button Content="＋ 添加渠道" Command="{Binding AddGlobalNotificationChannelCommand}" />
                             </StackPanel>
                             <ItemsControl ItemsSource="{Binding GlobalNotification.Channels}"
-                                              local:FeishuChannelEditor.RemoveRequested="OnGlobalChannelRemoveRequested">
+                                              local:FeishuChannelEditor.RemoveRequested="OnGlobalChannelRemoveRequested"
+                                              local:FeishuChannelEditor.TestRequested="OnGlobalChannelTestRequested">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate>
                                         <local:FeishuChannelEditor />

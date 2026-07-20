@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
@@ -86,60 +87,66 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
                 Console.WriteLine($"Failed to load counts: {ex.Message}");
             }
 
-            // 加载公告
+            // 加载公告（最新 5 条）
             Announcements.Clear();
-            Announcements.Add(new AnnouncementItem
+            try
             {
-                Id = 1,
-                Title = "系统升级通知",
-                Content = "平台将于本周六凌晨 02:00-04:00 进行系统升级维护，期间所有服务将暂时不可用。",
-                Time = DateTime.Now.AddDays(-1),
-                Publisher = "系统管理员"
-            });
-            Announcements.Add(new AnnouncementItem
+                var annoList = await _apiService.GetAsync<List<NotificationEntity>>("/notifications/announcements");
+                if (annoList != null)
+                {
+                    foreach (var e in annoList)
+                        Announcements.Add(new AnnouncementItem
+                        {
+                            Id = e.Id,
+                            Title = e.Title,
+                            Content = e.Content,
+                            Time = ParseDateTime(e.CreateTime) ?? DateTime.Now,
+                            Publisher = e.SenderName ?? string.Empty
+                        });
+                }
+            }
+            catch (Exception ex)
             {
-                Id = 2,
-                Title = "新版本 SDK v3.2.0 已发布",
-                Content = "新增 Android 14 适配支持，优化 IL2CPP 打包性能。请各项目组尽快升级。",
-                Time = DateTime.Now.AddDays(-2),
-                Publisher = "SDK 团队"
-            });
+                Console.WriteLine($"Failed to load announcements: {ex.Message}");
+            }
 
-            // 加载通知
+            // 加载通知（置顶）
             Notifications.Clear();
-            Notifications.Add(new NotificationItem
+            try
             {
-                Id = 1, Title = "打包完成", Message = "游戏「梦幻西游」打包完成",
-                Content = "游戏「梦幻西游」已于 14:30 完成打包，APK 大小 185MB，无异常。请及时进行验收测试。",
-                Time = DateTime.Now.AddMinutes(-5), IsRead = false, Urgency = "低", Publisher = "张三"
-            });
-            Notifications.Add(new NotificationItem
+                var pinned = await _apiService.GetAsync<List<NotificationEntity>>("/notifications/pinned");
+                if (pinned != null)
+                {
+                    foreach (var e in pinned)
+                        Notifications.Add(new NotificationItem
+                        {
+                            Id = e.Id,
+                            Title = e.Title,
+                            Message = string.IsNullOrEmpty(e.Content)
+                                ? e.Title
+                                : (e.Content.Length > 60 ? e.Content[..60] + "…" : e.Content),
+                            Content = e.Content,
+                            Time = ParseDateTime(e.CreateTime) ?? DateTime.Now,
+                            Urgency = "中",
+                            Publisher = e.SenderName ?? string.Empty,
+                            IsRead = e.Status == "1"
+                        });
+                }
+            }
+            catch (Exception ex)
             {
-                Id = 2, Title = "审核通过", Message = "产品「A100」审核通过",
-                Content = "产品「A100」提交的审核已通过，该产品已具备上线条件。",
-                Time = DateTime.Now.AddHours(-1), IsRead = false, Urgency = "中", Publisher = "李四"
-            });
-            Notifications.Add(new NotificationItem
-            {
-                Id = 3, Title = "测试完成", Message = "测试任务 #1283 执行完毕",
-                Content = "测试任务 #1283 已执行完毕，通过率 98.5%。3 个用例因环境问题被跳过。",
-                Time = DateTime.Now.AddHours(-2), IsRead = false, Urgency = "低", Publisher = "王五"
-            });
-            Notifications.Add(new NotificationItem
-            {
-                Id = 4, Title = "系统维护", Message = "系统将于今晚 02:00 维护",
-                Content = "为提升系统稳定性，将于今晚 02:00-03:00 进行数据库优化维护。",
-                Time = DateTime.Now.AddHours(-3), IsRead = true, Urgency = "高", Publisher = "系统管理员"
-            });
-            Notifications.Add(new NotificationItem
-            {
-                Id = 5, Title = "SDK 发布", Message = "新版本 SDK 已发布",
-                Content = "新版本 SDK v3.2.0 已正式发布：适配 Android 14、优化 IL2CPP 打包速度。",
-                Time = DateTime.Now.AddDays(-1), IsRead = true, Urgency = "中", Publisher = "赵六"
-            });
+                Console.WriteLine($"Failed to load notifications: {ex.Message}");
+            }
 
             UnreadCount = Notifications.Count(n => !n.IsRead);
             IsBusy = false;
+        }
+
+        private static DateTime? ParseDateTime(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return null;
+            if (DateTime.TryParse(s, out var d)) return d;
+            return null;
         }
 
         [RelayCommand]

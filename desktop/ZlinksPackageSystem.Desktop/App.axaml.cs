@@ -2,6 +2,7 @@ using System;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using ZlinksPackageSystem.Desktop.Services;
@@ -19,19 +20,24 @@ public partial class App : Application
     public App()
     {
         _host = Host.CreateDefaultBuilder()
+            .ConfigureAppConfiguration((context, config) =>
+            {
+                // 加载 appsettings.json(从输出目录)
+                config.AddJsonFile("appsettings.json", optional: true, reloadOnChange: false);
+            })
             .ConfigureServices((context, services) =>
             {
                 // Services
-                                services.AddSingleton<IApiService, ApiService>();
-                                services.AddSingleton<IAuthService, AuthService>();
-                                services.AddSingleton<IDialogService, DialogService>();
-                                services.AddSingleton<IFilePickerService, FilePickerService>();
-                                services.AddSingleton<IRuntimeEnvironmentService, RuntimeEnvironmentService>();
-                                services.AddSingleton<IProcessManagerService, ProcessManagerService>();
-                                services.AddSingleton<IGitService, GitService>();
-                                services.AddSingleton<IToolPersistenceService, ToolPersistenceService>();
-                                services.AddSingleton<IGlobalNotificationService, GlobalNotificationService>();
-                                services.AddSingleton<INotificationService, NotificationService>();
+                services.AddSingleton<IApiService, ApiService>();
+                services.AddSingleton<IAuthService, AuthService>();
+                services.AddSingleton<IDialogService, DialogService>();
+                services.AddSingleton<IFilePickerService, FilePickerService>();
+                services.AddSingleton<IRuntimeEnvironmentService, RuntimeEnvironmentService>();
+                services.AddSingleton<IProcessManagerService, ProcessManagerService>();
+                services.AddSingleton<IGitService, GitService>();
+                services.AddSingleton<IToolPersistenceService, ToolPersistenceService>();
+                services.AddSingleton<IGlobalNotificationService, GlobalNotificationService>();
+                services.AddSingleton<INotificationService, NotificationService>();
 
                 // ViewModels
                 services.AddSingleton<MainViewModel>();

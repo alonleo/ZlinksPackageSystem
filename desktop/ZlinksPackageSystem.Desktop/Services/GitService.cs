@@ -179,5 +179,118 @@ namespace ZlinksPackageSystem.Desktop.Services
             result.Logs = logs;
             return result;
         }
+
+        public async Task<CloneResult> PullAsync(string repoRoot,
+            IProgress<string>? progress = null, CancellationToken ct = default)
+        {
+            var logs = new List<string>();
+            void Log(string? line)
+            {
+                if (string.IsNullOrEmpty(line)) return;
+                logs.Add(line);
+                try { progress?.Report(line); } catch { /* UI 已关闭 */ }
+            }
+
+            var result = new CloneResult { RepoRoot = repoRoot };
+            if (string.IsNullOrWhiteSpace(repoRoot))
+            {
+                result.ErrorMessage = "仓库根目录为空";
+                return result;
+            }
+            if (!Directory.Exists(repoRoot))
+            {
+                result.ErrorMessage = $"仓库根目录不存在：{repoRoot}";
+                return result;
+            }
+            var gitDir = Path.Combine(repoRoot, ".git");
+            if (!Directory.Exists(gitDir))
+            {
+                result.ErrorMessage = $"目录不是 Git 仓库（缺少 .git）：{repoRoot}";
+                return result;
+            }
+
+            var psi = new ProcessStartInfo
+            {
+                FileName = "git",
+                ArgumentList = { "-C", repoRoot, "pull", "--ff-only", "--progress" },
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+                CreateNoWindow = true
+            };
+
+            using var proc = new Process { StartInfo = psi, EnableRaisingEvents = true };
+            try
+            {
+                if (!proc.Start())
+                {
+                    result.ErrorMessage = "无法启动 git 进程";
+                    return result;
+                }
+            }
+            catch (Exception ex)
+            {
+                result.ErrorMessage = $"启动 git 失败：{ex.Message}";
+                return result;
+            }
+
+            using var reg = ct.Register(() =>
+            {
+                try
+                {
+                    if (!proc.HasExited)
+                        proc.Kill(entireProcessTree: true);
+                }
+                catch { /* 已退出 */ }
+            });
+
+            var stdoutTask = Task.Run(async () =>
+            {
+                try
+                {
+                    string? line;
+                    while ((line = await proc.StandardOutput.ReadLineAsync(ct)) != null)
+                        Log(line);
+                }
+                catch (OperationCanceledException) { }
+                catch { /* 流关闭 */ }
+            }, ct);
+            var stderrTask = Task.Run(async () =>
+            {
+                try
+                {
+                    string? line;
+                    while ((line = await proc.StandardError.ReadLineAsync(ct)) != null)
+                        Log(line);
+                }
+                catch (OperationCanceledException) { }
+                catch { /* 流关闭 */ }
+            }, ct);
+
+            try
+            {
+                await proc.WaitForExitAsync(ct);
+            }
+            catch (OperationCanceledException)
+            {
+                result.Cancelled = true;
+                result.ErrorMessage = "已取消";
+                result.Logs = logs;
+                return result;
+            }
+
+            try { await Task.WhenAll(stdoutTask, stderrTask); } catch { /* 流截断 */ }
+
+            if (proc.ExitCode == 0)
+            {
+                result.Success = true;
+            }
+            else
+            {
+                result.ErrorMessage = $"git pull 退出码 {proc.ExitCode}";
+            }
+            result.Logs = logs;
+            return result;
+        }
     }
 }

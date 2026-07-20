@@ -12,15 +12,17 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
     public partial class NotificationViewModel : ViewModelBase
     {
         private readonly IDialogService _dialogService;
+        private readonly IApiService _apiService;
 
         [ObservableProperty]
         private int _unreadCount;
 
         public ObservableCollection<NotificationItem> Notifications { get; } = new();
 
-        public NotificationViewModel(IDialogService dialogService)
+        public NotificationViewModel(IDialogService dialogService, IApiService apiService)
         {
             _dialogService = dialogService;
+            _apiService = apiService;
             Title = "消息中心";
             _ = LoadDataAsync();
         }
@@ -29,67 +31,48 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
         private async Task LoadDataAsync()
         {
             IsBusy = true;
+            try
+            {
+                // 从后台管理系统拉取通知（按置顶 + 时间倒序分页）
+                var page = await _apiService.GetAsync<PageResponse<NotificationEntity>>(
+                    "/notifications?current=1&size=50");
+                Notifications.Clear();
+                if (page?.Records != null)
+                {
+                    foreach (var e in page.Records)
+                        Notifications.Add(MapToItem(e));
+                }
+                UnreadCount = Notifications.Count(n => !n.IsRead);
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[Notification] 加载失败：{ex.Message}");
+            }
+            finally
+            {
+                IsBusy = false;
+            }
+        }
 
-                        // 通知数据（模拟）
-                        Notifications.Clear();
-            Notifications.Add(new NotificationItem
-            {
-                Id = 1,
-                Title = "打包完成",
-                Message = "游戏「梦幻西游」打包完成",
-                Content = "游戏「梦幻西游」已于 14:30 完成打包，APK 大小 185MB，无异常。请及时进行验收测试。",
-                Time = DateTime.Now.AddMinutes(-5),
-                IsRead = false,
-                Urgency = "低",
-                Publisher = "张三"
-            });
-            Notifications.Add(new NotificationItem
-            {
-                Id = 2,
-                Title = "审核通过",
-                Message = "产品「A100」审核通过",
-                Content = "产品「A100」提交的审核已通过，该产品已具备上线条件。如需上线，请联系运营团队安排发布计划。",
-                Time = DateTime.Now.AddHours(-1),
-                IsRead = false,
-                Urgency = "中",
-                Publisher = "李四"
-            });
-            Notifications.Add(new NotificationItem
-            {
-                Id = 3,
-                Title = "测试完成",
-                Message = "测试任务 #1283 执行完毕",
-                Content = "测试任务 #1283 已执行完毕，通过率 98.5%。其中 3 个用例因环境问题被跳过，详见测试报告。",
-                Time = DateTime.Now.AddHours(-2),
-                IsRead = false,
-                Urgency = "低",
-                Publisher = "王五"
-            });
-            Notifications.Add(new NotificationItem
-            {
-                Id = 4,
-                Title = "系统维护",
-                Message = "系统将于今晚 02:00 维护",
-                Content = "为提升系统稳定性，将于今晚 02:00-03:00 进行数据库优化维护。维护期间可能会出现短暂的服务中断。",
-                Time = DateTime.Now.AddHours(-3),
-                IsRead = true,
-                Urgency = "高",
-                Publisher = "系统管理员"
-            });
-            Notifications.Add(new NotificationItem
-            {
-                Id = 5,
-                Title = "SDK 发布",
-                Message = "新版本 SDK 已发布",
-                Content = "新版本 SDK v3.2.0 已正式发布，主要更新：适配 Android 14、优化 IL2CPP 打包速度、修复内存泄漏问题。",
-                Time = DateTime.Now.AddDays(-1),
-                IsRead = true,
-                Urgency = "中",
-                Publisher = "赵六"
-            });
+        private static NotificationItem MapToItem(NotificationEntity e) => new()
+        {
+            Id = e.Id,
+            Title = e.Title,
+            Message = string.IsNullOrEmpty(e.Content)
+                ? e.Title
+                : (e.Content.Length > 60 ? e.Content[..60] + "…" : e.Content),
+            Content = e.Content,
+            Time = ParseDateTime(e.CreateTime) ?? DateTime.Now,
+            Urgency = "中",
+            Publisher = e.SenderName ?? string.Empty,
+            IsRead = e.Status == "1"
+        };
 
-            UnreadCount = Notifications.Count(n => !n.IsRead);
-            IsBusy = false;
+        private static DateTime? ParseDateTime(string s)
+        {
+            if (string.IsNullOrEmpty(s)) return null;
+            if (DateTime.TryParse(s, out var d)) return d;
+            return null;
         }
 
         [RelayCommand]
@@ -102,7 +85,7 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
                 var index = Notifications.IndexOf(item);
                 if (index >= 0)
                 {
-                    Notifications[index] = new NotificationItem
+                    var updated = new NotificationItem
                     {
                         Id = item.Id,
                         Title = item.Title,
@@ -113,6 +96,7 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
                         Urgency = item.Urgency,
                         Publisher = item.Publisher
                     };
+                    Notifications[index] = updated;
                 }
                 UnreadCount = Notifications.Count(n => !n.IsRead);
             }

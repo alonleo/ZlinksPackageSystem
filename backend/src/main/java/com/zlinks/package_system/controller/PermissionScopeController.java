@@ -29,6 +29,7 @@ public class PermissionScopeController {
     @GetMapping
     public Result<List<PermissionScope>> list(@PathVariable Long groupId) {
         List<PermissionScope> scopes = service.list(new LambdaQueryWrapper<PermissionScope>().eq(PermissionScope::getGroupId, groupId));
+        scopes.forEach(s -> s.setModules(parseModules(s.getModulesText())));
         return Result.success(scopes);
     }
 
@@ -49,7 +50,8 @@ public class PermissionScopeController {
                                           @Valid @RequestBody PermissionScopeRequest req) {
         if (!scope.equals(req.getScope())) throw new BusinessException("scope 路径与请求体不一致");
         if (!"backend".equals(scope) && !"desktop".equals(scope)) throw new BusinessException("scope 必须为 backend 或 desktop");
-        String text = serialize(req.getModules());
+        List<String> modules = req.getModules() == null ? Collections.emptyList() : req.getModules();
+        String text = serialize(modules);
         PermissionScope existing = service.getOne(new LambdaQueryWrapper<PermissionScope>()
                 .eq(PermissionScope::getGroupId, groupId)
                 .eq(PermissionScope::getScope, scope));
@@ -58,10 +60,12 @@ public class PermissionScopeController {
             entity.setGroupId(groupId);
             entity.setScope(scope);
             entity.setModulesText(text);
+            entity.setModules(modules);
             service.save(entity);
             return Result.success(entity);
         } else {
             existing.setModulesText(text);
+            existing.setModules(modules);
             service.updateById(existing);
             return Result.success(existing);
         }

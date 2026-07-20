@@ -35,9 +35,7 @@ const router = createRouter({
         },
         {
           path: 'package/tests',
-          name: 'package-tests',
-          component: () => import('@/views/package/TestListView.vue'),
-          meta: { title: '测试管理' },
+          redirect: '/package/products',
         },
         {
           path: 'package/ad-params',
@@ -61,6 +59,12 @@ const router = createRouter({
           path: 'system-mgmt/notice',
           name: 'system-mgmt-notice',
           component: () => import('@/views/system-mgmt/notice/index.vue'),
+          meta: { title: '系统公告(RuoYi)' },
+        },
+        {
+          path: 'system-mgmt/notifications',
+          name: 'system-mgmt-notifications',
+          component: () => import('@/views/system-mgmt/notifications/NotificationListView.vue'),
           meta: { title: '通知管理' },
         },
         {

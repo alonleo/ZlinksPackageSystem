@@ -3,6 +3,7 @@ using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
 using Newtonsoft.Json;
 using ZlinksPackageSystem.Desktop.Models;
 
@@ -11,13 +12,23 @@ namespace ZlinksPackageSystem.Desktop.Services
     public class ApiService : IApiService
     {
         private readonly HttpClient _httpClient;
-        private readonly string _baseUrl = "http://localhost:8080/api";
+        private readonly string _baseUrl;
+        private readonly int _timeout;
 
-        public ApiService()
+        public ApiService(IConfiguration configuration)
         {
-            _httpClient = new HttpClient();
+            _baseUrl = configuration["ApiBaseUrl"] ?? "http://localhost:8080/api";
+            _timeout = int.TryParse(configuration["Timeout"], out var t) ? t : 10000;
+
+            _httpClient = new HttpClient
+            {
+                BaseAddress = new Uri(_baseUrl.TrimEnd('/') + "/"),
+                Timeout = TimeSpan.FromMilliseconds(_timeout)
+            };
             _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
         }
+
+        public string BaseUrl => _baseUrl;
 
         public void SetAuthToken(string token)
         {
@@ -28,7 +39,7 @@ namespace ZlinksPackageSystem.Desktop.Services
         {
             try
             {
-                var response = await _httpClient.GetAsync($"{_baseUrl}{endpoint}");
+                var response = await _httpClient.GetAsync(endpoint);
                 response.EnsureSuccessStatusCode();
                 var content = await response.Content.ReadAsStringAsync();
                 var result = JsonConvert.DeserializeObject<ApiResponse<T>>(content);
@@ -36,7 +47,7 @@ namespace ZlinksPackageSystem.Desktop.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"GET request failed: {ex.Message}");
+                Console.WriteLine($"GET {endpoint} failed: {ex.Message}");
                 return default;
             }
         }
@@ -47,7 +58,7 @@ namespace ZlinksPackageSystem.Desktop.Services
             {
                 var json = data != null ? JsonConvert.SerializeObject(data) : "{}";
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
-                var response = await _httpClient.PostAsync($"{_baseUrl}{endpoint}", content);
+                var response = await _httpClient.PostAsync(endpoint, content);
                 response.EnsureSuccessStatusCode();
                 var responseContent = await response.Content.ReadAsStringAsync();
                 var result = JsonConvert.DeserializeObject<ApiResponse<T>>(responseContent);
@@ -55,7 +66,7 @@ namespace ZlinksPackageSystem.Desktop.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"POST request failed: {ex.Message}");
+                Console.WriteLine($"POST {endpoint} failed: {ex.Message}");
                 return default;
             }
         }
@@ -66,7 +77,7 @@ namespace ZlinksPackageSystem.Desktop.Services
             {
                 var json = data != null ? JsonConvert.SerializeObject(data) : "{}";
                 var content = new StringContent(json, Encoding.UTF8, "application/json");
-                var response = await _httpClient.PutAsync($"{_baseUrl}{endpoint}", content);
+                var response = await _httpClient.PutAsync(endpoint, content);
                 response.EnsureSuccessStatusCode();
                 var responseContent = await response.Content.ReadAsStringAsync();
                 var result = JsonConvert.DeserializeObject<ApiResponse<T>>(responseContent);
@@ -74,7 +85,7 @@ namespace ZlinksPackageSystem.Desktop.Services
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"PUT request failed: {ex.Message}");
+                Console.WriteLine($"PUT {endpoint} failed: {ex.Message}");
                 return default;
             }
         }
@@ -83,12 +94,12 @@ namespace ZlinksPackageSystem.Desktop.Services
         {
             try
             {
-                var response = await _httpClient.DeleteAsync($"{_baseUrl}{endpoint}");
+                var response = await _httpClient.DeleteAsync(endpoint);
                 return response.IsSuccessStatusCode;
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"DELETE request failed: {ex.Message}");
+                Console.WriteLine($"DELETE {endpoint} failed: {ex.Message}");
                 return false;
             }
         }

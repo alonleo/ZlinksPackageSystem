@@ -36,5 +36,14 @@ namespace ZlinksPackageSystem.Desktop.Views
                 vm.RemoveNotificationChannelCommand.Execute(channel);
             }
         }
+
+        private void OnNotificationChannelTestRequested(object? sender, RoutedEventArgs e)
+        {
+            if (e.Source is Control { DataContext: FeishuConfig channel }
+                && DataContext is ToolLibraryViewModel vm)
+            {
+                vm.TestNotificationChannelCommand.Execute(channel);
+            }
+        }
     }
 }

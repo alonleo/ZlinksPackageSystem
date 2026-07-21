@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
@@ -26,15 +27,17 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
         private readonly IGitService _gitService;
         private readonly IToolPersistenceService _persistence;
         private readonly INotificationService _notificationService;
+        private readonly IVenvService _venvService;
         private CancellationTokenSource? _cloneCts;
         private CancellationTokenSource? _pullCts;
+        private CancellationTokenSource? _venvCts;
 
         [ObservableProperty]
         private ObservableCollection<ToolProject> _projects = new();
 
         /// <summary>
-        /// 仅本地、尚未推送到后端的用户工具（IsUserOnly=true）。
-        /// 这些工具默认不显示在主页面上，仅持久化到本地缓存，待同步按钮触发后再 POST 到后端。
+        /// 仅本地、尚未推送到后端的用户工具（SyncState = PendingCreate / PendingUpdate）。
+        /// 这些工具也显示在主列表 Projects 中（带「🟠 待同步」徽标），并由 PendingSyncTools 跟踪同步状态。
         /// </summary>
         public ObservableCollection<ToolProject> PendingSyncTools { get; } = new();
 
@@ -73,6 +76,19 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
         [ObservableProperty] private string _editScriptPath = string.Empty;
         [ObservableProperty] private string _editWorkingDirectory = string.Empty;
 
+        // ===== 编辑表单字段 - Python 虚拟环境(脚本模式且 Language==python 时启用)=====
+        /// <summary>默认 PyPI 镜像(清华源),作为输入框 placeholder/默认值。</summary>
+        public const string DefaultPipMirror = "https://pypi.tuna.tsinghua.edu.cn/simple";
+        [ObservableProperty] private bool _editCreateVenv;
+        [ObservableProperty] private string _editVenvDirectory = string.Empty;
+        [ObservableProperty] private string _editRequirementsPath = string.Empty;
+        [ObservableProperty] private bool _editAutoInstallRequirements;
+        [ObservableProperty] private string _editPipMirrorUrl = DefaultPipMirror;
+
+        // ===== Python venv 创建进度(类似 Git 克隆区域)=====
+        [ObservableProperty] private bool _isCreatingVenv;
+        [ObservableProperty] private string _venvProgressText = string.Empty;
+
         // ===== 编辑表单字段 - 参数列表 =====
         [ObservableProperty] private ObservableCollection<ParameterRow> _editParameters = new();
 
@@ -99,6 +115,7 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
         [ObservableProperty] private bool _isGitPanelExpanded = true;
         [ObservableProperty] private string _editGitUrl = string.Empty;
         [ObservableProperty] private string _editCloneDirectory = string.Empty;
+        [ObservableProperty] private string _editRemoteName = "origin";
         [ObservableProperty] private GitEnvironmentInfo? _gitEnvironment;
         [ObservableProperty] private bool _isDetectingGit;
         [ObservableProperty] private bool _isCloning;
@@ -106,6 +123,21 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
         [ObservableProperty] private bool _isPulling;
         [ObservableProperty] private string _pullProgressText = string.Empty;
         [ObservableProperty] private bool _isNewProject;
+
+        // ===== 本地 .git 自动检测(逐字防抖触发)=====
+        [ObservableProperty] private string _localGitHint = string.Empty;
+        [ObservableProperty] private bool _isDetectingLocalGit;
+
+        /// <summary>上次检测到的本地 .git URL,运行期记录(不持久化)。供后续编辑时显示"原 URL"。</summary>
+        private string _lastDetectedRemoteUrl = string.Empty;
+        private string _lastDetectedRemoteName = "origin";
+
+        /// <summary>防抖 timer:用户输入目录路径后 500ms 内若无新输入则触发检测。</summary>
+        private readonly DispatcherTimer _localDetectTimer;
+
+        /// <summary>跟踪正在运行的进程 → 命令行的映射,用于进程退出后展示结果弹窗。</summary>
+        private readonly ConcurrentDictionary<int, string> _runningCommands = new();
+        private readonly ConcurrentDictionary<int, DateTime> _runningStartTimes = new();
 
         // ===== 通知 Tab =====
         [ObservableProperty] private NotificationConfig _editNotification = new();
@@ -120,7 +152,8 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
             IProcessManagerService processManager,
             IGitService gitService,
             IToolPersistenceService persistence,
-            INotificationService notificationService)
+            INotificationService notificationService,
+            IVenvService venvService)
         {
             Title = "工具库";
             _apiService = apiService;
@@ -131,6 +164,15 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
             _gitService = gitService;
             _persistence = persistence;
             _notificationService = notificationService;
+            _venvService = venvService;
+
+            // 防抖:逐字修改 EditCloneDirectory 后 500ms 无新输入即触发本地 .git 检测
+            _localDetectTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
+            _localDetectTimer.Tick += async (_, _) =>
+            {
+                _localDetectTimer.Stop();
+                await DetectLocalGitNowAsync();
+            };
 
             _processManager.ProcessExited += OnProcessExited;
 
@@ -152,43 +194,52 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
                     "/tools?current=1&size=200");
 
                 var backendIds = new HashSet<long>();
+                List<ToolProject> backendProjects = new();
                 if (page?.Records != null && page.Records.Count > 0)
                 {
-                    var backendProjects = page.Records.Select(MapToProject).ToList();
+                    backendProjects = page.Records.Select(MapToProject).ToList();
                     foreach (var p in backendProjects) backendIds.Add(p.Id);
-                    Projects = new ObservableCollection<ToolProject>(backendProjects);
-                }
-                else
-                {
-                    Projects = new ObservableCollection<ToolProject>();
                 }
 
-                // 找出本地缓存中尚未推送到后端的用户工具 → PendingSyncTools
+                // 找出本地缓存中尚未推送到后端的用户工具
+                List<ToolProject> pendingLocal = new();
                 try
                 {
                     var cached = await _persistence.LoadAsync();
-                    PendingSyncTools.Clear();
                     foreach (var c in cached)
                     {
-                        // 后端已有 (id > 0) 或 IsUserOnly=true 的视为待同步
-                        if (!backendIds.Contains(c.Id) && c.Id > 0 == false || c.IsUserOnly || c.Id == 0)
+                        // 兼容判定:旧 JSON 没有 SyncState 字段(默认 Synced),用 "后端没有该 ID 且 ID<=0" 反推为 PendingCreate
+                        bool isPendingCreate = c.SyncState == ToolSyncState.PendingCreate
+                                              || (c.Id > 0 && !backendIds.Contains(c.Id));
+                        bool isPendingUpdate = c.SyncState == ToolSyncState.PendingUpdate;
+                        if (isPendingCreate || isPendingUpdate)
                         {
-                            c.IsUserOnly = true;
-                            PendingSyncTools.Add(c);
+                            // 修正 SyncState(处理旧文件默认 Synced 但 ID<=0 / 后端缺失的情况)
+                            c.SyncState = isPendingUpdate
+                                ? ToolSyncState.PendingUpdate
+                                : ToolSyncState.PendingCreate;
+                            pendingLocal.Add(c);
                         }
                     }
-                    OnPropertyChanged(nameof(HasPendingSync));
                 }
                 catch { /* 忽略 */ }
 
-                // write-through offline cache：仅保存后端已确认 + 待同步用户工具
-                var allPersistable = Projects.Concat(PendingSyncTools).ToList();
-                _ = _persistence.SaveAsync(allPersistable);
+                // 组合显示:后端已确认 + 本地待同步(待同步插在前部,与旧版「本地新建工具显示在最上」一致)
+                var merged = new List<ToolProject>(pendingLocal);
+                merged.AddRange(backendProjects);
+                Projects = new ObservableCollection<ToolProject>(merged);
+
+                PendingSyncTools.Clear();
+                foreach (var p in pendingLocal) PendingSyncTools.Add(p);
+                OnPropertyChanged(nameof(HasPendingSync));
+
+                // 一次原子持久化
+                await _persistence.SaveAsync(AllPersistable());
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"[ToolLibrary] 加载工具列表失败：{ex.Message}");
-                // 回退本地缓存：所有都暂定为待同步用户工具
+                // 回退本地缓存：所有缓存记录都恢复显示,标记为 PendingCreate
                 try
                 {
                     var cached = await _persistence.LoadAsync();
@@ -196,7 +247,8 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
                     PendingSyncTools.Clear();
                     foreach (var c in cached)
                     {
-                        c.IsUserOnly = true;
+                        c.SyncState = ToolSyncState.PendingCreate;
+                        Projects.Add(c);
                         PendingSyncTools.Add(c);
                     }
                     OnPropertyChanged(nameof(HasPendingSync));
@@ -234,9 +286,10 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
                 DefaultArgumentPrefix = string.IsNullOrEmpty(e.DefaultArgumentPrefix) ? "--" : e.DefaultArgumentPrefix,
                 GitUrl = e.GitUrl,
                 CloneDirectory = e.CloneDirectory,
+                RemoteName = string.IsNullOrWhiteSpace(e.RemoteName) ? "origin" : e.RemoteName,
                 RunMode = ToolRunModes.ToStringValue(ToolRunModes.Parse(e.RunMode)),
                 IsSystemBuiltin = e.IsSystemBuiltin == 1,
-                IsUserOnly = false,  // 后端拉来的数据天然不是 user-only
+                SyncState = ToolSyncState.Synced,  // 后端拉来的数据天然是已同步
                 CreateTime = ParseDateTime(e.CreateTime) ?? DateTime.Now
             };
             if (!string.IsNullOrEmpty(e.ArgumentsJson))
@@ -281,6 +334,7 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
             DefaultArgumentPrefix = string.IsNullOrEmpty(p.DefaultArgumentPrefix) ? "--" : p.DefaultArgumentPrefix,
             GitUrl = p.GitUrl,
             CloneDirectory = p.CloneDirectory,
+            RemoteName = string.IsNullOrWhiteSpace(p.RemoteName) ? "origin" : p.RemoteName,
             ArgumentsJson = p.Arguments == null ? "[]" : JsonSerializer.Serialize(p.Arguments),
             NotificationJson = JsonSerializer.Serialize(p.Notification ?? new NotificationConfig()),
             // 用户自己新建的工具始终标记为非系统内置；后端管理员可后续通过 PUT 翻转该字段
@@ -369,13 +423,28 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
 
             EditGitUrl = string.Empty;
             EditCloneDirectory = string.Empty;
+            EditRemoteName = "origin";
             GitEnvironment = null;
             IsCloning = false;
             CloneProgressText = string.Empty;
             IsNewProject = true;
+            LocalGitHint = string.Empty;
+            IsDetectingLocalGit = false;
+            _lastDetectedRemoteUrl = string.Empty;
+            _lastDetectedRemoteName = "origin";
             EditNotification = new NotificationConfig { UseGlobalSettings = true };
             SelectedTabIndex = 0;
             IsSecretsVisible = false;
+
+            // Python venv 默认勾选(创建+自动 pip install),方便一键启动
+            EditCreateVenv = true;
+            EditVenvDirectory = string.Empty;     // 空表示 {WorkingDirectory}/.venv
+            EditRequirementsPath = string.Empty;
+            EditAutoInstallRequirements = true;
+            EditPipMirrorUrl = DefaultPipMirror;
+            IsCreatingVenv = false;
+            VenvProgressText = string.Empty;
+
             _ = RefreshGitEnvironmentAsync();
         }
 
@@ -399,7 +468,39 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
             EditExecutablePath = project.ExecutablePath;
             EditWorkingDirectory = project.WorkingDirectory;
 
+            // Python venv:从已有 project 读取
+            EditCreateVenv = project.CreateVenv;
+            EditVenvDirectory = project.VenvDirectory;
+            EditRequirementsPath = project.RequirementsPath;
+            // AutoInstall 与 PipMirror 是 UI 辅助字段:若 RequirementsPath 为空,本字段无效
+            EditAutoInstallRequirements = !string.IsNullOrWhiteSpace(project.RequirementsPath);
+            EditPipMirrorUrl = string.IsNullOrWhiteSpace(project.PipMirrorUrl) ? DefaultPipMirror : project.PipMirrorUrl;
+            IsCreatingVenv = false;
+            VenvProgressText = string.Empty;
+
+            // Git:从已有 project 读取
+            EditGitUrl = project.GitUrl;
+            EditCloneDirectory = project.CloneDirectory;
+            EditRemoteName = string.IsNullOrWhiteSpace(project.RemoteName) ? "origin" : project.RemoteName;
+            LocalGitHint = string.Empty;
+            IsDetectingLocalGit = false;
+            _lastDetectedRemoteUrl = string.Empty;
+            _lastDetectedRemoteName = EditRemoteName;
+
+            // 同步已有参数到编辑表单(修复 Bug B:之前只 Clear() 没有 Add,导致编辑打开工具后参数列表空白)
             EditParameters.Clear();
+            foreach (var a in (project.Arguments ?? new List<ToolArgument>()).OrderBy(x => x.Order))
+            {
+                EditParameters.Add(new ParameterRow
+                {
+                    Prefix = a.UseDefaultPrefix
+                        ? (project.DefaultArgumentPrefix ?? "--")
+                        : (a.Prefix ?? string.Empty),
+                    Name = a.Name ?? string.Empty,
+                    Value = a.DefaultValue ?? string.Empty,
+                    RequireInput = a.RequireInput
+                });
+            }
 
             IsEditing = true;
             IsNewProject = false;
@@ -455,6 +556,14 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
         }
 
         [RelayCommand]
+        private async Task BrowseRequirementsAsync()
+        {
+            var picked = await _filePickerService.PickFileAsync("选择 requirements.txt", "*.txt");
+            if (!string.IsNullOrEmpty(picked))
+                EditRequirementsPath = picked;
+        }
+
+        [RelayCommand]
         private void AddParameter()
         {
             // 默认以 "--" 作为前缀，用户随时可改
@@ -505,10 +614,20 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
                         : EditWorkingDirectory,
                     GitUrl = EditGitUrl,
                     CloneDirectory = EditCloneDirectory,
+                    RemoteName = string.IsNullOrWhiteSpace(EditRemoteName) ? "origin" : EditRemoteName,
                     Arguments = args,
                     Notification = CloneNotification(EditNotification),
                     IsSystemBuiltin = false, // 用户新建的工具总是非系统内置
-                    IsUserOnly = false
+                    SyncState = ToolSyncState.Synced,
+                    // Python venv 字段(仅 python 工具使用)
+                    CreateVenv = EditCreateVenv,
+                    VenvDirectory = EditVenvDirectory ?? string.Empty,
+                    RequirementsPath = !EditCreateVenv || !EditAutoInstallRequirements
+                        ? string.Empty
+                        : (EditRequirementsPath ?? string.Empty),
+                    PipMirrorUrl = !EditCreateVenv || !EditAutoInstallRequirements
+                        ? string.Empty
+                        : (EditPipMirrorUrl ?? string.Empty)
                 };
             }
             else
@@ -531,13 +650,23 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
                     WorkingDirectory = string.IsNullOrWhiteSpace(EditWorkingDirectory)
                         ? ResolveDefaultWorkingDirectory()
                         : EditWorkingDirectory,
-                    GitUrl = SelectedProject.GitUrl,
-                    CloneDirectory = SelectedProject.CloneDirectory,
+                    GitUrl = EditGitUrl,
+                    CloneDirectory = EditCloneDirectory,
+                    RemoteName = string.IsNullOrWhiteSpace(EditRemoteName) ? "origin" : EditRemoteName,
                     Arguments = args,
                     Notification = CloneNotification(EditNotification),
                     IsSystemBuiltin = SelectedProject.IsSystemBuiltin,
                     IsRunning = SelectedProject.IsRunning,
-                    ProcessId = SelectedProject.ProcessId
+                    ProcessId = SelectedProject.ProcessId,
+                    // Python venv 字段(仅 python 工具使用;未勾选自动安装时清空 requirements)
+                    CreateVenv = EditCreateVenv,
+                    VenvDirectory = EditVenvDirectory ?? string.Empty,
+                    RequirementsPath = !EditCreateVenv || !EditAutoInstallRequirements
+                        ? string.Empty
+                        : (EditRequirementsPath ?? string.Empty),
+                    PipMirrorUrl = !EditCreateVenv || !EditAutoInstallRequirements
+                        ? string.Empty
+                        : (EditPipMirrorUrl ?? string.Empty)
                 };
                 updateId = SelectedProject.Id;
             }
@@ -545,6 +674,9 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
             try
             {
                 ToolEntity? saved;
+                // 选择正确的同步状态:新建 = PendingCreate;编辑现有待同步的 = PendingUpdate
+                newProject.SyncState = isNew ? ToolSyncState.PendingCreate : ToolSyncState.PendingUpdate;
+
                 if (updateId is long id && id > 0)
                 {
                     saved = await _apiService.PutAsync<ToolEntity>($"/tools/{id}", MapToEntity(newProject));
@@ -557,6 +689,7 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
                 if (saved != null)
                 {
                     var refreshed = MapToProject(saved);
+                    refreshed.SyncState = ToolSyncState.Synced;
                     // 保留客户端维护的运行状态
                     refreshed.IsRunning = newProject.IsRunning;
                     refreshed.ProcessId = newProject.ProcessId;
@@ -566,14 +699,19 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
                         var index = Projects.IndexOf(SelectedProject!);
                         if (index >= 0) Projects[index] = refreshed;
                         SelectedProject = refreshed;
+                        // 编辑成功:不再需要 pending 跟踪
+                        RemoveFromPending(refreshed.Id);
                     }
                     else
                     {
                         // 新建工具成功 → 推到主列表
                         Projects.Insert(0, refreshed);
                         SelectedProject = refreshed;
+                        // 若之前是 fallback 落地的 pending 新建,清理 pending 集合与旧记录
+                        if (newProject.LocalTempId != 0)
+                            RemoveFromPending(newProject.LocalTempId);
                     }
-                    _ = _persistence.SaveAsync(Projects); // 离线缓存写穿
+                    await _persistence.SaveAsync(AllPersistable()); // 离线缓存写穿
                 }
                 else
                 {
@@ -591,36 +729,93 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
         }
 
         /// <summary>
-        /// 后端不可达时，把新建/编辑的工具作为「待同步用户工具」存到本地，不在主列表显示。
+        /// 后端不可达时，把新建/编辑的工具作为「待同步用户工具」:
+        /// 1) 同时插入 Projects 头部（让用户在主列表看见，但带「待同步」徽标）；
+        /// 2) 跟踪加入 PendingSyncTools；
+        /// 3) await 真正落盘（修复旧实现"假装保存"的 bug）。
         /// </summary>
         private async Task FallbackToPendingAsync(ToolProject project, bool isNew)
         {
-            project.IsUserOnly = true;
             project.IsSystemBuiltin = false;
-            // 给它一个稳定本地负数 ID（仅运行期），避免与后端真实 ID 冲突
-            if (project.Id <= 0)
-                project.Id = -((long)DateTime.UtcNow.Ticks);
+            project.SyncState = isNew ? ToolSyncState.PendingCreate : ToolSyncState.PendingUpdate;
 
             if (isNew)
             {
+                // 负时间戳作为本地临时 ID,不参与序列化;同步成功后被真实 ID 替换。
+                if (project.Id <= 0)
+                {
+                    project.LocalTempId = -((long)DateTime.UtcNow.Ticks);
+                    project.Id = project.LocalTempId;
+                }
+                Projects.Insert(0, project);
                 PendingSyncTools.Add(project);
             }
             else
             {
-                var match = PendingSyncTools.FirstOrDefault(p => p.Id == project.Id);
-                if (match != null)
+                // 编辑现有记录:同 ID 替换 Projects 中的卡片;pending 集合同步替换
+                var existing = Projects.FirstOrDefault(p => p.Id == project.Id);
+                if (existing != null)
                 {
-                    var idx = PendingSyncTools.IndexOf(match);
-                    if (idx >= 0) PendingSyncTools[idx] = project;
+                    var idx = Projects.IndexOf(existing);
+                    Projects[idx] = project;
+                }
+                else
+                {
+                    Projects.Insert(0, project);
+                }
+
+                var matchPending = PendingSyncTools.FirstOrDefault(p => p.Id == project.Id);
+                if (matchPending != null)
+                {
+                    var idx = PendingSyncTools.IndexOf(matchPending);
+                    PendingSyncTools[idx] = project;
                 }
                 else
                 {
                     PendingSyncTools.Add(project);
                 }
             }
+
             OnPropertyChanged(nameof(HasPendingSync));
+
+            try
+            {
+                await _persistence.SaveAsync(AllPersistable());
+            }
+            catch (Exception saveEx)
+            {
+                Debug.WriteLine($"[ToolLibrary] 本地持久化失败:{saveEx.Message}");
+            }
+
             await _dialogService.ShowMessageAsync("已保存为本地用户工具",
-                "后台管理系统暂不可达，该工具已保存到本地待同步列表（不在主页显示）。点击「📤 同步本地工具」按钮可稍后重试推送。");
+                "后台管理系统暂不可达，该工具已显示在主列表（带「🟠 待同步」徽标）。" +
+                "后端恢复后，点击「📤 同步本地」按钮或重启应用即可自动重试推送。");
+        }
+
+        /// <summary>
+        /// 统一的待持久化集合 = 主列表 + 待同步列表（前者已包含后者,这里去重）。
+        /// </summary>
+        private List<ToolProject> AllPersistable()
+        {
+            var pendingIds = new HashSet<long>(PendingSyncTools.Select(p => p.Id));
+            var mainOnly = Projects.Where(p => !pendingIds.Contains(p.Id)).ToList();
+            return PendingSyncTools.Concat(mainOnly).ToList();
+        }
+
+        /// <summary>
+        /// 从 PendingSyncTools 中移除指定 ID 的项(用于同步成功后的清理)。
+        /// </summary>
+        private void RemoveFromPending(long id)
+        {
+            for (int i = PendingSyncTools.Count - 1; i >= 0; i--)
+            {
+                if (PendingSyncTools[i].Id == id)
+                {
+                    PendingSyncTools.RemoveAt(i);
+                    break;
+                }
+            }
+            OnPropertyChanged(nameof(HasPendingSync));
         }
 
         /// <summary>
@@ -638,7 +833,7 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
                 {
                     Name = row.Name.Trim(),
                     DefaultValue = row.Value ?? string.Empty,
-                    RequireInput = false,
+                    RequireInput = row.RequireInput,
                     InputType = ToolArgumentInputType.Text,
                     Description = string.Empty,
                     Order = order++,
@@ -674,6 +869,17 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
 
             try
             {
+                // 待同步的(本地创建/编辑)工具:不调后端 API,直接在两个集合中移除并落盘
+                if (project.SyncState == ToolSyncState.PendingCreate
+                    || project.SyncState == ToolSyncState.PendingUpdate)
+                {
+                    Projects.Remove(project);
+                    RemoveFromPending(project.Id);
+                    await _persistence.SaveAsync(AllPersistable());
+                    return;
+                }
+
+                // 已同步工具:走后端删除
                 if (project.Id > 0)
                 {
                     var ok = await _apiService.DeleteAsync($"/tools/{project.Id}");
@@ -684,7 +890,7 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
                     }
                 }
                 Projects.Remove(project);
-                _ = _persistence.SaveAsync(Projects); // 离线缓存同步
+                await _persistence.SaveAsync(AllPersistable()); // 离线缓存同步
             }
             catch (Exception ex)
             {
@@ -702,18 +908,44 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
             }
 
             int success = 0, failed = 0;
+            // 用快照避免在迭代中修改集合;但替换卡片需要在 Projects 中找到原引用
             var snapshot = PendingSyncTools.ToList();
             foreach (var pending in snapshot)
             {
                 try
                 {
-                    var saved = await _apiService.PostAsync<ToolEntity>("/tools", MapToEntity(pending));
+                    ToolEntity? saved;
+                    if (pending.SyncState == ToolSyncState.PendingUpdate && pending.Id > 0)
+                    {
+                        // 编辑型:走 PUT,避免重复创建
+                        saved = await _apiService.PutAsync<ToolEntity>(
+                            $"/tools/{pending.Id}", MapToEntity(pending));
+                    }
+                    else
+                    {
+                        // 新建型(包含 LocalTempId<0):走 POST
+                        saved = await _apiService.PostAsync<ToolEntity>(
+                            "/tools", MapToEntity(pending));
+                    }
+
                     if (saved != null)
                     {
                         var refreshed = MapToProject(saved);
-                        refreshed.IsUserOnly = false;
-                        Projects.Insert(0, refreshed);
-                        PendingSyncTools.Remove(pending);
+                        refreshed.SyncState = ToolSyncState.Synced;
+
+                        // 就地替换 Projects 中相同 ID 的卡片(避免重复行)
+                        var existingIdx = -1;
+                        for (int i = 0; i < Projects.Count; i++)
+                        {
+                            if (Projects[i].Id == pending.Id) { existingIdx = i; break; }
+                        }
+                        if (existingIdx >= 0)
+                            Projects[existingIdx] = refreshed;
+                        else
+                            Projects.Insert(0, refreshed);
+
+                        // 从 pending 集合移除
+                        RemoveFromPending(pending.Id);
                         success++;
                     }
                     else
@@ -728,8 +960,15 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
             }
 
             OnPropertyChanged(nameof(HasPendingSync));
-            _ = _persistence.SaveAsync(Projects);
-            _ = _persistence.SaveAsync(PendingSyncTools);
+            // 一次原子持久化,避免旧实现两次 fire-and-forget 写同一文件造成竞态
+            try
+            {
+                await _persistence.SaveAsync(AllPersistable());
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[ToolLibrary] 同步后持久化失败:{ex.Message}");
+            }
 
             await _dialogService.ShowMessageAsync("同步完成",
                 $"成功推送 {success} 个工具到后台管理系统。\n失败 {failed} 个（请检查网络/后端状态后重试）。");
@@ -807,7 +1046,34 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
                 }
             }
 
-            // 2) 准备 EditableArgument：仅 RequireInput=true 的才在弹窗里展示（按需求 4）
+            // 2) Python 虚拟环境钩子(仅脚本模式 + Language=python + CreateVenv=true)
+            if (project.RunModeEnum == ToolRunMode.Script
+                && string.Equals(project.Language, "python", StringComparison.OrdinalIgnoreCase)
+                && project.CreateVenv)
+            {
+                _venvCts ??= new CancellationTokenSource();
+                IsCreatingVenv = true;
+                VenvProgressText = "🐍 正在准备 Python 环境...";
+                var venvResult = await _dialogService.ShowVenvProgressAsync(
+                    "准备 Python 环境",
+                    async (progress, ct) => await EnsurePythonVenvAsync(project, progress, ct),
+                    _venvCts);
+                IsCreatingVenv = false;
+                if (!venvResult.Success)
+                {
+                    if (!venvResult.Cancelled)
+                        await _dialogService.ShowMessageAsync("创建 venv 失败",
+                            venvResult.ErrorMessage + (venvResult.Logs.Count > 0
+                                ? "\n\n最近日志:\n" + string.Join("\n", venvResult.Logs.TakeLast(8))
+                                : string.Empty));
+                    return;
+                }
+                // 关键:本次运行覆盖 project.InterpreterPath 为 venv 的 python
+                // (project 是运行期对象,本次有效;若用户保存工具,后端保留的是原 InterpreterPath)
+                project.InterpreterPath = venvResult.PythonExePath;
+            }
+
+            // 3) 准备 EditableArgument：仅 RequireInput=true 的才在弹窗里展示（按需求 4）
             var queryableArgs = project.Arguments ?? new List<ToolArgument>();
             var editable = queryableArgs
                 .OrderBy(a => a.Order)
@@ -820,10 +1086,10 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
                 })
                 .ToList();
 
-            // 3) 构造初始命令预览
+            // 4) 构造初始命令预览
             var initialCmd = BuildCommandPreview(project, editable);
 
-            // 4) 启动确认弹窗（除非用户之前勾选了"不再询问"）
+            // 5) 启动确认弹窗（除非用户之前勾选了"不再询问"）
             RunConfirmation? confirmation = null;
             if (!_skipRunConfirmation)
             {
@@ -836,7 +1102,7 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
                 }
             }
 
-            // 5) 用最终命令构造 ProcessStartInfo，启动进程
+            // 6) 用最终命令构造 ProcessStartInfo，启动进程
             var (psi, finalCmd) = BuildProcessStartInfo(project, confirmation?.Arguments ?? editable);
 
             var pid = _processManager.Start(psi, captureOutput: true);
@@ -846,12 +1112,16 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
                 return;
             }
 
-            // 6) 标记项目为运行中
+            // 7) 标记项目为运行中
             project.IsRunning = true;
             project.ProcessId = pid;
             project.Status = "运行中";
 
-            // 7) 触发启动通知（后台异步 fire-and-forget）
+            // 追踪命令和启动时间,供退出后展示结果弹窗
+            _runningCommands[pid] = finalCmd;
+            _runningStartTimes[pid] = DateTime.Now;
+
+            // 8) 触发启动通知（后台异步 fire-and-forget）
             var startSnapshot = new ToolRunSnapshot
             {
                 StartTime = DateTime.Now,
@@ -864,6 +1134,66 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
                 Trigger = NotificationTrigger.Start
             };
             _ = FireNotificationAsync(project, startSnapshot);
+        }
+
+        /// <summary>
+        /// 创建/复用 Python venv(若勾选 CreateVenv 且 Language=python)。
+        /// 失败时弹出错误对话框并返回 Success=false;成功返回完整 VenvResult。
+        /// </summary>
+        private async Task<VenvResult> EnsurePythonVenvAsync(ToolProject project,
+            IProgress<string>? venvProgress = null, CancellationToken ct = default)
+        {
+            try
+            {
+                // 解析 venv 目录:用户未填 → 默认 {WorkingDirectory}/.venv
+                var workingDir = string.IsNullOrWhiteSpace(project.WorkingDirectory)
+                    ? ResolveDefaultWorkingDirectory()
+                    : project.WorkingDirectory;
+                var venvDir = string.IsNullOrWhiteSpace(project.VenvDirectory)
+                    ? System.IO.Path.Combine(workingDir, ".venv")
+                    : (System.IO.Path.IsPathRooted(project.VenvDirectory)
+                        ? project.VenvDirectory
+                        : System.IO.Path.Combine(workingDir, project.VenvDirectory));
+
+                // 解析创建 venv 用的"宿主"python:优先用 InterpreterPath,否则自动探测
+                string hostPython = project.InterpreterPath;
+                if (string.IsNullOrWhiteSpace(hostPython))
+                {
+                    var env = AvailableEnvironments.FirstOrDefault(e =>
+                        string.Equals(e.Language, project.Language, StringComparison.OrdinalIgnoreCase));
+                    if (env == null || !env.IsAvailable)
+                        env = await _runtimeEnvService.ReDetectAsync(project.Language);
+                    hostPython = env?.ExecutablePath ?? string.Empty;
+                }
+                if (string.IsNullOrWhiteSpace(hostPython))
+                {
+                    return new VenvResult
+                    {
+                        ErrorMessage = "未找到可用的 Python 解释器,无法创建虚拟环境。\n请在「启动方式」面板中指定解释器路径,或安装 Python 后重试。"
+                    };
+                }
+
+                // 仅当 EditAutoInstallRequirements=true 时才传 requirements
+                string reqPath = project.CreateVenv && !string.IsNullOrWhiteSpace(project.RequirementsPath)
+                    ? project.RequirementsPath
+                    : string.Empty;
+                string mirror = reqPath.Length > 0 && !string.IsNullOrWhiteSpace(project.PipMirrorUrl)
+                    ? project.PipMirrorUrl
+                    : string.Empty;
+
+                var result = await _venvService.EnsureVenvAsync(
+                    hostPython, venvDir, reqPath, mirror, venvProgress, ct);
+
+                return result;
+            }
+            catch (OperationCanceledException)
+            {
+                return new VenvResult { Cancelled = true, ErrorMessage = "已取消" };
+            }
+            catch (Exception ex)
+            {
+                return new VenvResult { ErrorMessage = ex.Message };
+            }
         }
 
         [RelayCommand]
@@ -903,7 +1233,36 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
                     Trigger = exitCode == 0 ? NotificationTrigger.Success : NotificationTrigger.Failure
                 };
                 _ = FireNotificationAsync(p, snapshot);
+
+                // 异步展示执行结果弹窗(在 UI 线程上 await,避免 async void 崩溃)
+                _ = ShowRunResultAsync(p, pid, exitCode);
             });
+        }
+
+        private async Task ShowRunResultAsync(ToolProject project, int pid, int exitCode)
+        {
+            try
+            {
+                var (stdout, stderr) = _processManager.GetDetailedOutput(pid);
+                _runningCommands.TryRemove(pid, out var cmdLine);
+                _runningStartTimes.TryRemove(pid, out var startTime);
+                var elapsed = startTime != default ? (long)(DateTime.Now - startTime).TotalMilliseconds : 0;
+                var result = new ProcessRunResult
+                {
+                    Success = exitCode == 0,
+                    ExitCode = exitCode,
+                    StandardOutput = stdout,
+                    StandardError = stderr,
+                    CommandLine = cmdLine ?? string.Empty,
+                    ElapsedMilliseconds = elapsed,
+                    ProcessId = pid
+                };
+                await _dialogService.ShowOutputAsync(project.Name, result);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[RunResult] 展示执行结果异常：{ex.Message}");
+            }
         }
 
         private async Task FireNotificationAsync(ToolProject project, ToolRunSnapshot snapshot)
@@ -968,8 +1327,10 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
             foreach (var ea in argSource)
             {
                 var prefix = ea.UseDefaultPrefix ? project.DefaultArgumentPrefix : ea.Prefix;
-                if (!string.IsNullOrEmpty(prefix)) sb.Append(' ').Append(QuoteIfNeeded(prefix));
-                if (!string.IsNullOrEmpty(ea.Source.Name)) sb.Append(' ').Append(QuoteIfNeeded(ea.Source.Name));
+                // 修复:把 prefix 和 name 拼成单个 token (如 "--rows"),而不是分别以空格分隔
+                // (旧实现产生 "-- rows",中间多一个空格,违反大多数 CLI 工具的规范)
+                var flag = (prefix ?? string.Empty) + (ea.Source.Name ?? string.Empty);
+                if (flag.Length > 0) sb.Append(' ').Append(QuoteIfNeeded(flag));
                 if (!string.IsNullOrEmpty(ea.Value))
                 {
                     if (ea.Source.InputType == ToolArgumentInputType.Bool)
@@ -1077,8 +1438,9 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
             foreach (var ea in args)
             {
                 var prefix = ea.UseDefaultPrefix ? project.DefaultArgumentPrefix : ea.Prefix;
-                if (!string.IsNullOrEmpty(prefix)) sb.Append(' ').Append(QuoteIfNeeded(prefix));
-                if (!string.IsNullOrEmpty(ea.Source.Name)) sb.Append(' ').Append(QuoteIfNeeded(ea.Source.Name));
+                // 修复:把 prefix 和 name 拼成单个 token (如 "--rows"),而不是分别以空格分隔
+                var flag = (prefix ?? string.Empty) + (ea.Source.Name ?? string.Empty);
+                if (flag.Length > 0) sb.Append(' ').Append(QuoteIfNeeded(flag));
                 if (!string.IsNullOrEmpty(ea.Value))
                 {
                     if (ea.Source.InputType == ToolArgumentInputType.Bool)
@@ -1137,7 +1499,116 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
         {
             var picked = await _filePickerService.PickDirectoryAsync();
             if (!string.IsNullOrEmpty(picked))
+            {
                 EditCloneDirectory = picked;
+                // 浏览后立即触发一次检测,跳过防抖延迟
+                _localDetectTimer.Stop();
+                await DetectLocalGitNowAsync();
+            }
+        }
+
+        /// <summary>
+        /// 逐字追踪 EditCloneDirectory 变化,500ms 防抖后自动检测本地 .git。
+        /// </summary>
+        partial void OnEditCloneDirectoryChanged(string value)
+        {
+            // 启动防抖;若用户继续输入则 timer 会被重置到下一次 Tick
+            _localDetectTimer.Stop();
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                // 清空目录 → 清状态
+                LocalGitHint = string.Empty;
+                _lastDetectedRemoteUrl = string.Empty;
+                _lastDetectedRemoteName = "origin";
+                return;
+            }
+            _localDetectTimer.Start();
+        }
+
+        /// <summary>
+        /// 从脚本路径向上搜索 .git，找到后设为克隆目录。
+        /// </summary>
+        partial void OnEditScriptPathChanged(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value)) return;
+            var root = FindGitRoot(value);
+            if (root != null)
+            {
+                EditCloneDirectory = root;
+            }
+        }
+
+        /// <summary>向上搜索包含 .git 的目录</summary>
+        private static string? FindGitRoot(string scriptPath)
+        {
+            var dir = System.IO.Path.GetDirectoryName(scriptPath);
+            while (dir != null)
+            {
+                if (Directory.Exists(System.IO.Path.Combine(dir, ".git")))
+                    return dir;
+                var parent = System.IO.Path.GetDirectoryName(dir);
+                if (string.Equals(parent, dir, StringComparison.OrdinalIgnoreCase)) break;
+                dir = parent;
+            }
+            return null;
+        }
+
+        /// <summary>校验脚本路径是否在克隆目录内，不在则弹窗提示</summary>
+        private async Task ValidateScriptInCloneDirAsync()
+        {
+            if (string.IsNullOrWhiteSpace(EditScriptPath) || string.IsNullOrWhiteSpace(EditCloneDirectory))
+                return;
+            var script = System.IO.Path.GetFullPath(EditScriptPath).TrimEnd('\\', '/');
+            var clone = System.IO.Path.GetFullPath(EditCloneDirectory).TrimEnd('\\', '/');
+            if (!script.StartsWith(clone, StringComparison.OrdinalIgnoreCase))
+            {
+                await _dialogService.ShowMessageAsync("路径不匹配",
+                    $"脚本路径不在克隆目录中：\n  脚本：{EditScriptPath}\n  克隆目录：{EditCloneDirectory}\n\n" +
+                    "请检查脚本路径是否属于该 Git 仓库。");
+            }
+        }
+
+        /// <summary>
+        /// 立即执行一次本地 .git 检测(被防抖 Tick 或手动"🔍 检测"按钮触发)。
+        /// 不修改 EditWorkingDirectory,只更新 LocalGitHint / EditGitUrl / EditRemoteName / _lastDetectedRemoteUrl。
+        /// </summary>
+        [RelayCommand]
+        public async Task DetectLocalGitNowAsync()
+        {
+            var dir = EditCloneDirectory;
+            if (string.IsNullOrWhiteSpace(dir))
+            {
+                LocalGitHint = "请先填写克隆目标父目录或选择本地已含 .git 的目录。";
+                return;
+            }
+            IsDetectingLocalGit = true;
+            try
+            {
+                var (remoteName, url, logs) = await _gitService.DetectRemoteAsync(dir, "origin");
+                if (url != null)
+                {
+                    _lastDetectedRemoteUrl = url;
+                    _lastDetectedRemoteName = remoteName;
+                    EditRemoteName = remoteName;
+                    EditGitUrl = url;
+                    LocalGitHint = $"🔍 已检测到本地仓库,remote={remoteName},URL={url}\n" +
+                                   "Git URL 已自动填入。";
+                    _ = ValidateScriptInCloneDirAsync();
+                }
+                else
+                {
+                    LocalGitHint = "❌ 该目录不是 Git 仓库或 .git/config 不可读。\n" +
+                                   (logs.Count > 0 ? "最近日志:\n" + string.Join("\n", logs.TakeLast(4)) : string.Empty);
+                }
+            }
+            catch (Exception ex)
+            {
+                LocalGitHint = "❌ 检测异常:" + ex.Message;
+            }
+            finally
+            {
+                IsDetectingLocalGit = false;
+            }
         }
 
         [RelayCommand]
@@ -1231,15 +1702,101 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
         }
 
         // =========================================================
+        // Python 虚拟环境:「📦 立即创建并安装依赖」按钮
+        // =========================================================
+
+        [RelayCommand]
+        private async Task CreateVenvNowAsync()
+        {
+            if (!EditCreateVenv)
+            {
+                await _dialogService.ShowMessageAsync("提示", "请先勾选「启动前自动创建虚拟环境并安装依赖」再操作。");
+                return;
+            }
+            if (string.IsNullOrWhiteSpace(EditWorkingDirectory))
+            {
+                await _dialogService.ShowMessageAsync("错误", "请先填写工作目录,虚拟环境将在工作目录下创建。");
+                return;
+            }
+            _venvCts = new CancellationTokenSource();
+            _ = RunVenvBackgroundAsync();
+            await Task.CompletedTask;
+        }
+
+        [RelayCommand]
+        private void CancelCreateVenvAsync()
+        {
+            try { _venvCts?.Cancel(); } catch { }
+        }
+
+        private async Task RunVenvBackgroundAsync()
+        {
+            IsCreatingVenv = true;
+            VenvProgressText = "⏳ 准备创建虚拟环境…";
+            // 用一个临时 ToolProject 投影当前 EditX → Project 模型
+            var tmpProject = new ToolProject
+            {
+                Language = EditLanguage,
+                InterpreterPath = EditInterpreterPath,
+                WorkingDirectory = EditWorkingDirectory,
+                CreateVenv = EditCreateVenv,
+                VenvDirectory = EditVenvDirectory ?? string.Empty,
+                RequirementsPath = (EditCreateVenv && EditAutoInstallRequirements)
+                    ? (EditRequirementsPath ?? string.Empty)
+                    : string.Empty,
+                PipMirrorUrl = (EditCreateVenv && EditAutoInstallRequirements)
+                    ? (EditPipMirrorUrl ?? string.Empty)
+                    : string.Empty
+            };
+
+            try
+            {
+                _venvCts ??= new CancellationTokenSource();
+                var progress = new Progress<string>(line => VenvProgressText = line);
+                var result = await EnsurePythonVenvAsync(tmpProject, progress, _venvCts.Token);
+                if (result.Success)
+                {
+                    var msg = result.VenvCreated
+                        ? $"虚拟环境已创建：{result.VenvPath}"
+                        : "虚拟环境已存在";
+                    if (result.PipInstalled) msg += "\n依赖已按 requirements.txt 安装完成。";
+                    else if (!string.IsNullOrEmpty(tmpProject.RequirementsPath)) msg += "\n(本次未执行 pip install)";
+                    await _dialogService.ShowMessageAsync("创建成功", msg);
+                }
+                else
+                {
+                    if (result.Cancelled)
+                        await _dialogService.ShowMessageAsync("已取消", "虚拟环境创建已取消。");
+                    else
+                        await _dialogService.ShowMessageAsync("创建失败",
+                            result.ErrorMessage + (result.Logs.Count > 0
+                                ? "\n\n最近日志:\n" + string.Join("\n", result.Logs.TakeLast(8))
+                                : string.Empty));
+                }
+            }
+            catch (Exception ex)
+            {
+                await _dialogService.ShowMessageAsync("创建 venv 异常", ex.Message);
+            }
+            finally
+            {
+                IsCreatingVenv = false;
+                VenvProgressText = string.Empty;
+                _venvCts?.Dispose();
+                _venvCts = null;
+            }
+        }
+
+        // =========================================================
         // 拉取更新（仅编辑现有项目时使用，对应工作目录里已有仓库）
         // =========================================================
 
         [RelayCommand]
         private async Task StartPullAsync()
         {
-            if (string.IsNullOrWhiteSpace(EditWorkingDirectory))
+            if (string.IsNullOrWhiteSpace(EditCloneDirectory))
             {
-                await _dialogService.ShowMessageAsync("提示", "工作目录为空，无法拉取。请先在「启动方式」设置工作目录。");
+                await _dialogService.ShowMessageAsync("提示", "克隆目录为空，无法拉取。请先在「📋 工具信息」- Git 仓库区域设置克隆目录。");
                 return;
             }
             if (GitEnvironment?.IsInstalled != true)
@@ -1267,14 +1824,50 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
             });
             try
             {
+                // 缺 .git 时:若用户已设置 EditGitUrl,弹确认后让 PullAsync 先 git init + remote add
+                string? initUrl = null;
+                string initRemoteName = EditRemoteName ?? "origin";
+                var dir = EditCloneDirectory;
+                bool dirExists = !string.IsNullOrWhiteSpace(dir) && Directory.Exists(dir);
+                bool hasGit = dirExists && Directory.Exists(System.IO.Path.Combine(dir, ".git"));
+                if (dirExists && !hasGit && !string.IsNullOrWhiteSpace(EditGitUrl))
+                {
+                    var confirmTitle = "初始化并绑定远端";
+                    var confirmMsg =
+                        $"克隆目录不是 Git 仓库:\n{dir}\n\n" +
+                        $"将执行:\n  git init\n  git remote add {initRemoteName} {EditGitUrl}\n  git pull\n\n" +
+                        "是否继续?";
+                    var ok = await _dialogService.ShowConfirmAsync(confirmTitle, confirmMsg);
+                    if (!ok)
+                    {
+                        IsPulling = false;
+                        PullProgressText = string.Empty;
+                        _pullCts?.Dispose();
+                        _pullCts = null;
+                        return;
+                    }
+                    initUrl = EditGitUrl;
+                }
+                else if (dirExists && !hasGit && string.IsNullOrWhiteSpace(EditGitUrl))
+                {
+                    await _dialogService.ShowMessageAsync("提示",
+                        "该目录不是 Git 仓库,且未填写 Git 远程地址。\n请先在「📥 Git 仓库」区域填写 Git URL,系统会在拉取前自动 git init 并绑定远端。");
+                    IsPulling = false;
+                    PullProgressText = string.Empty;
+                    _pullCts?.Dispose();
+                    _pullCts = null;
+                    return;
+                }
+
                 var result = await _gitService.PullAsync(
-                    EditWorkingDirectory, progress, _pullCts!.Token);
+                    EditCloneDirectory, progress, _pullCts!.Token,
+                    initUrl: initUrl, initRemoteName: initRemoteName);
 
                 if (result.Success)
                 {
                     await _dialogService.ShowCloneLogAsync(
                         "📥 拉取成功",
-                        $"已更新到最新：\n{EditWorkingDirectory}",
+                        $"已更新到最新：\n{EditCloneDirectory}",
                         result.Logs,
                         success: true);
                 }

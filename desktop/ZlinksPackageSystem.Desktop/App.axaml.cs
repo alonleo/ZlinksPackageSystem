@@ -35,6 +35,7 @@ public partial class App : Application
                 services.AddSingleton<IRuntimeEnvironmentService, RuntimeEnvironmentService>();
                 services.AddSingleton<IProcessManagerService, ProcessManagerService>();
                 services.AddSingleton<IGitService, GitService>();
+                services.AddSingleton<IVenvService, VenvService>();
                 services.AddSingleton<IToolPersistenceService, ToolPersistenceService>();
                 services.AddSingleton<IGlobalNotificationService, GlobalNotificationService>();
                 services.AddSingleton<INotificationService, NotificationService>();

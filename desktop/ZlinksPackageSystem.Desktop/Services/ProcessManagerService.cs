@@ -18,8 +18,16 @@ namespace ZlinksPackageSystem.Desktop.Services
     /// </summary>
     public class ProcessManagerService : IProcessManagerService
     {
+        /// <summary>内部保存 stdout/stderr 分离缓冲</summary>
+        private class CapturedOutput
+        {
+            public StringBuilder Combined { get; } = new();
+            public StringBuilder Stdout { get; } = new();
+            public StringBuilder Stderr { get; } = new();
+        }
+
         private readonly ConcurrentDictionary<int, Process> _processes = new();
-        private readonly ConcurrentDictionary<int, StringBuilder> _outputs = new();
+        private readonly ConcurrentDictionary<int, CapturedOutput> _outputs = new();
         private readonly TimeSpan _gracefulKillTimeout = TimeSpan.FromSeconds(2);
         private readonly System.Timers.Timer _outputTimer;
 
@@ -59,21 +67,21 @@ namespace ZlinksPackageSystem.Desktop.Services
                 };
 
                 int id = 0;
-                StringBuilder sb = new();
+                var co = new CapturedOutput();
                 if (captureOutput)
                 {
                     proc.OutputDataReceived += (_, e) =>
                     {
                         if (e.Data != null)
                         {
-                            lock (sb) { sb.AppendLine(e.Data); }
+                            lock (co) { co.Combined.AppendLine(e.Data); co.Stdout.AppendLine(e.Data); }
                         }
                     };
                     proc.ErrorDataReceived += (_, e) =>
                     {
                         if (e.Data != null)
                         {
-                            lock (sb) { sb.AppendLine(e.Data); }
+                            lock (co) { co.Combined.AppendLine(e.Data); co.Stderr.AppendLine(e.Data); }
                         }
                     };
                 }
@@ -93,7 +101,7 @@ namespace ZlinksPackageSystem.Desktop.Services
                         _processes.TryRemove(pid, out _);
                         if (captureOutput)
                         {
-                            _outputs[pid] = sb;
+                            _outputs[pid] = co;
                         }
                         try { ProcessExited?.Invoke(pid, code); } catch { /* 吞掉订阅者异常 */ }
                     }
@@ -109,7 +117,7 @@ namespace ZlinksPackageSystem.Desktop.Services
                 {
                     try { proc.BeginOutputReadLine(); } catch { }
                     try { proc.BeginErrorReadLine(); } catch { }
-                    _outputs[id] = sb;
+                    _outputs[id] = co;
                 }
                 return id;
             }
@@ -167,7 +175,14 @@ namespace ZlinksPackageSystem.Desktop.Services
 
         public string GetOutput(int processId)
         {
-            return _outputs.TryGetValue(processId, out var sb) ? sb.ToString() : string.Empty;
+            return _outputs.TryGetValue(processId, out var co) ? co.Combined.ToString() : string.Empty;
+        }
+
+        public (string Stdout, string Stderr) GetDetailedOutput(int processId)
+        {
+            if (_outputs.TryGetValue(processId, out var co))
+                return (co.Stdout.ToString(), co.Stderr.ToString());
+            return (string.Empty, string.Empty);
         }
     }
 }

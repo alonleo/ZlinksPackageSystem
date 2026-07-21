@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls;
@@ -89,6 +90,99 @@ namespace ZlinksPackageSystem.Desktop.Services
                     dialog.Content = root;
                     await dialog.ShowDialog(owner);
                 }
+
+        public async Task<bool> ShowConfirmAsync(string title, string message,
+            string okText = "确定", string cancelText = "取消")
+        {
+            var owner = Owner;
+            if (owner == null) return false;
+            var tcs = new TaskCompletionSource<bool>();
+
+            var dialog = new Window
+            {
+                Title = title,
+                SizeToContent = SizeToContent.WidthAndHeight,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                CanResize = false,
+                MinWidth = 380,
+                MinHeight = 180,
+                SystemDecorations = SystemDecorations.None,
+                Background = new SolidColorBrush(Color.Parse("#F01e1e2e"))
+            };
+
+            var header = new Border
+            {
+                Background = new SolidColorBrush(Color.Parse("#22FFFFFF")),
+                Padding = new Thickness(18, 12),
+                Child = new TextBlock
+                {
+                    Text = $"❓  {title}",
+                    FontSize = 15,
+                    FontWeight = FontWeight.Bold,
+                    Foreground = new SolidColorBrush(Color.Parse("#FFBFcbd9"))
+                }
+            };
+
+            var messageBlock = new TextBlock
+            {
+                Text = message,
+                TextWrapping = TextWrapping.Wrap,
+                Margin = new Thickness(20, 22, 20, 18),
+                FontSize = 13,
+                Foreground = new SolidColorBrush(Color.Parse("#FFBFcbd9"))
+            };
+
+            var okButton = new Button
+            {
+                Content = okText,
+                Width = 120,
+                Height = 34,
+                Background = new SolidColorBrush(Color.Parse("#FF1976D2")),
+                BorderBrush = new SolidColorBrush(Color.Parse("#FF1976D2")),
+                Foreground = new SolidColorBrush(Colors.White),
+                Margin = new Thickness(0, 6, 12, 22)
+            };
+            var cancelButton = new Button
+            {
+                Content = cancelText,
+                Width = 110,
+                Height = 34,
+                Margin = new Thickness(12, 6, 0, 22)
+            };
+
+            void Close(bool result)
+            {
+                try { tcs.TrySetResult(result); } catch { /* 二次点击 */ }
+                dialog.Close();
+            }
+
+            okButton.Click += (_, _) => Close(true);
+            cancelButton.Click += (_, _) => Close(false);
+            dialog.KeyDown += (_, e) =>
+            {
+                if (e.Key == Avalonia.Input.Key.Enter) Close(true);
+                else if (e.Key == Avalonia.Input.Key.Escape) Close(false);
+            };
+
+            var btnRow = new StackPanel
+            {
+                Orientation = Avalonia.Layout.Orientation.Horizontal,
+                HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center
+            };
+            btnRow.Children.Add(cancelButton);
+            btnRow.Children.Add(okButton);
+
+            var root = new DockPanel { LastChildFill = true };
+            DockPanel.SetDock(header, Dock.Top);
+            root.Children.Add(header);
+            DockPanel.SetDock(btnRow, Dock.Bottom);
+            root.Children.Add(btnRow);
+            root.Children.Add(messageBlock);
+
+            dialog.Content = root;
+            await dialog.ShowDialog(owner);
+            return await tcs.Task;
+        }
 
                 public async Task ShowEnvironmentResultAsync(string title, string message, bool success)
                 {
@@ -318,6 +412,16 @@ namespace ZlinksPackageSystem.Desktop.Services
             var owner = Owner;
             if (owner == null) return;
 
+            // 主题资源
+            var app = Application.Current;
+            if (app == null) return;
+            var foregroundPrimary = (IBrush)app.FindResource("ForegroundPrimary")!;
+            var foregroundSecondary = (IBrush)app.FindResource("ForegroundSecondary")!;
+            var subItemBg = (IBrush)app.FindResource("SubItemBackground")!;
+            var cardBorder = (IBrush)app.FindResource("CardBorder")!;
+            var windowBg = (IBrush)app.FindResource("WindowBackground")!;
+            var buttonBg = (IBrush)app.FindResource("ButtonBackground")!;
+
             var successColor = result.Success
                 ? new SolidColorBrush(Color.Parse("#FF52C41A"))
                 : new SolidColorBrush(Color.Parse("#FFF56C6C"));
@@ -336,7 +440,7 @@ namespace ZlinksPackageSystem.Desktop.Services
                 Text = "📋 评出的命令：",
                 FontSize = 12,
                 FontWeight = FontWeight.SemiBold,
-                Foreground = new SolidColorBrush(Color.Parse("#FFBFcbd9")),
+                Foreground = foregroundPrimary,
                 Margin = new Thickness(0, 8, 0, 4)
             };
             var cmdBox = new TextBox
@@ -348,10 +452,11 @@ namespace ZlinksPackageSystem.Desktop.Services
                 AcceptsReturn = true,
                 TextWrapping = TextWrapping.Wrap,
                 Height = 50,
-                Background = new SolidColorBrush(Color.Parse("#0DFFFFFF")),
-                BorderBrush = new SolidColorBrush(Color.Parse("#33FFFFFF")),
+                Background = subItemBg,
+                BorderBrush = cardBorder,
                 BorderThickness = new Thickness(1),
-                Padding = new Thickness(8)
+                Padding = new Thickness(8),
+                Foreground = foregroundPrimary
             };
 
             // 元信息：退出码 + 耗时
@@ -359,7 +464,7 @@ namespace ZlinksPackageSystem.Desktop.Services
             {
                 Text = $"退出码: {result.ExitCode}    耗时: {result.ElapsedMilliseconds} ms",
                 FontSize = 11,
-                Foreground = new SolidColorBrush(Color.Parse("#99FFFFFF")),
+                Foreground = foregroundSecondary,
                 Margin = new Thickness(0, 8, 0, 0)
             };
 
@@ -369,7 +474,7 @@ namespace ZlinksPackageSystem.Desktop.Services
                 Text = "📤 标准输出 (stdout)：",
                 FontSize = 12,
                 FontWeight = FontWeight.SemiBold,
-                Foreground = new SolidColorBrush(Color.Parse("#FFBFcbd9")),
+                Foreground = foregroundPrimary,
                 Margin = new Thickness(0, 8, 0, 4)
             };
             var stdoutBox = new TextBox
@@ -380,21 +485,14 @@ namespace ZlinksPackageSystem.Desktop.Services
                 FontSize = 12,
                 AcceptsReturn = true,
                 TextWrapping = TextWrapping.NoWrap,
-                Background = new SolidColorBrush(Color.Parse("#0DFFFFFF")),
-                BorderBrush = new SolidColorBrush(Color.Parse("#33FFFFFF")),
+                Background = subItemBg,
+                BorderBrush = cardBorder,
                 BorderThickness = new Thickness(1),
-                Padding = new Thickness(8)
+                Padding = new Thickness(8),
+                Foreground = foregroundPrimary
             };
 
             // stderr
-            var stderrLabel = new TextBlock
-            {
-                Text = "⚠️  错误输出 (stderr)：",
-                FontSize = 12,
-                FontWeight = FontWeight.SemiBold,
-                Foreground = new SolidColorBrush(Color.Parse("#FFBFcbd9")),
-                Margin = new Thickness(0, 8, 0, 4)
-            };
             var stderrBox = new TextBox
             {
                 Text = string.IsNullOrEmpty(result.StandardError) ? "(无)" : result.StandardError,
@@ -403,12 +501,12 @@ namespace ZlinksPackageSystem.Desktop.Services
                 FontSize = 12,
                 AcceptsReturn = true,
                 TextWrapping = TextWrapping.NoWrap,
-                Background = new SolidColorBrush(Color.Parse("#0DFFFFFF")),
-                BorderBrush = new SolidColorBrush(Color.Parse("#33FFFFFF")),
+                Background = subItemBg,
+                BorderBrush = cardBorder,
                 BorderThickness = new Thickness(1),
                 Padding = new Thickness(8),
                 Foreground = string.IsNullOrEmpty(result.StandardError)
-                    ? new SolidColorBrush(Color.Parse("#66FFFFFF"))
+                    ? foregroundSecondary
                     : new SolidColorBrush(Color.Parse("#FFFFB3B3"))
             };
 
@@ -443,14 +541,18 @@ namespace ZlinksPackageSystem.Desktop.Services
                             Width = 820,
                             Height = 620,
                             WindowStartupLocation = WindowStartupLocation.CenterOwner,
-                            CanResize = true
+                            CanResize = true,
+                            Background = windowBg
                         };
 
                         var copyBtn = new Button
                         {
                             Content = "📋 复制全部",
                             Width = 110,
-                            Height = 32
+                            Height = 32,
+                            Background = new SolidColorBrush(Color.Parse("#FF1976D2")),
+                            BorderBrush = new SolidColorBrush(Color.Parse("#FF1976D2")),
+                            Foreground = foregroundPrimary
                         };
                         copyBtn.Click += async (_, _) =>
                         {
@@ -464,7 +566,9 @@ namespace ZlinksPackageSystem.Desktop.Services
                         {
                             Content = "关闭",
                             Width = 90,
-                            Height = 32
+                            Height = 32,
+                            Background = buttonBg,
+                            Foreground = foregroundPrimary
                         };
                         closeBtn.Click += (_, _) => dialog.Close();
 
@@ -485,8 +589,6 @@ namespace ZlinksPackageSystem.Desktop.Services
                         content.Children.Add(meta);
                         content.Children.Add(stdoutLabel);
                         content.Children.Add(outGrid);
-                        content.Children.Add(stderrLabel);
-                        content.Children.Add(rightScroll);
                         content.Children.Add(btnRow);
 
                         dialog.Content = content;
@@ -900,8 +1002,9 @@ namespace ZlinksPackageSystem.Desktop.Services
                     if (ea.UseDefaultPrefix) prefix = project.DefaultArgumentPrefix;
                     else prefix = prefixBoxes[ea.Source].Text ?? string.Empty;
 
-                    if (!string.IsNullOrEmpty(prefix)) sb.Append(' ').Append(QuoteIfNeeded(prefix));
-                    if (!string.IsNullOrEmpty(ea.Source.Name)) sb.Append(' ').Append(QuoteIfNeeded(ea.Source.Name));
+                    // 修复:把 prefix 和 name 拼成单个 token (如 "--rows"),而不是分别以空格分隔
+                    var flag = (prefix ?? string.Empty) + (ea.Source.Name ?? string.Empty);
+                    if (flag.Length > 0) sb.Append(' ').Append(QuoteIfNeeded(flag));
                     if (!string.IsNullOrEmpty(value))
                     {
                         if (ea.Source.InputType == ToolArgumentInputType.Bool)
@@ -1332,6 +1435,82 @@ namespace ZlinksPackageSystem.Desktop.Services
 
             dialog.Content = root;
             await dialog.ShowDialog(owner);
+        }
+
+        public async Task<VenvResult> ShowVenvProgressAsync(
+            string title,
+            Func<IProgress<string>, CancellationToken, Task<VenvResult>> workAsync,
+            CancellationTokenSource cts)
+        {
+            var owner = Owner;
+            if (owner == null)
+                return new VenvResult { ErrorMessage = "无法找到主窗口。" };
+
+            var foregroundPrimary = Application.Current?.FindResource("ForegroundPrimary") as IBrush
+                                    ?? new SolidColorBrush(Colors.White);
+
+            var textBlock = new TextBlock
+            {
+                Text = "正在初始化...",
+                FontSize = 13,
+                Foreground = foregroundPrimary,
+                Margin = new Thickness(16, 12, 16, 8),
+                TextWrapping = TextWrapping.Wrap,
+                MaxWidth = 380
+            };
+
+            var cancelBtn = new Button
+            {
+                Content = "取消",
+                Width = 90,
+                Height = 32,
+                HorizontalAlignment = HorizontalAlignment.Right,
+                Margin = new Thickness(0, 8, 16, 12)
+            };
+            cancelBtn.Click += (_, _) =>
+            {
+                cts?.Cancel();
+            };
+
+            var progress = new Progress<string>(line =>
+            {
+                if (textBlock.Text != line)
+                    textBlock.Text = line;
+            });
+
+            var dialog = new Window
+            {
+                Title = title,
+                Width = 440,
+                Height = 140,
+                WindowStartupLocation = WindowStartupLocation.CenterOwner,
+                CanResize = false,
+                ShowInTaskbar = false,
+                Content = new StackPanel
+                {
+                    Children = { textBlock, cancelBtn }
+                }
+            };
+
+            dialog.Show(owner);
+            try
+            {
+                var result = await workAsync(progress, cts?.Token ?? CancellationToken.None);
+                return result;
+            }
+            catch (OperationCanceledException)
+            {
+                return new VenvResult { Cancelled = true, ErrorMessage = "已取消" };
+            }
+            catch (Exception ex)
+            {
+                return new VenvResult { ErrorMessage = ex.Message };
+            }
+            finally
+            {
+                if (dialog.IsVisible)
+                    dialog.Close();
+            }
         }
     }
 }

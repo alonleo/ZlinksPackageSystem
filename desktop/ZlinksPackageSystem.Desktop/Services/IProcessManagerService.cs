@@ -30,6 +30,11 @@ namespace ZlinksPackageSystem.Desktop.Services
         string GetOutput(int processId);
 
         /// <summary>
+        /// 获取已退出进程的分离输出（stdout/stderr 分开）。不存在返回两个空串。
+        /// </summary>
+        (string Stdout, string Stderr) GetDetailedOutput(int processId);
+
+        /// <summary>
         /// 进程退出事件。参数：(PID, ExitCode)。
         /// 调用方需自行在 UI 线程 marshal。
         /// </summary>

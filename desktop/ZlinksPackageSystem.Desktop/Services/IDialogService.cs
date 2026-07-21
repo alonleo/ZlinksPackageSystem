@@ -1,4 +1,6 @@
+using System;
 using System.Collections.Generic;
+using System.Threading;
 using System.Threading.Tasks;
 using ZlinksPackageSystem.Desktop.Models;
 
@@ -7,6 +9,10 @@ namespace ZlinksPackageSystem.Desktop.Services
     public interface IDialogService
     {
         Task ShowMessageAsync(string title, string message);
+
+        /// <summary>显示一个确认对话框(确定/取消),返回 true=确定,false=取消。</summary>
+        Task<bool> ShowConfirmAsync(string title, string message,
+            string okText = "确定", string cancelText = "取消");
         Task<bool> ShowNotificationDetailAsync(NotificationItem item);
 
         /// <summary>
@@ -39,5 +45,14 @@ namespace ZlinksPackageSystem.Desktop.Services
 
         /// <summary>显示克隆日志详情弹窗（含可滚动只读日志 + 复制按钮）。</summary>
         Task ShowCloneLogAsync(string title, string message, IReadOnlyList<string> logs, bool success);
+
+        /// <summary>
+        /// 虚拟环境创建进度弹窗。在 workAsync 执行期间显示一个带取消按钮的进度窗口，
+        /// 通过 IProgress&lt;string&gt; 实时汇报进度文字。workAsync 完成后窗口自动关闭。
+        /// </summary>
+        Task<VenvResult> ShowVenvProgressAsync(
+            string title,
+            Func<IProgress<string>, CancellationToken, Task<VenvResult>> workAsync,
+            CancellationTokenSource cts);
     }
 }

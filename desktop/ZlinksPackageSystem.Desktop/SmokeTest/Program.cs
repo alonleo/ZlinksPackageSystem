@@ -37,7 +37,7 @@ namespace ZlinksPackageSystem.SmokeTest
                 typeof(ToolLibraryViewModel),
                 BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
                 binder: null,
-                args: new object?[] { null, null, null, null, pm, null, null, null }, // ... INotificationService
+                args: new object?[] { null, null, null, null, pm, null, null, null, null }, // ... INotificationService, IVenvService
                 culture: null)!;
 
             // 注入环境
@@ -62,7 +62,8 @@ namespace ZlinksPackageSystem.SmokeTest
                     }
                 };
                 var preview = vm.BuildCommandPreview(proj);
-                var expected = "python \"C:\\tools\\build.py\" -- output out -- verbose true";
+                // 脚本路径不含空格 → 不加引号；prefix+name 合并 → "--output out --verbose true"
+                var expected = "python C:\\tools\\build.py --output out --verbose true";
                 AssertEq("preview", expected, preview);
             });
 
@@ -84,7 +85,7 @@ namespace ZlinksPackageSystem.SmokeTest
                     }
                 };
                 var preview = vm.BuildCommandPreview(proj);
-                var expected = "python \"C:\\tools\\build.py\" - port 8080";
+                var expected = "python C:\\tools\\build.py -port 8080";
                 AssertEq("preview", expected, preview);
             });
 
@@ -122,7 +123,7 @@ namespace ZlinksPackageSystem.SmokeTest
                 };
                 var preview = vm.BuildCommandPreview(proj);
                 // "y" 默认值为空，因此只拼出 -i in.mp4（Name "y" 仍会出现作为 -y）
-                var expected = "C:\\tools\\ffmpeg.exe - i in.mp4 - y";
+                var expected = "C:\\tools\\ffmpeg.exe -i in.mp4 -y";
                 AssertEq("preview", expected, preview);
             });
 
@@ -211,7 +212,7 @@ namespace ZlinksPackageSystem.SmokeTest
                     Prefix = "--",
                     Value = "1"
                 };
-                AssertEq("default prefix", "--", ea.UseDefaultPrefix ? "default" : ea.Prefix);
+                AssertEq("default prefix", "--", ea.UseDefaultPrefix ? ea.Source.Prefix : ea.Prefix);
                 AssertEq("value", "1", ea.Value);
             });
 
@@ -584,6 +585,443 @@ namespace ZlinksPackageSystem.SmokeTest
                 Console.WriteLine($"     [info] Categories={vm.Categories.Count}, SelectedCategory={vm.SelectedCategory?.Title}, IsAppearanceVisible={vm.IsAppearanceVisible}");
             });
 
+            // ===== 16. ToolSyncState 枚举 + IsPendingSync 派生属性 =====
+            Test("ToolSyncState 默认值 + IsPendingSync 派生", () =>
+            {
+                var p1 = new ToolProject { Name = "synced" };
+                AssertEq("默认 Synced", ToolSyncState.Synced, p1.SyncState);
+                Assert("默认 IsPendingSync=false", !p1.IsPendingSync);
+                AssertEq("badge 文本空", string.Empty, p1.SyncBadgeText);
+
+                var p2 = new ToolProject { Name = "new", SyncState = ToolSyncState.PendingCreate };
+                Assert("IsPendingSync=true", p2.IsPendingSync);
+                Assert("badge 含『新建』", p2.SyncBadgeText.Contains("新建"));
+
+                var p3 = new ToolProject { Name = "upd", SyncState = ToolSyncState.PendingUpdate };
+                Assert("IsPendingSync=true", p3.IsPendingSync);
+                Assert("badge 含『修改』", p3.SyncBadgeText.Contains("修改"));
+            });
+
+            // ===== 17. ToolProject JSON 持久化包含 SyncState（关键：旧 bug 是 [JsonIgnore]）=====
+            Test("ToolProject 持久化包含 SyncState", () =>
+            {
+                var tmp = Path.Combine(Path.GetTempPath(), "zlinks-syncstate-" + Guid.NewGuid().ToString("N"));
+                Directory.CreateDirectory(tmp);
+                try
+                {
+                    var svc = new ToolPersistenceService(tmp);
+                    var input = new List<ToolProject>
+                    {
+                        new() { Id = 1, Name = "synced",    SyncState = ToolSyncState.Synced },
+                        new() { Id = -6370000000000, Name = "pending", SyncState = ToolSyncState.PendingCreate }
+                    };
+                    svc.SaveAsync(input).GetAwaiter().GetResult();
+                    var loaded = svc.LoadAsync().GetAwaiter().GetResult();
+                    AssertEq("count", 2, loaded.Count);
+                    AssertEq("synced.SyncState", ToolSyncState.Synced, loaded[0].SyncState);
+                    AssertEq("pending.SyncState", ToolSyncState.PendingCreate, loaded[1].SyncState);
+                    Assert("synced.IsPendingSync=false", !loaded[0].IsPendingSync);
+                    Assert("pending.IsPendingSync=true", loaded[1].IsPendingSync);
+
+                    // 验证磁盘 JSON 真的包含 "SyncState" 字段（修复 [JsonIgnore] 旧 bug 的核心断言）
+                    var rawJson = File.ReadAllText(Path.Combine(tmp, "tools.json"));
+                    Assert("JSON 包含 SyncState", rawJson.Contains("\"SyncState\""));
+                }
+                finally
+                {
+                    try { Directory.Delete(tmp, recursive: true); } catch { }
+                }
+            });
+
+            // ===== 18. 旧文件兼容：缺 SyncState 字段 → 反序列化默认为 Synced（向后兼容）=====
+            Test("旧 JSON 缺 SyncState 字段 → 默认 Synced", () =>
+            {
+                var tmp = Path.Combine(Path.GetTempPath(), "zlinks-oldfmt-" + Guid.NewGuid().ToString("N"));
+                Directory.CreateDirectory(tmp);
+                try
+                {
+                    // 手动写一份老格式 JSON（无 SyncState 字段）
+                    var legacy =
+                        "[{\"Id\":7,\"Name\":\"legacy\",\"RunMode\":\"Script\",\"Language\":\"python\"," +
+                        "\"InterpreterPath\":\"\",\"ScriptPath\":\"\",\"ExecutablePath\":\"\"," +
+                        "\"WorkingDirectory\":\"\",\"EnvironmentVariables\":\"\"," +
+                        "\"DefaultArgumentPrefix\":\"--\",\"Arguments\":[],\"GitUrl\":\"\"," +
+                        "\"CloneDirectory\":\"\",\"Notification\":{},\"IsSystemBuiltin\":false}]";
+                    File.WriteAllText(Path.Combine(tmp, "tools.json"), legacy);
+
+                    var svc = new ToolPersistenceService(tmp);
+                    var loaded = svc.LoadAsync().GetAwaiter().GetResult();
+                    AssertEq("count", 1, loaded.Count);
+                    AssertEq("name", "legacy", loaded[0].Name);
+                    AssertEq("默认 Synced", ToolSyncState.Synced, loaded[0].SyncState);
+                    Assert("IsPendingSync=false", !loaded[0].IsPendingSync);
+                }
+                finally
+                {
+                    try { Directory.Delete(tmp, recursive: true); } catch { }
+                }
+            });
+
+            // ===== 19. ParameterRow.RequireInput 字段 + OpenEditDialog 同步(修复 Bug A & B)=====
+            // 验证:
+            //  - ParameterRow 新增了 RequireInput 字段
+            //  - OpenEditDialog 从 project.Arguments 同步到 EditParameters(包括 RequireInput)
+            //  - BuildArgumentsFromEditRows 把 row.RequireInput 正确写回 ToolArgument(取消硬编码 false)
+            Test("OpenEditDialog 同步参数列表(含 RequireInput)", () =>
+            {
+                // 准备一个含 3 个不同参数的工具(含必填/非必填/自定义前缀三种典型场景)
+                var project = new ToolProject
+                {
+                    Id = 42,
+                    Name = "test-tool",
+                    RunMode = ToolRunModes.Script,
+                    Language = "python",
+                    DefaultArgumentPrefix = "--",
+                    Arguments = new List<ToolArgument>
+                    {
+                        new() { Name = "rows", DefaultValue = "",         UseDefaultPrefix = true,  Prefix = "--", RequireInput = false, Order = 0 },
+                        new() { Name = "env",  DefaultValue = "dev",      UseDefaultPrefix = true,  Prefix = "--", RequireInput = true,  Order = 1 },
+                        new() { Name = "port", DefaultValue = "8080",     UseDefaultPrefix = false, Prefix = "-",  RequireInput = false, Order = 2 }
+                    }
+                };
+
+                // 反射调用 OpenEditDialog(project)
+                var openEdit = typeof(ToolLibraryViewModel).GetMethod(
+                    "OpenEditDialog",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+                Assert("OpenEditDialog 方法存在", openEdit != null);
+                openEdit!.Invoke(vm, new object[] { project });
+
+                // 断言 1: 参数数量同步
+                AssertEq("EditParameters 数量", 3, vm.EditParameters.Count);
+
+                // 断言 2: 字段正确映射
+                AssertEq("rows.Name", "rows", vm.EditParameters[0].Name);
+                AssertEq("rows.Prefix", "--", vm.EditParameters[0].Prefix);
+                AssertEq("rows.Value", "", vm.EditParameters[0].Value);
+                Assert("rows.RequireInput=false", vm.EditParameters[0].RequireInput == false);
+
+                AssertEq("env.Name", "env", vm.EditParameters[1].Name);
+                AssertEq("env.Value", "dev", vm.EditParameters[1].Value);
+                Assert("env.RequireInput=true(关键)", vm.EditParameters[1].RequireInput == true);
+
+                AssertEq("port.Name", "port", vm.EditParameters[2].Name);
+                AssertEq("port.Prefix(自定义)", "-", vm.EditParameters[2].Prefix);
+                Assert("port.RequireInput=false", vm.EditParameters[2].RequireInput == false);
+
+                // 断言 3: 往返一致(EditParameters → ToolArgument)
+                var buildArgs = typeof(ToolLibraryViewModel).GetMethod(
+                    "BuildArgumentsFromEditRows",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+                var rebuilt = (System.Collections.Generic.List<ToolArgument>)
+                    buildArgs!.Invoke(vm, null)!;
+                AssertEq("rebuilt.Count", 3, rebuilt.Count);
+                AssertEq("rebuilt[1].RequireInput(取消硬编码 false)", true, rebuilt[1].RequireInput);
+                Assert("rebuilt[0].RequireInput", rebuilt[0].RequireInput == false);
+                Assert("rebuilt[2].RequireInput", rebuilt[2].RequireInput == false);
+                AssertEq("rebuilt[2].Prefix(自定义)", "-", rebuilt[2].Prefix);
+
+                // 断言 4: ParameterRow 字段可读写
+                var row = new ParameterRow { Name = "x", RequireInput = true };
+                Assert("ParameterRow.RequireInput 可读", row.RequireInput);
+                row.RequireInput = false;
+                Assert("ParameterRow.RequireInput 可写", row.RequireInput == false);
+            });
+
+            // ===== 20. Fallback 落地数据跨"重启"可恢复（核心回归测试）=====
+            // 模拟:OfflineApi 返回 null → SaveProjectAsync 走 FallbackToPendingAsync →
+            //       关闭 VM → 重新构造 VM → 加载本地缓存 → pending 工具出现在 Projects
+            Test("Fallback 落地的工具在重启后仍可见", () =>
+            {
+                var tmp = Path.Combine(Path.GetTempPath(), "zlinks-restart-" + Guid.NewGuid().ToString("N"));
+                Directory.CreateDirectory(tmp);
+                try
+                {
+                    var persistence = new ToolPersistenceService(tmp);
+                    var offlineApi = new OfflineStubApiService(); // 后端全返回 null
+                    var dlg = new RecordingDialogService();
+
+                    // ===== Phase 1: 第一次会话 - 后端离线,新建工具 fallback =====
+                    var pm = new ProcessManagerService();
+                    var vm1 = BuildVm(offlineApi, dlg, persistence, pm);
+
+                    // 直接调用 internal FallbackToPendingAsync,模拟保存失败落地的结果
+                    var pending = new ToolProject
+                    {
+                        Id = -1234567, // 模拟本地临时负 ID
+                        Name = "offline-tool",
+                        RunMode = ToolRunModes.Script,
+                        Language = "python",
+                        ScriptPath = "C:\\tools\\offline.py",
+                        SyncState = ToolSyncState.PendingCreate
+                    };
+                    var fallbackMethod = typeof(ToolLibraryViewModel).GetMethod(
+                        "FallbackToPendingAsync",
+                        System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+                    // 必须 await 反射返回的 Task,否则 phase1 的 await _persistence.SaveAsync()
+                    // 还没写完缓存文件 phase2 就开始读了 → 偶发 phase2:Projects.Count==0
+                    var fallbackTask = (Task)fallbackMethod!.Invoke(vm1, new object[] { pending, true })!;
+                    fallbackTask.GetAwaiter().GetResult();
+
+                    AssertEq("phase1: Projects 含 1 条", 1, vm1.Projects.Count);
+                    AssertEq("phase1: PendingSyncTools 含 1 条", 1, vm1.PendingSyncTools.Count);
+
+                    // ===== Phase 2: 重启 - 清空内存,重新构造 VM,加载本地缓存 =====
+                    var vm2 = BuildVm(offlineApi, dlg, persistence, pm);
+
+                    // LoadProjectsAsync 是 async fire-and-forget,等待它完成
+                    var loadMethod = typeof(ToolLibraryViewModel).GetMethod(
+                        "LoadProjectsAsync",
+                        System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+                    var loadTask = (Task)loadMethod!.Invoke(vm2, null)!;
+                    loadTask.GetAwaiter().GetResult();
+
+                    // ===== 断言:重启后本地工具依然在 Projects(这是用户报的核心 bug) =====
+                    AssertEq("phase2: Projects 含 1 条(关键)", 1, vm2.Projects.Count);
+                    AssertEq("phase2: PendingSyncTools 含 1 条", 1, vm2.PendingSyncTools.Count);
+                    AssertEq("phase2: name 保留", "offline-tool", vm2.Projects[0].Name);
+                    AssertEq("phase2: SyncState=PendingCreate", ToolSyncState.PendingCreate, vm2.Projects[0].SyncState);
+                    Assert("phase2: IsPendingSync=true", vm2.Projects[0].IsPendingSync);
+                }
+                finally
+                {
+                    try { Directory.Delete(tmp, recursive: true); } catch { }
+                }
+            });
+
+            // ===== 21. VenvService:平台相关的 python 路径解析 + VenvExists 检测 =====
+            Test("VenvService.ResolvePythonExePath 平台分支", () =>
+            {
+                var svc = new VenvService();
+                var root = Path.Combine(Path.GetTempPath(), "zlinks-venvtest-" + Guid.NewGuid().ToString("N"));
+                Directory.CreateDirectory(root);
+                try
+                {
+                    var resolved = svc.ResolvePythonExePath(root);
+                    if (OperatingSystem.IsWindows())
+                    {
+                        Assert("Windows: 以 Scripts\\python.exe 结尾",
+                            resolved.EndsWith(Path.Combine("Scripts", "python.exe"), StringComparison.OrdinalIgnoreCase));
+                    }
+                    else
+                    {
+                        Assert("Unix: 以 bin/python 结尾",
+                            resolved.EndsWith(Path.Combine("bin", "python")));
+                    }
+                    Assert("VenvExists=false(无 pyvenv.cfg)", !svc.VenvExists(root));
+                    File.WriteAllText(Path.Combine(root, "pyvenv.cfg"), "home = /usr/bin");
+                    Assert("VenvExists=true(有 pyvenv.cfg)", svc.VenvExists(root));
+                    Assert("空目录 VenvExists=false", !svc.VenvExists(string.Empty));
+                }
+                finally
+                {
+                    try { Directory.Delete(root, recursive: true); } catch { }
+                }
+            });
+
+            // ===== 22. VenvService.EnsureVenvAsync 防御性错误处理 =====
+            Test("VenvService.EnsureVenvAsync 空 python → 失败", () =>
+            {
+                var svc = new VenvService();
+                var tmp = Path.Combine(Path.GetTempPath(), "zlinks-venvempty-" + Guid.NewGuid().ToString("N"));
+                var r = svc.EnsureVenvAsync(
+                    pythonExe: "",
+                    venvDirectory: tmp,
+                    requirementsPath: "",
+                    pipMirrorUrl: "").GetAwaiter().GetResult();
+                Assert("空 pythonExe 不成功", !r.Success);
+                Assert("错误信息非空", !string.IsNullOrEmpty(r.ErrorMessage));
+                Assert("PythonExePath 留空", string.IsNullOrEmpty(r.PythonExePath));
+            });
+
+            // ===== 23. ToolProject 新增 Python venv 字段参与持久化 =====
+            Test("ToolProject venv 字段持久化往返", () =>
+            {
+                var tmp = Path.Combine(Path.GetTempPath(), "zlinks-venvpersist-" + Guid.NewGuid().ToString("N"));
+                Directory.CreateDirectory(tmp);
+                try
+                {
+                    var persist = new ToolPersistenceService(tmp);
+                    var input = new List<ToolProject>
+                    {
+                        new()
+                        {
+                            Id = 1, Name = "py-tool", Language = "python",
+                            RunMode = ToolRunModes.Script,
+                            InterpreterPath = "C:\\Python\\python.exe",
+                            WorkingDirectory = "C:\\tools\\demo",
+                            CreateVenv = true,
+                            VenvDirectory = ".venv",
+                            RequirementsPath = "requirements.txt",
+                            PipMirrorUrl = "https://pypi.tuna.tsinghua.edu.cn/simple"
+                        },
+                        new()
+                        {
+                            Id = 2, Name = "no-venv", Language = "node",
+                            CreateVenv = false,
+                            VenvDirectory = "",
+                            RequirementsPath = "",
+                            PipMirrorUrl = ""
+                        }
+                    };
+                    persist.SaveAsync(input).GetAwaiter().GetResult();
+                    var loaded = persist.LoadAsync().GetAwaiter().GetResult();
+                    AssertEq("count", 2, loaded.Count);
+
+                    AssertEq("CreateVenv[0]", true, loaded[0].CreateVenv);
+                    AssertEq("VenvDirectory[0]", ".venv", loaded[0].VenvDirectory);
+                    AssertEq("RequirementsPath[0]", "requirements.txt", loaded[0].RequirementsPath);
+                    AssertEq("PipMirrorUrl[0]", "https://pypi.tuna.tsinghua.edu.cn/simple", loaded[0].PipMirrorUrl);
+
+                    AssertEq("CreateVenv[1]", false, loaded[1].CreateVenv);
+                    AssertEq("VenvDirectory[1]", "", loaded[1].VenvDirectory);
+
+                    // 验证磁盘 JSON 里真的有这些字段
+                    var raw = File.ReadAllText(Path.Combine(tmp, "tools.json"));
+                    Assert("JSON 含 CreateVenv", raw.Contains("\"CreateVenv\""));
+                    Assert("JSON 含 PipMirrorUrl", raw.Contains("\"PipMirrorUrl\""));
+                    Assert("JSON 含 RequirementsPath", raw.Contains("\"RequirementsPath\""));
+                }
+                finally
+                {
+                    try { Directory.Delete(tmp, recursive: true); } catch { }
+                }
+            });
+
+            // ===== 24. OpenAddDialog 默认勾选 venv(创建+自动 pip install) =====
+            Test("OpenAddDialog 默认勾选 venv + EditVenvDirectory 默认空", () =>
+            {
+                var openAdd = typeof(ToolLibraryViewModel).GetMethod(
+                    "OpenAddDialog",
+                    BindingFlags.Instance | BindingFlags.NonPublic);
+                openAdd!.Invoke(vm, null);
+
+                Assert("默认 EditCreateVenv=true(创建 venv)", vm.EditCreateVenv == true);
+                Assert("默认 EditAutoInstallRequirements=true", vm.EditAutoInstallRequirements == true);
+                Assert("默认 EditVenvDirectory 空(默认 .venv)", string.IsNullOrEmpty(vm.EditVenvDirectory));
+                Assert("默认 EditRequirementsPath 空", string.IsNullOrEmpty(vm.EditRequirementsPath));
+                Assert("默认 EditPipMirrorUrl = 清华源",
+                    vm.EditPipMirrorUrl == "https://pypi.tuna.tsinghua.edu.cn/simple");
+            });
+
+            // ===== 25. GitUrlParser.ParseRemoteUrl:解析 .git/config 中的 [remote] url =====
+            Test("GitUrlParser.ParseRemoteUrl 解析 origin HTTPS", () =>
+            {
+                var config = "[core]\n\trepositoryformatversion = 0\n[remote \"origin\"]\n\turl = https://github.com/x/y.git\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n[branch \"main\"]\n";
+                AssertEq("origin url", "https://github.com/x/y.git", GitUrlParser.ParseRemoteUrl(config, "origin"));
+            });
+
+            Test("GitUrlParser.ParseRemoteUrl 解析 SSH 含 @", () =>
+            {
+                var config = "[remote \"upstream\"]\n\turl = git@github.com:foo/bar.git\n\tfetch = +refs/heads/*:refs/remotes/upstream/*\n";
+                AssertEq("upstream ssh", "git@github.com:foo/bar.git", GitUrlParser.ParseRemoteUrl(config, "upstream"));
+                Assert("origin 不存在返回 null", GitUrlParser.ParseRemoteUrl(config, "origin") == null);
+            });
+
+            Test("GitUrlParser.ParseRemoteUrl 支持带引号 url", () =>
+            {
+                var config = "[remote \"origin\"]\n\turl = \"https://example.com/p ath.git\"\n";
+                AssertEq("带引号 url(去引号)", "https://example.com/p ath.git", GitUrlParser.ParseRemoteUrl(config, "origin"));
+            });
+
+            Test("GitUrlParser.ParseRemoteUrl 多 remote 取指定名", () =>
+            {
+                var config = "[remote \"origin\"]\n\turl = https://a.com/x.git\n[remote \"upstream\"]\n\turl = https://b.com/y.git\n";
+                AssertEq("origin 选 a.com", "https://a.com/x.git", GitUrlParser.ParseRemoteUrl(config, "origin"));
+                AssertEq("upstream 选 b.com", "https://b.com/y.git", GitUrlParser.ParseRemoteUrl(config, "upstream"));
+            });
+
+            Test("GitUrlParser.ParseRemoteUrl 空/异常输入", () =>
+            {
+                Assert("空字符串返回 null", GitUrlParser.ParseRemoteUrl(string.Empty) == null);
+                Assert("null 返回 null", GitUrlParser.ParseRemoteUrl(null!) == null);
+                Assert("无段返回 null", GitUrlParser.ParseRemoteUrl("[core]\n\tbare = true\n") == null);
+            });
+
+            // ===== 26. GitService.DetectRemoteAsync 读取真实 .git/config =====
+            Test("GitService.DetectRemoteAsync 在 stub .git/config 上工作", () =>
+            {
+                var tmp = Path.Combine(Path.GetTempPath(), "zlinks-detect-" + Guid.NewGuid().ToString("N"));
+                Directory.CreateDirectory(tmp);
+                try
+                {
+                    var gitDir = Path.Combine(tmp, ".git");
+                    Directory.CreateDirectory(gitDir);
+                    File.WriteAllText(Path.Combine(gitDir, "config"),
+                        "[core]\n\trepositoryformatversion = 0\n" +
+                        "[remote \"origin\"]\n\turl = git@github.com:foo/demo.git\n\tfetch = +refs/heads/*:refs/remotes/origin/*\n");
+
+                    var svc = new GitService();
+                    var (remoteName, url, logs) = svc.DetectRemoteAsync(tmp, "origin").GetAwaiter().GetResult();
+                    AssertEq("remoteName=origin", "origin", remoteName);
+                    AssertEq("url 解析正确", "git@github.com:foo/demo.git", url);
+                    Assert("logs 非空(成功)", logs.Count > 0);
+
+                    // 缺段
+                    var (remoteName2, url2, _) = svc.DetectRemoteAsync(tmp, "nonexistent").GetAwaiter().GetResult();
+                    Assert("缺段 url=null", url2 == null);
+                    AssertEq("remoteName 回退", "nonexistent", remoteName2);
+
+                    // 不存在的目录
+                    var (_, url3, logs3) = svc.DetectRemoteAsync(
+                        Path.Combine(Path.GetTempPath(), "nope-" + Guid.NewGuid().ToString("N")), "origin")
+                        .GetAwaiter().GetResult();
+                    Assert("不存在目录 url=null", url3 == null);
+                    Assert("不存在目录 logs 非空", logs3.Count > 0);
+                }
+                finally
+                {
+                    try { Directory.Delete(tmp, recursive: true); } catch { }
+                }
+            });
+
+            // ===== 27. ToolProject 新增 RemoteName 字段参与持久化 =====
+            Test("ToolProject RemoteName 持久化往返", () =>
+            {
+                var tmp = Path.Combine(Path.GetTempPath(), "zlinks-remotename-" + Guid.NewGuid().ToString("N"));
+                Directory.CreateDirectory(tmp);
+                try
+                {
+                    var persist = new ToolPersistenceService(tmp);
+                    var input = new List<ToolProject>
+                    {
+                        new()
+                        {
+                            Id = 1, Name = "r1", GitUrl = "https://x/y.git", CloneDirectory = @"D:\tools",
+                            RemoteName = "upstream"
+                        },
+                        new()
+                        {
+                            Id = 2, Name = "r2", GitUrl = "", CloneDirectory = "",
+                            RemoteName = "origin"
+                        }
+                    };
+                    persist.SaveAsync(input).GetAwaiter().GetResult();
+                    var loaded = persist.LoadAsync().GetAwaiter().GetResult();
+                    AssertEq("count", 2, loaded.Count);
+                    AssertEq("r1.RemoteName", "upstream", loaded[0].RemoteName);
+                    AssertEq("r2.RemoteName 默认 origin", "origin", loaded[1].RemoteName);
+
+                    var raw = File.ReadAllText(Path.Combine(tmp, "tools.json"));
+                    Assert("JSON 含 RemoteName", raw.Contains("\"RemoteName\""));
+                }
+                finally
+                {
+                    try { Directory.Delete(tmp, recursive: true); } catch { }
+                }
+            });
+
+            // ===== 28. OpenAddDialog 默认 EditRemoteName="origin" + LocalGitHint 清空 =====
+            Test("OpenAddDialog 默认 RemoteName=origin + 清空 LocalGitHint", () =>
+            {
+                var openAdd = typeof(ToolLibraryViewModel).GetMethod(
+                    "OpenAddDialog",
+                    BindingFlags.Instance | BindingFlags.NonPublic);
+                openAdd!.Invoke(vm, null);
+                AssertEq("默认 EditRemoteName=origin", "origin", vm.EditRemoteName);
+                Assert("默认 LocalGitHint 为空", string.IsNullOrEmpty(vm.LocalGitHint));
+            });
+
             Console.WriteLine();
             Console.WriteLine($"=== 结果：通过 {_passed}，失败 {_failed} ===");
             Environment.Exit(_failed == 0 ? 0 : 1);
@@ -659,6 +1097,8 @@ namespace ZlinksPackageSystem.SmokeTest
         class StubDialogService : IDialogService
         {
             public Task ShowMessageAsync(string title, string message) => Task.CompletedTask;
+            public Task<bool> ShowConfirmAsync(string title, string message, string okText = "确定", string cancelText = "取消")
+                => Task.FromResult(true);
             public Task<bool> ShowNotificationDetailAsync(NotificationItem item) => Task.FromResult(true);
             public Task<Dictionary<string, string>?> PromptArgumentsAsync(IEnumerable<ToolArgument> arguments) => Task.FromResult<Dictionary<string, string>?>(null);
             public Task ShowOutputAsync(string toolName, ProcessRunResult result) => Task.CompletedTask;
@@ -666,6 +1106,8 @@ namespace ZlinksPackageSystem.SmokeTest
             public Task<RunConfirmation?> ShowRunConfirmationAsync(ToolProject project, string initialCommandLine, IEnumerable<EditableArgument> arguments) => Task.FromResult<RunConfirmation?>(null);
             public Task<string?> PickScriptFileInDirectoryAsync(string directory) => Task.FromResult<string?>(null);
             public Task ShowCloneLogAsync(string title, string message, IReadOnlyList<string> logs, bool success) => Task.CompletedTask;
+            public Task<VenvResult> ShowVenvProgressAsync(string title, Func<IProgress<string>, CancellationToken, Task<VenvResult>> workAsync, CancellationTokenSource cts)
+                => workAsync(new Progress<string>(_ => { }), CancellationToken.None);
         }
 
         class StubServiceProvider : IServiceProvider
@@ -685,6 +1127,115 @@ namespace ZlinksPackageSystem.SmokeTest
             public Task<T?> PostAsync<T>(string endpoint, object? data = null) where T : class => Task.FromResult<T?>(null);
             public Task<T?> PutAsync<T>(string endpoint, object? data = null) where T : class => Task.FromResult<T?>(null);
             public Task<bool> DeleteAsync(string endpoint) => Task.FromResult(false);
+        }
+
+        // ===== 用于「重启恢复」测试的离线 API =====
+        class OfflineStubApiService : IApiService
+        {
+            public string BaseUrl => "http://offline";
+            public void SetAuthToken(string token) { }
+            public Task<T?> GetAsync<T>(string endpoint) where T : class => Task.FromResult<T?>(null);
+            public Task<T?> PostAsync<T>(string endpoint, object? data = null) where T : class => Task.FromResult<T?>(null);
+            public Task<T?> PutAsync<T>(string endpoint, object? data = null) where T : class => Task.FromResult<T?>(null);
+            public Task<bool> DeleteAsync(string endpoint) => Task.FromResult(false);
+        }
+
+        class RecordingDialogService : IDialogService
+        {
+            public List<string> Messages { get; } = new();
+            public Task ShowMessageAsync(string title, string message)
+            {
+                Messages.Add($"{title}|{message}");
+                return Task.CompletedTask;
+            }
+            public Task<bool> ShowConfirmAsync(string title, string message, string okText = "确定", string cancelText = "取消")
+            {
+                Messages.Add($"CONFIRM|{title}|{message}");
+                return Task.FromResult(true);
+            }
+            public Task<bool> ShowNotificationDetailAsync(NotificationItem item) => Task.FromResult(true);
+            public Task<Dictionary<string, string>?> PromptArgumentsAsync(IEnumerable<ToolArgument> arguments)
+                => Task.FromResult<Dictionary<string, string>?>(null);
+            public Task ShowOutputAsync(string toolName, ProcessRunResult result) => Task.CompletedTask;
+            public Task ShowEnvironmentResultAsync(string title, string message, bool success) => Task.CompletedTask;
+            public Task<RunConfirmation?> ShowRunConfirmationAsync(ToolProject project, string initialCommandLine, IEnumerable<EditableArgument> arguments)
+                => Task.FromResult<RunConfirmation?>(null);
+            public Task<string?> PickScriptFileInDirectoryAsync(string directory) => Task.FromResult<string?>(null);
+            public Task ShowCloneLogAsync(string title, string message, IReadOnlyList<string> logs, bool success) => Task.CompletedTask;
+            public Task<VenvResult> ShowVenvProgressAsync(string title, Func<IProgress<string>, CancellationToken, Task<VenvResult>> workAsync, CancellationTokenSource cts)
+                => workAsync(new Progress<string>(_ => { }), CancellationToken.None);
+        }
+
+        class StubRuntimeEnvService : IRuntimeEnvironmentService
+        {
+            public Task<List<RuntimeEnvironment>> DetectAllAsync() => Task.FromResult(new List<RuntimeEnvironment>());
+            public Task<RuntimeEnvironment> DetectAsync(string language)
+            {
+                var env = new RuntimeEnvironment { Language = language, DisplayName = language, IsAvailable = true };
+                return Task.FromResult(env);
+            }
+            public Task<RuntimeEnvironment> ReDetectAsync(string language) => DetectAsync(language);
+        }
+
+        class StubFilePickerService : IFilePickerService
+        {
+            public Task<string?> PickImageFileAsync() => Task.FromResult<string?>(null);
+            public Task<string?> PickFontFileAsync() => Task.FromResult<string?>(null);
+            public Task<string?> PickScriptFileAsync() => Task.FromResult<string?>(null);
+            public Task<string?> PickDirectoryAsync() => Task.FromResult<string?>(null);
+            public Task<string?> PickFileAsync(string title, string pattern) => Task.FromResult<string?>(null);
+        }
+
+        class StubGitService : IGitService
+        {
+            public Task<GitEnvironmentInfo> DetectAsync(CancellationToken ct = default)
+                => Task.FromResult(new GitEnvironmentInfo { IsInstalled = false, Version = "stub", ExecutablePath = "git" });
+            public Task<CloneResult> CloneAsync(string url, string targetParentDir, IProgress<string>? progress = null, CancellationToken ct = default)
+                => Task.FromResult(new CloneResult { Success = false, ErrorMessage = "stub" });
+            public Task<CloneResult> PullAsync(string repoRoot, IProgress<string>? progress = null, CancellationToken ct = default,
+                string? initUrl = null, string initRemoteName = "origin")
+                => Task.FromResult(new CloneResult { Success = false, ErrorMessage = "stub" });
+            public Task<(string RemoteName, string? Url, List<string> Logs)> DetectRemoteAsync(
+                string dir, string remoteName = "origin", CancellationToken ct = default)
+                => Task.FromResult((remoteName, (string?)null, new List<string> { "stub" }));
+            public Task<CloneResult> EnsureRemoteAsync(
+                string dir, string? url, string remoteName = "origin",
+                bool initIfMissing = true, IProgress<string>? progress = null, CancellationToken ct = default)
+                => Task.FromResult(new CloneResult { Success = false, ErrorMessage = "stub" });
+        }
+
+        /// <summary>
+        /// 通过反射构造 ToolLibraryViewModel 并等待构造函数触发的 LoadProjectsAsync 完成。
+        /// </summary>
+        static ToolLibraryViewModel BuildVm(
+            IApiService api,
+            IDialogService dlg,
+            IToolPersistenceService persistence,
+            IProcessManagerService pm)
+        {
+            var rt = new StubRuntimeEnvService();
+            var fp = new StubFilePickerService();
+            var git = new StubGitService();
+            var nfs = new StubNotificationService();
+            var venv = new VenvService();
+            var vm = (ToolLibraryViewModel)Activator.CreateInstance(
+                typeof(ToolLibraryViewModel),
+                BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                binder: null,
+                args: new object?[] { api, dlg, rt, fp, pm, git, persistence, nfs, venv },
+                culture: null)!;
+
+            // 等待构造函数触发的 LoadProjectsAsync 协程(它读缓存 + 调后端,后端是 null 路径)
+            // ApiService.GetAsync 立即返回 → 但 ObservableCollection 写入也在异步路径上
+            // 简单用 SpinWait 100ms 足矣（测试环境，~50ms 已能完成）
+            var sw = Stopwatch.StartNew();
+            while (sw.ElapsedMilliseconds < 500)
+            {
+                if (vm.Projects != null) break;
+                Thread.Sleep(10);
+            }
+            Thread.Sleep(50);
+            return vm;
         }
     }
 }

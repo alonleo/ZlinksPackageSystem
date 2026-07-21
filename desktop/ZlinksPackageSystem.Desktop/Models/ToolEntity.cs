@@ -24,6 +24,7 @@ namespace ZlinksPackageSystem.Desktop.Models
 
         public string GitUrl { get; set; } = string.Empty;
         public string CloneDirectory { get; set; } = string.Empty;
+        public string RemoteName { get; set; } = "origin";
 
         public string ArgumentsJson { get; set; } = string.Empty;
         public string NotificationJson { get; set; } = string.Empty;

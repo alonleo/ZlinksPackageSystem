@@ -175,6 +175,11 @@
                                                         IsVisible="{Binding IsSystemBuiltin}">
                                                     <TextBlock Text="⚙ 系统内置" FontSize="9" Foreground="{DynamicResource ForegroundPrimary}" />
                                                 </Border>
+                                                <Border Padding="4,1" CornerRadius="3"
+                                                        Background="#FFFFA940"
+                                                        IsVisible="{Binding IsPendingSync}">
+                                                    <TextBlock Text="{Binding SyncBadgeText}" FontSize="9" Foreground="White" />
+                                                </Border>
                                             </StackPanel>
                                         </StackPanel>
                                         <Border Grid.Column="1" Padding="6,3" CornerRadius="4"
@@ -249,11 +254,15 @@
                         Width="720" MaxHeight="900" Padding="22" CornerRadius="12"
                         Background="{DynamicResource WindowBackground}"
                         BorderBrush="{DynamicResource CardBorder}" BorderThickness="1">
-            <ScrollViewer VerticalScrollBarVisibility="Disabled"
+            <ScrollViewer VerticalScrollBarVisibility="Auto"
                           HorizontalScrollBarVisibility="Disabled">
+                    <StackPanel Spacing="0">
                     <TabControl SelectedIndex="{Binding SelectedTabIndex}">
                         <!-- ===== Tab 1: 工具信息 ===== -->
                         <TabItem Header="📋 工具信息">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                          HorizontalScrollBarVisibility="Disabled"
+                                          Padding="0,0,0,8">
                             <StackPanel Spacing="10">
 
                                 <!-- 弹窗标题 -->
@@ -294,15 +303,37 @@
                                     <StackPanel Spacing="6" IsVisible="{Binding IsGitPanelExpanded}">
                                         <!-- Git URL + 克隆目标（仅新建） -->
                                         <TextBox Text="{Binding EditGitUrl}"
-                                                 Watermark="Git URL（HTTPS 或 SSH，留空跳过克隆）"
-                                                 IsVisible="{Binding IsNewProject}" />
-                                        <Grid ColumnDefinitions="*,Auto"
-                                              IsVisible="{Binding IsNewProject}">
+                                                 Watermark="Git URL（HTTPS 或 SSH;本地已有仓库可留空,在拉取前再设置）" />
+                                        <Grid ColumnDefinitions="*,Auto,Auto">
                                             <TextBox Grid.Column="0" Text="{Binding EditCloneDirectory}"
-                                                     Watermark="克隆目标父目录（如 D:\tools 或 /home/user/tools）"
+                                                     Watermark="克隆目标父目录（如 D:\tools 或 /home/user/tools,若已含 .git 会被自动识别）"
                                                      Margin="0,0,6,0" />
                                             <Button Grid.Column="1" Content="📁 浏览" Width="80"
                                                     Command="{Binding BrowseCloneDirectoryCommand}" />
+                                            <Button Grid.Column="2" Content="🔍 检测" Width="80" Margin="0,0,0,0"
+                                                    IsEnabled="{Binding IsDetectingLocalGit, Converter={StaticResource BooleanInverseConverter}}"
+                                                    Command="{Binding DetectLocalGitNowCommand}" />
+                                        </Grid>
+
+                                        <!-- 本地 .git 自动检测结果提示(共享) -->
+                                        <Border Padding="8,6" CornerRadius="4"
+                                                Background="#0DFFFFFF"
+                                                BorderBrush="{DynamicResource CardBorder}"
+                                                BorderThickness="1"
+                                                IsVisible="{Binding LocalGitHint, Converter={StaticResource StringNotEmptyConverter}}">
+                                            <TextBlock Text="{Binding LocalGitHint}"
+                                                       FontSize="11"
+                                                       TextWrapping="Wrap"
+                                                       Foreground="{DynamicResource ForegroundSecondary}" />
+                                        </Border>
+
+                                        <!-- 远端名(新建/编辑共享)— 默认 origin,可改 -->
+                                        <Grid ColumnDefinitions="Auto,*" Margin="0,4,0,0">
+                                            <TextBlock Grid.Column="0" Text="远端名:" VerticalAlignment="Center"
+                                                       Margin="0,0,8,0"
+                                                       FontSize="11" Foreground="{DynamicResource ForegroundSecondary}" />
+                                            <TextBox Grid.Column="1" Text="{Binding EditRemoteName, Mode=TwoWay}"
+                                                     Watermark="origin" />
                                         </Grid>
 
                                         <!-- 本机 Git 检测（共享） -->
@@ -354,20 +385,16 @@
 
                                 <Separator />
 
-                                <!-- 操作按钮 -->
-                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,6,0,0" Spacing="10">
-                                    <Button Content="取消" Width="80"
-                                            Command="{Binding CancelEditCommand}" />
-                                    <Button Content="💾 保存" Width="100"
-                                            Background="#FF1976D2" BorderBrush="#FF1976D2"
-                                            Foreground="{DynamicResource ForegroundPrimary}"
-                                            Command="{Binding SaveProjectCommand}" />
-                                </StackPanel>
+                                <!-- 操作按钮已移至 TabControl 外层底栏(跨两个 Tab 共享) -->
                             </StackPanel>
+                            </ScrollViewer>
                         </TabItem>
 
                         <!-- ===== Tab 2: 启动方式 ===== -->
                         <TabItem Header="🚀 启动方式">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                          HorizontalScrollBarVisibility="Disabled"
+                                          Padding="0,0,0,8">
                             <StackPanel Spacing="10">
 
                                 <!-- ============ 运行模式选择 ============ -->
@@ -414,6 +441,75 @@
                                         <Button Grid.Column="1" Content="📁 浏览" Width="80"
                                                 Command="{Binding BrowseScriptCommand}" />
                                     </Grid>
+
+                                    <!-- ===== Python 虚拟环境(仅 Python 工具显示)===== -->
+                                    <Border Padding="10,8"
+                                            CornerRadius="6"
+                                            Background="#0DFFFFFF"
+                                            BorderBrush="{DynamicResource CardBorder}"
+                                            BorderThickness="1"
+                                            IsVisible="{Binding EditLanguage, Converter={StaticResource EnumEqualsConverter}, ConverterParameter=python}">
+                                        <StackPanel Spacing="6">
+                                            <TextBlock Text="🐍 Python 虚拟环境（可选 · 自动创建并安装依赖）"
+                                                       FontSize="12" FontWeight="SemiBold"
+                                                       Foreground="{DynamicResource ForegroundPrimary}" />
+
+                                            <CheckBox Content="启动前自动创建虚拟环境并安装依赖"
+                                                      IsChecked="{Binding EditCreateVenv, Mode=TwoWay}" />
+
+                                            <Grid ColumnDefinitions="*,Auto">
+                                                <TextBox Grid.Column="0"
+                                                         Text="{Binding EditVenvDirectory, Mode=TwoWay}"
+                                                         Watermark="venv 目录（留空 = {工作目录}/.venv）"
+                                                         Margin="0,0,6,0"
+                                                         IsEnabled="{Binding EditCreateVenv}" />
+                                            </Grid>
+
+                                            <CheckBox Content="自动 pip install -r requirements.txt"
+                                                      IsChecked="{Binding EditAutoInstallRequirements, Mode=TwoWay}"
+                                                      IsEnabled="{Binding EditCreateVenv}" />
+
+                                            <Grid ColumnDefinitions="*,Auto">
+                                                <TextBox Grid.Column="0"
+                                                         Text="{Binding EditRequirementsPath, Mode=TwoWay}"
+                                                         Watermark="requirements.txt 路径（绝对路径或相对工作目录）"
+                                                         Margin="0,0,6,0"
+                                                         IsEnabled="{Binding EditCreateVenv}" />
+                                                <Button Grid.Column="1" Content="📁 浏览" Width="80"
+                                                        Command="{Binding BrowseRequirementsCommand}"
+                                                        IsEnabled="{Binding EditCreateVenv}" />
+                                            </Grid>
+
+                                            <Grid ColumnDefinitions="*,Auto">
+                                                <TextBox Grid.Column="0"
+                                                         Text="{Binding EditPipMirrorUrl, Mode=TwoWay}"
+                                                         Watermark="pip 镜像源 URL（可选，如 https://pypi.tuna.tsinghua.edu.cn/simple）"
+                                                         Margin="0,0,6,0"
+                                                         IsEnabled="{Binding EditCreateVenv}" />
+                                            </Grid>
+
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <Button Content="📦 立即创建并安装依赖" Width="200"
+                                                        HorizontalContentAlignment="Center"
+                                                        Command="{Binding CreateVenvNowCommand}"
+                                                        IsEnabled="{Binding EditCreateVenv}" />
+                                                <Button Content="取消" Width="80"
+                                                        Command="{Binding CancelCreateVenvCommand}"
+                                                        IsVisible="{Binding IsCreatingVenv}" />
+                                            </StackPanel>
+
+                                            <TextBlock Text="{Binding VenvProgressText}"
+                                                       FontSize="11"
+                                                       Foreground="{DynamicResource ForegroundSecondary}"
+                                                       TextWrapping="Wrap"
+                                                       IsVisible="{Binding IsCreatingVenv}" />
+
+                                            <TextBlock Text="提示:勾选「自动 pip install」时,首次启动会先创建 venv 再安装依赖,后续启动会复用已存在的 venv(仅在 requirements.txt 修改时间晚于 venv 时才会重装)。"
+                                                       FontSize="10"
+                                                       Foreground="#66FFFFFF"
+                                                       TextWrapping="Wrap" />
+                                        </StackPanel>
+                                    </Border>
                                 </StackPanel>
 
                                 <!-- 本地可执行程序模式：单可执行文件路径 -->
@@ -451,11 +547,11 @@
 
                                     <Border Background="{DynamicResource SubItemBackground}" CornerRadius="6" Padding="0"
                                             BorderBrush="{DynamicResource CardBorder}" BorderThickness="1"
-                                            Height="142">
+                                            Height="144">
                                         <Grid RowDefinitions="Auto,*">
                                             <!-- 表头（始终可见） -->
                                             <Border Grid.Row="0" Background="#1AFFFFFF" Padding="8,6">
-                                                <Grid ColumnDefinitions="100,*,*,50">
+                                                <Grid ColumnDefinitions="100,*,*,Auto,50">
                                                     <TextBlock Grid.Column="0" Text="前缀" FontSize="11"
                                                                Foreground="{DynamicResource ForegroundSecondary}" VerticalAlignment="Center" />
                                                     <TextBlock Grid.Column="1" Text="参数名" FontSize="11"
@@ -464,7 +560,11 @@
                                                     <TextBlock Grid.Column="2" Text="参数值" FontSize="11"
                                                                Foreground="{DynamicResource ForegroundSecondary}" VerticalAlignment="Center"
                                                                Margin="4,0,0,0" />
-                                                    <TextBlock Grid.Column="3" Text="操作" FontSize="11"
+                                                    <TextBlock Grid.Column="3" Text="必填" FontSize="11"
+                                                               Foreground="{DynamicResource ForegroundSecondary}" VerticalAlignment="Center"
+                                                               HorizontalAlignment="Center" Margin="8,0,8,0"
+                                                               ToolTip.Tip="勾选后,运行工具前会要求用户输入该参数值" />
+                                                    <TextBlock Grid.Column="4" Text="操作" FontSize="11"
                                                                Foreground="{DynamicResource ForegroundSecondary}" VerticalAlignment="Center"
                                                                HorizontalAlignment="Center" />
                                                 </Grid>
@@ -483,7 +583,7 @@
                                                     </ItemsControl.ItemsPanel>
                                                     <ItemsControl.ItemTemplate>
                                                         <DataTemplate>
-                                                            <Grid ColumnDefinitions="100,*,*,50">
+                                                            <Grid ColumnDefinitions="100,*,*,Auto,50">
                                                                 <TextBox Grid.Column="0" Text="{Binding Prefix, Mode=TwoWay}"
                                                                          Watermark="--"
                                                                          FontFamily="Consolas, Courier New, monospace" />
@@ -493,7 +593,13 @@
                                                                 <TextBox Grid.Column="2" Text="{Binding Value, Mode=TwoWay}"
                                                                          Watermark="参数值"
                                                                          Margin="4,0,0,0" />
-                                                                <Button Grid.Column="3" Content="🗑"
+                                                                <CheckBox Grid.Column="3"
+                                                                          IsChecked="{Binding RequireInput, Mode=TwoWay}"
+                                                                          HorizontalAlignment="Center"
+                                                                          VerticalAlignment="Center"
+                                                                          Margin="8,0,8,0"
+                                                                          ToolTip.Tip="勾选后,运行工具前会要求用户输入该参数值" />
+                                                                <Button Grid.Column="4" Content="🗑"
                                                                         Padding="6,2" FontSize="11"
                                                                         BorderBrush="#FFF56C6C"
                                                                         Foreground="#FFF56C6C"
@@ -511,20 +617,16 @@
 
                                 <Separator />
 
-                                <!-- 操作按钮 -->
-                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,6,0,0" Spacing="10">
-                                    <Button Content="取消" Width="80"
-                                            Command="{Binding CancelEditCommand}" />
-                                    <Button Content="💾 保存" Width="100"
-                                            Background="#FF1976D2" BorderBrush="#FF1976D2"
-                                            Foreground="{DynamicResource ForegroundPrimary}"
-                                            Command="{Binding SaveProjectCommand}" />
-                                </StackPanel>
+                                <!-- 操作按钮已移至 TabControl 外层底栏(跨所有 Tab 共享) -->
                             </StackPanel>
+                            </ScrollViewer>
                         </TabItem>
 
                         <!-- ===== Tab 2: 通知 ===== -->
                         <TabItem Header="📢 通知">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                          HorizontalScrollBarVisibility="Disabled"
+                                          Padding="0,0,0,8">
                             <StackPanel Spacing="10">
                                 <TextBlock Text="📢 通知配置（Q3-C：默认继承全局设置）"
                                            FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource ForegroundPrimary}" />
@@ -580,17 +682,25 @@
 
                                 <Separator />
 
-                                <!-- 底部按钮 -->
-                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
-                                    <Button Content="取消" Width="80" Command="{Binding CancelEditCommand}" />
-                                    <Button Content="💾 保存" Width="100"
-                                            Background="#FF1976D2" BorderBrush="#FF1976D2"
-                                            Foreground="{DynamicResource ForegroundPrimary}"
-                                            Command="{Binding SaveProjectCommand}" />
-                                </StackPanel>
+                                <!-- 操作按钮已移至 TabControl 外层底栏(跨所有 Tab 共享) -->
                             </StackPanel>
+                            </ScrollViewer>
                         </TabItem>
                     </TabControl>
+
+                    <!-- ===== 弹窗固定底栏:取消/保存(跨所有 Tab 共享)===== -->
+                    <Border Padding="14,10,14,2" BorderThickness="0,1,0,0"
+                            BorderBrush="{DynamicResource CardBorder}">
+                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Spacing="10">
+                            <Button Content="取消" Width="80"
+                                    Command="{Binding CancelEditCommand}" />
+                            <Button Content="💾 保存" Width="100"
+                                    Background="#FF1976D2" BorderBrush="#FF1976D2"
+                                    Foreground="{DynamicResource ForegroundPrimary}"
+                                    Command="{Binding SaveProjectCommand}" />
+                        </StackPanel>
+                    </Border>
+                    </StackPanel>
             </ScrollViewer>
                                 </Border>
                             </Border>

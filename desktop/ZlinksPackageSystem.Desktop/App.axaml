@@ -117,6 +117,7 @@
             <converters:EnumEqualsConverter x:Key="EnumEqualsConverter" />
             <converters:BoolToExpandGlyphConverter x:Key="BoolToExpandGlyphConverter" />
             <converters:BoolToPasswordCharConverter x:Key="BoolToPasswordCharConverter" />
+            <converters:StringNotEmptyConverter x:Key="StringNotEmptyConverter" />
         </ResourceDictionary>
     </Application.Resources>
 </Application>

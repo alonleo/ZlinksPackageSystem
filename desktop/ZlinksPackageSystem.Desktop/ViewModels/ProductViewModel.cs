@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using ZlinksPackageSystem.Desktop.Constants;
 using ZlinksPackageSystem.Desktop.Models;
 using ZlinksPackageSystem.Desktop.Services;
 
@@ -14,6 +15,8 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
     {
         private readonly IApiService _apiService;
         private readonly IDialogService _dialogService;
+        private readonly INetworkStatusService _networkService;
+        private readonly ILocalCacheService _cacheService;
 
         [ObservableProperty]
         private ObservableCollection<Platform> _platforms = new();
@@ -75,11 +78,17 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
         public bool HasPlatforms => !IsLoadingPlatforms && Platforms.Count > 0;
         public bool IsPlatformsEmpty => !IsLoadingPlatforms && Platforms.Count == 0;
 
-        public ProductViewModel(IApiService apiService, IDialogService dialogService)
+        public ProductViewModel(
+            IApiService apiService,
+            IDialogService dialogService,
+            INetworkStatusService networkService,
+            ILocalCacheService cacheService)
         {
             Title = "产品管理";
             _apiService = apiService;
             _dialogService = dialogService;
+            _networkService = networkService;
+            _cacheService = cacheService;
             LoadPlatformsCommand.ExecuteAsync(null);
         }
 
@@ -101,39 +110,69 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
             IsLoadingPlatforms = true;
             EmptyStateMessage = string.Empty;
 
-            try
+            if (_networkService.IsOnline)
             {
-                var list = await _apiService.GetAsync<List<Platform>>("/platforms/all");
-                Platforms.Clear();
-
-                if (list == null)
+                try
                 {
-                    EmptyStateMessage = "加载平台失败，请检查后端服务";
-                    return;
-                }
+                    var list = await _apiService.GetAsync<List<Platform>>("/platforms/all");
+                    if (list == null)
+                    {
+                        await LoadPlatformsFromCacheAsync();
+                        return;
+                    }
 
-                if (list.Count == 0)
+                    Platforms.Clear();
+                    if (list.Count == 0)
+                    {
+                        EmptyStateMessage = "暂无平台数据，请前往后台「平台管理」添加";
+                        return;
+                    }
+
+                    foreach (var p in list.OrderBy(x => x.SortOrder).ThenByDescending(x => x.CreateTime))
+                    {
+                        Platforms.Add(p);
+                    }
+
+                    await _cacheService.SaveAsync(CacheKeys.Platforms, Platforms.ToList());
+                    SelectedPlatform = Platforms[0];
+                }
+                catch (Exception ex)
                 {
-                    EmptyStateMessage = "暂无平台数据，请前往后台「平台管理」添加";
-                    return;
+                    Console.WriteLine($"LoadPlatforms failed: {ex.Message}");
+                    await LoadPlatformsFromCacheAsync();
                 }
-
-                foreach (var p in list.OrderBy(x => x.SortOrder).ThenByDescending(x => x.CreateTime))
-                {
-                    Platforms.Add(p);
-                }
-
-                SelectedPlatform = Platforms[0];
             }
-            catch (Exception ex)
+            else
             {
-                EmptyStateMessage = $"加载平台异常: {ex.Message}";
-                Console.WriteLine($"LoadPlatforms failed: {ex.Message}");
+                await LoadPlatformsFromCacheAsync();
             }
-            finally
+
+            IsLoadingPlatforms = false;
+        }
+
+        private async Task LoadPlatformsFromCacheAsync()
+        {
+            var lastUpdated = await _cacheService.GetLastUpdatedAsync(CacheKeys.Platforms);
+            var cached = await _cacheService.LoadAsync<List<Platform>>(CacheKeys.Platforms);
+            Platforms.Clear();
+
+            if (cached == null || cached.Count == 0)
             {
-                IsLoadingPlatforms = false;
+                EmptyStateMessage = _networkService.IsOnline
+                    ? "加载平台失败,请检查后端服务"
+                    : "离线模式 · 暂无平台数据,请联网后刷新";
+                return;
             }
+
+            foreach (var p in cached.OrderBy(x => x.SortOrder).ThenByDescending(x => x.CreateTime))
+            {
+                Platforms.Add(p);
+            }
+
+            SelectedPlatform = Platforms[0];
+            EmptyStateMessage = lastUpdated.HasValue
+                ? $"离线模式 · 平台数据更新于 {lastUpdated:yyyy-MM-dd HH:mm}"
+                : "离线模式 · 加载本地缓存";
         }
 
         [RelayCommand]
@@ -147,22 +186,52 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
             }
 
             IsBusy = true;
-            try
+            var cacheKey = GetProductsCacheKey(SelectedPlatform.Id);
+
+            if (_networkService.IsOnline)
             {
-                var endpoint = $"/products?current={CurrentPage}&size={PageSize}&platformId={SelectedPlatform.Id}";
-                var page = await _apiService.GetAsync<PageResponse<Product>>(endpoint);
-                Products = new ObservableCollection<Product>(page?.Records ?? new List<Product>());
-                TotalCount = page?.Total ?? 0;
+                try
+                {
+                    var endpoint = $"/products?current={CurrentPage}&size={PageSize}&platformId={SelectedPlatform.Id}";
+                    var page = await _apiService.GetAsync<PageResponse<Product>>(endpoint);
+                    if (page == null)
+                    {
+                        await LoadProductsFromCacheAsync(cacheKey);
+                        return;
+                    }
+
+                    Products = new ObservableCollection<Product>(page.Records ?? new List<Product>());
+                    TotalCount = page.Total;
+                    await _cacheService.SaveAsync(cacheKey, page);
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"LoadProducts failed: {ex.Message}");
+                    await LoadProductsFromCacheAsync(cacheKey);
+                }
             }
-            catch (Exception ex)
+            else
             {
-                Console.WriteLine($"LoadProducts failed: {ex.Message}");
+                await LoadProductsFromCacheAsync(cacheKey);
             }
-            finally
-            {
-                IsBusy = false;
-            }
+
+            IsBusy = false;
         }
+
+        private async Task LoadProductsFromCacheAsync(string cacheKey)
+        {
+            var cached = await _cacheService.LoadAsync<PageResponse<Product>>(cacheKey);
+            if (cached == null)
+            {
+                Products = new ObservableCollection<Product>();
+                TotalCount = 0;
+                return;
+            }
+            Products = new ObservableCollection<Product>(cached.Records ?? new List<Product>());
+            TotalCount = cached.Total;
+        }
+
+        private static string GetProductsCacheKey(long platformId) => $"products-{platformId}";
 
         [RelayCommand]
         private async Task SearchAsync()

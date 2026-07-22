@@ -27,6 +27,7 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
         Background,
         Updates,
         Notification,
+        Cache,
         About
     }
 
@@ -60,6 +61,15 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
         public string CollectionKey { get; set; } = string.Empty;
     }
 
+    public class CacheEntryDisplay
+    {
+        public string Key { get; set; } = string.Empty;
+        public string DisplayName { get; set; } = string.Empty;
+        public string LastUpdatedText { get; set; } = string.Empty;
+        public long SizeBytes { get; set; }
+        public string SizeText { get; set; } = string.Empty;
+    }
+
     public partial class SettingsViewModel : ViewModelBase
     {
         public const string DefaultFontFamilyMarker = "默认(系统)";
@@ -83,6 +93,7 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
         private readonly IGlobalNotificationService _globalNotificationService;
         private readonly INotificationService _notificationService;
         private readonly IDialogService _dialogService;
+        private readonly ILocalCacheService _cacheService;
         private bool _isLoading;
 
         [ObservableProperty]
@@ -122,6 +133,7 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
         [NotifyPropertyChangedFor(nameof(IsBackgroundVisible))]
         [NotifyPropertyChangedFor(nameof(IsUpdatesVisible))]
         [NotifyPropertyChangedFor(nameof(IsNotificationVisible))]
+        [NotifyPropertyChangedFor(nameof(IsCacheVisible))]
         [NotifyPropertyChangedFor(nameof(IsAboutVisible))]
         private SettingsCategoryItem? _selectedCategory;
 
@@ -135,6 +147,18 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
         public ObservableCollection<string> InstalledFonts { get; } = new();
         public ObservableCollection<CustomFontInfo> CustomFonts { get; } = new();
 
+        // ===== 本地缓存管理 =====
+        public ObservableCollection<CacheEntryDisplay> CacheEntries { get; } = new();
+
+        [ObservableProperty]
+        private long _totalCacheSizeBytes;
+
+        [ObservableProperty]
+        private string _totalCacheSizeText = string.Empty;
+
+        [ObservableProperty]
+        private string _cacheHint = string.Empty;
+
         public ObservableCollection<SettingsCategoryItem> Categories { get; } = new()
         {
             new() { Key = SettingsCategory.Appearance, Icon = "🎨", Title = "外观主题", Description = "明暗模式", AccentColor = "#FF1976D2" },
@@ -142,6 +166,7 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
             new() { Key = SettingsCategory.Background, Icon = "🖼️", Title = "背景",       Description = "背景图片与透明度", AccentColor = "#FFFF4081" },
             new() { Key = SettingsCategory.Updates,    Icon = "🔄", Title = "更新",       Description = "版本检测", AccentColor = "#FFE6A23C" },
             new() { Key = SettingsCategory.Notification, Icon = "📢", Title = "通知",   Description = "飞书机器人全局默认", AccentColor = "#FF1890FF" },
+            new() { Key = SettingsCategory.Cache,      Icon = "💾", Title = "本地缓存",   Description = "离线数据缓存管理", AccentColor = "#FF607D8B" },
             new() { Key = SettingsCategory.About,      Icon = "ℹ️", Title = "关于",       Description = "应用信息", AccentColor = "#FF52C41A" },
         };
 
@@ -151,6 +176,7 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
         public bool IsBackgroundVisible => SelectedCategory?.Key == SettingsCategory.Background;
         public bool IsUpdatesVisible => SelectedCategory?.Key == SettingsCategory.Updates;
         public bool IsNotificationVisible => SelectedCategory?.Key == SettingsCategory.Notification;
+        public bool IsCacheVisible => SelectedCategory?.Key == SettingsCategory.Cache;
         public bool IsAboutVisible => SelectedCategory?.Key == SettingsCategory.About;
 
         // 预览文本用
@@ -158,13 +184,14 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
         public FontStyle PreviewFontStyle => FontIsItalic ? FontStyle.Italic : FontStyle.Normal;
         public Avalonia.Media.FontFamily PreviewFontFamily => BuildFontFamily(FontFamily);
 
-        public SettingsViewModel(MainViewModel mainViewModel, IFilePickerService filePickerService, IGlobalNotificationService globalNotificationService, INotificationService notificationService, IDialogService dialogService)
+        public SettingsViewModel(MainViewModel mainViewModel, IFilePickerService filePickerService, IGlobalNotificationService globalNotificationService, INotificationService notificationService, IDialogService dialogService, ILocalCacheService cacheService)
         {
             _mainViewModel = mainViewModel;
             _filePickerService = filePickerService;
             _globalNotificationService = globalNotificationService;
             _notificationService = notificationService;
             _dialogService = dialogService;
+            _cacheService = cacheService;
             Title = "设置";
 
             LoadInstalledFonts();
@@ -172,6 +199,7 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
             LoadSettings();
             ApplyFont(FontFamily, FontSize, FontIsBold, FontIsItalic);
             _ = LoadGlobalNotificationAsync();
+            _ = RefreshCacheInfoAsync();
         }
 
         // ===== 通知配置命令 =====
@@ -180,6 +208,122 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
         {
             var cfg = await _globalNotificationService.LoadAsync();
             GlobalNotification = cfg;
+        }
+
+        // ===== 本地缓存管理命令 =====
+        private static readonly Dictionary<string, string> CacheDisplayNames = new(StringComparer.OrdinalIgnoreCase)
+        {
+            [Constants.CacheKeys.Home] = "首页数据",
+            [Constants.CacheKeys.Games] = "游戏列表",
+            [Constants.CacheKeys.Platforms] = "平台列表",
+            [Constants.CacheKeys.Notifications] = "通知列表",
+            [Constants.CacheKeys.Tools] = "工具库(只读快照)",
+        };
+
+        [RelayCommand]
+        private async Task RefreshCacheInfoAsync()
+        {
+            try
+            {
+                CacheEntries.Clear();
+                TotalCacheSizeBytes = 0;
+
+                var directory = _cacheService.CacheDirectory;
+                if (!Directory.Exists(directory))
+                {
+                    CacheHint = "暂无本地缓存数据";
+                    TotalCacheSizeText = "0 B";
+                    return;
+                }
+
+                var knownKeys = CacheDisplayNames.Keys.ToList();
+                foreach (var key in knownKeys)
+                {
+                    var safe = string.Concat(key.Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '_' : c));
+                    var path = Path.Combine(directory, safe + ".json");
+                    if (!File.Exists(path)) continue;
+
+                    var info = new FileInfo(path);
+                    var lastUpdated = await _cacheService.GetLastUpdatedAsync(key);
+                    CacheEntries.Add(new CacheEntryDisplay
+                    {
+                        Key = key,
+                        DisplayName = CacheDisplayNames[key],
+                        SizeBytes = info.Length,
+                        SizeText = FormatSize(info.Length),
+                        LastUpdatedText = lastUpdated.HasValue
+                            ? lastUpdated.Value.ToString("yyyy-MM-dd HH:mm:ss")
+                            : "未知"
+                    });
+                    TotalCacheSizeBytes += info.Length;
+                }
+
+                var orphanFiles = Directory.EnumerateFiles(directory, "*.json")
+                    .Select(Path.GetFileNameWithoutExtension)
+                    .Where(n => n != null && n != "_index" && !knownKeys.Any(k =>
+                        string.Equals(string.Concat(k.Select(c => Path.GetInvalidFileNameChars().Contains(c) ? '_' : c)), n, StringComparison.OrdinalIgnoreCase)))
+                    .ToList();
+
+                foreach (var file in Directory.EnumerateFiles(directory, "*.json"))
+                {
+                    var name = Path.GetFileNameWithoutExtension(file);
+                    if (name == "_index") continue;
+                    if (orphanFiles.Contains(name))
+                    {
+                        var info = new FileInfo(file);
+                        var lastUpdated = await _cacheService.GetLastUpdatedAsync(name!);
+                        CacheEntries.Add(new CacheEntryDisplay
+                        {
+                            Key = name!,
+                            DisplayName = $"其它缓存({name})",
+                            SizeBytes = info.Length,
+                            SizeText = FormatSize(info.Length),
+                            LastUpdatedText = lastUpdated.HasValue
+                                ? lastUpdated.Value.ToString("yyyy-MM-dd HH:mm:ss")
+                                : "未知"
+                        });
+                        TotalCacheSizeBytes += info.Length;
+                    }
+                }
+
+                TotalCacheSizeText = FormatSize(TotalCacheSizeBytes);
+                CacheHint = CacheEntries.Count == 0
+                    ? "暂无本地缓存数据"
+                    : $"共 {CacheEntries.Count} 项,合计 {TotalCacheSizeText}";
+            }
+            catch (Exception ex)
+            {
+                CacheHint = $"读取缓存信息失败:{ex.Message}";
+            }
+        }
+
+        [RelayCommand]
+        private async Task ClearCacheEntryAsync(CacheEntryDisplay? entry)
+        {
+            if (entry == null) return;
+            await _cacheService.ClearAsync(entry.Key);
+            await RefreshCacheInfoAsync();
+        }
+
+        [RelayCommand]
+        private async Task ClearAllCacheAsync()
+        {
+            var confirmed = await _dialogService.ShowConfirmAsync(
+                "清空本地缓存",
+                "确定要清空所有本地缓存数据吗?\n离线模式下显示的数据将被清空,下次联网时会重新拉取。",
+                "清空",
+                "取消");
+            if (!confirmed) return;
+
+            await _cacheService.ClearAllAsync();
+            await RefreshCacheInfoAsync();
+        }
+
+        private static string FormatSize(long bytes)
+        {
+            if (bytes < 1024) return $"{bytes} B";
+            if (bytes < 1024 * 1024) return $"{bytes / 1024.0:F1} KB";
+            return $"{bytes / 1024.0 / 1024.0:F2} MB";
         }
 
         [RelayCommand]

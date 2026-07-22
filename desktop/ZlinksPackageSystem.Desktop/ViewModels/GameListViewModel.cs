@@ -5,6 +5,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using ZlinksPackageSystem.Desktop.Constants;
 using ZlinksPackageSystem.Desktop.Models;
 using ZlinksPackageSystem.Desktop.Services;
 
@@ -14,6 +15,8 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
     {
         private readonly IApiService _apiService;
         private readonly IDialogService _dialogService;
+        private readonly INetworkStatusService _networkService;
+        private readonly ILocalCacheService _cacheService;
 
         [ObservableProperty]
         private ObservableCollection<Game> _games = new();
@@ -63,11 +66,17 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
         public bool HasGames => !IsLoadingGames && Games.Count > 0;
         public bool IsGamesEmpty => !IsLoadingGames && Games.Count == 0;
 
-        public GameListViewModel(IApiService apiService, IDialogService dialogService)
+        public GameListViewModel(
+            IApiService apiService,
+            IDialogService dialogService,
+            INetworkStatusService networkService,
+            ILocalCacheService cacheService)
         {
             Title = "游戏管理";
             _apiService = apiService;
             _dialogService = dialogService;
+            _networkService = networkService;
+            _cacheService = cacheService;
             LoadGamesCommand.ExecuteAsync(null);
         }
 
@@ -88,38 +97,89 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
         {
             IsLoadingGames = true;
             EmptyStateMessage = string.Empty;
-            try
+
+            if (_networkService.IsOnline)
             {
-                var endpoint = $"/games?current={CurrentPage}&size={PageSize}";
-                if (!string.IsNullOrEmpty(SearchText))
-                    endpoint += $"&gameName={Uri.EscapeDataString(SearchText)}";
-
-                var page = await _apiService.GetAsync<PageResponse<Game>>(endpoint);
-
-                Games = new ObservableCollection<Game>(page?.Records ?? new List<Game>());
-                TotalCount = page?.Total ?? 0;
-
-                if (page == null)
+                try
                 {
-                    EmptyStateMessage = "加载游戏失败，请检查后端服务是否可用";
+                    var endpoint = $"/games?current={CurrentPage}&size={PageSize}";
+                    if (!string.IsNullOrEmpty(SearchText))
+                        endpoint += $"&gameName={Uri.EscapeDataString(SearchText)}";
+
+                    var page = await _apiService.GetAsync<PageResponse<Game>>(endpoint);
+
+                    if (page == null)
+                    {
+                        await LoadFromCacheAsync();
+                        return;
+                    }
+
+                    Games = new ObservableCollection<Game>(page.Records ?? new List<Game>());
+                    TotalCount = page.Total;
+
+                    var recordCount = page.Records?.Count ?? 0;
+                    if (recordCount == 0 && CurrentPage == 1 && string.IsNullOrEmpty(SearchText))
+                    {
+                        EmptyStateMessage = "暂无游戏数据，请前往后台「游戏管理」添加";
+                    }
+
+                    await SaveCacheAsync(page);
                 }
-                else if (page.Records.Count == 0 && CurrentPage == 1 && string.IsNullOrEmpty(SearchText))
+                catch (Exception ex)
                 {
-                    EmptyStateMessage = "暂无游戏数据，请前往后台「游戏管理」添加";
+                    Console.WriteLine($"LoadGames API failed: {ex.Message}");
+                    var fromCache = await LoadFromCacheAsync();
+                    if (!fromCache)
+                    {
+                        await _dialogService.ShowMessageAsync("错误",
+                            $"无法连接后台管理系统（{ex.Message}）。\n请确认后端已启动，然后点击「↻ 重新加载」重试。");
+                    }
                 }
             }
-            catch (Exception ex)
+            else
+            {
+                await LoadFromCacheAsync();
+            }
+
+            IsLoadingGames = false;
+        }
+
+        private async Task SaveCacheAsync(PageResponse<Game> page)
+        {
+            var payload = new GamePageCache
+            {
+                CurrentPage = CurrentPage,
+                PageSize = PageSize,
+                SearchText = SearchText,
+                Page = page,
+                LastUpdated = DateTime.Now
+            };
+            await _cacheService.SaveAsync(CacheKeys.Games, payload);
+        }
+
+        private async Task<bool> LoadFromCacheAsync()
+        {
+            var lastUpdated = await _cacheService.GetLastUpdatedAsync(CacheKeys.Games);
+            var cached = await _cacheService.LoadAsync<GamePageCache>(CacheKeys.Games);
+            if (cached?.Page == null)
             {
                 Games = new ObservableCollection<Game>();
                 TotalCount = 0;
-                EmptyStateMessage = $"加载游戏失败：{ex.Message}";
-                await _dialogService.ShowMessageAsync("错误",
-                    $"无法连接后台管理系统（{ex.Message}）。\n请确认后端已启动，然后点击「↻ 重新加载」重试。");
+                EmptyStateMessage = _networkService.IsOnline
+                    ? "加载游戏失败，请检查后端服务是否可用"
+                    : "离线模式 · 暂无本地游戏数据,请联网后刷新";
+                return false;
             }
-            finally
-            {
-                IsLoadingGames = false;
-            }
+
+            CurrentPage = cached.CurrentPage;
+            PageSize = cached.PageSize;
+            SearchText = cached.SearchText;
+            Games = new ObservableCollection<Game>(cached.Page.Records ?? new List<Game>());
+            TotalCount = cached.Page.Total;
+            EmptyStateMessage = lastUpdated.HasValue
+                ? $"离线模式 · 数据更新于 {lastUpdated:yyyy-MM-dd HH:mm}"
+                : "离线模式 · 加载本地缓存";
+            return true;
         }
 
         [RelayCommand]

@@ -28,6 +28,7 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
         private readonly IToolPersistenceService _persistence;
         private readonly INotificationService _notificationService;
         private readonly IVenvService _venvService;
+        private readonly INetworkStatusService _networkService;
         private CancellationTokenSource? _cloneCts;
         private CancellationTokenSource? _pullCts;
         private CancellationTokenSource? _venvCts;
@@ -167,7 +168,8 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
             IGitService gitService,
             IToolPersistenceService persistence,
             INotificationService notificationService,
-            IVenvService venvService)
+            IVenvService venvService,
+            INetworkStatusService networkService)
         {
             Title = "工具库";
             _apiService = apiService;
@@ -179,6 +181,7 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
             _persistence = persistence;
             _notificationService = notificationService;
             _venvService = venvService;
+            _networkService = networkService;
 
             // 防抖:逐字修改 EditCloneDirectory 后 500ms 无新输入即触发本地 .git 检测
             _localDetectTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
@@ -203,16 +206,20 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
             IsBusy = true;
             try
             {
-                // 从后台管理系统拉取（按 create_time 倒序，一次取 200 条；量更大时分页）
-                var page = await _apiService.GetAsync<PageResponse<ToolEntity>>(
-                    "/tools?current=1&size=200");
-
-                var backendIds = new HashSet<long>();
                 List<ToolProject> backendProjects = new();
-                if (page?.Records != null && page.Records.Count > 0)
+                HashSet<long> backendIds = new();
+
+                if (_networkService.IsOnline)
                 {
-                    backendProjects = page.Records.Select(MapToProject).ToList();
-                    foreach (var p in backendProjects) backendIds.Add(p.Id);
+                    // 从后台管理系统拉取（按 create_time 倒序，一次取 200 条；量更大时分页）
+                    var page = await _apiService.GetAsync<PageResponse<ToolEntity>>(
+                        "/tools?current=1&size=200");
+
+                    if (page?.Records != null && page.Records.Count > 0)
+                    {
+                        backendProjects = page.Records.Select(MapToProject).ToList();
+                        foreach (var p in backendProjects) backendIds.Add(p.Id);
+                    }
                 }
 
                 // 找出本地缓存中尚未推送到后端的用户工具
@@ -237,6 +244,22 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
                     }
                 }
                 catch { /* 忽略 */ }
+
+                // 离线模式:所有缓存都视为待同步
+                if (!_networkService.IsOnline)
+                {
+                    pendingLocal.Clear();
+                    try
+                    {
+                        var cached = await _persistence.LoadAsync();
+                        foreach (var c in cached)
+                        {
+                            c.SyncState = ToolSyncState.PendingCreate;
+                            pendingLocal.Add(c);
+                        }
+                    }
+                    catch { /* 忽略 */ }
+                }
 
                 // 组合显示:后端已确认 + 本地待同步(待同步插在前部,与旧版「本地新建工具显示在最上」一致)
                 var merged = new List<ToolProject>(pendingLocal);

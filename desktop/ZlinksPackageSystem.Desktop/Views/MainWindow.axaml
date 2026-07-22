@@ -129,7 +129,6 @@
 
                 <!-- Menu Bar -->
                 <DockPanel Grid.Row="1"
-                           IsVisible="{Binding IsLoggedIn}"
                            LastChildFill="True">
                     <Button DockPanel.Dock="Right"
                             Margin="0,6,14,6"
@@ -176,11 +175,39 @@
                                         </StackPanel>
                                     </MenuItem.Header>
                                 </MenuItem>
+                                <Separator IsVisible="{Binding CanLoginToServer}" />
+                                <MenuItem Header="🔑 登录远程服务器"
+                                          Command="{Binding LoginToServerCommand}"
+                                          IsVisible="{Binding CanLoginToServer}" />
                                 <Separator />
-                                <MenuItem Header="🔧 修改账号" Command="{Binding ChangeAccountCommand}" />
+                                <MenuItem Header="🔧 修改账号"
+                                          Command="{Binding ChangeAccountCommand}"
+                                          IsVisible="{Binding CanChangeAccount}" />
+                                <MenuItem Header="🚪 退出"
+                                          Command="{Binding LogoutCommand}"
+                                          IsVisible="{Binding IsServerLoggedIn}" />
                             </MenuFlyout>
                         </Button.Flyout>
                     </Button>
+
+                    <Border DockPanel.Dock="Right"
+                            Margin="0,8,8,8"
+                            Padding="10,4"
+                            CornerRadius="12"
+                            Background="{Binding ConnectionStatusBrush}"
+                            VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <TextBlock Text="●"
+                                       FontSize="12"
+                                       Foreground="White"
+                                       VerticalAlignment="Center" />
+                            <TextBlock Text="{Binding ConnectionStatusText}"
+                                       FontSize="12"
+                                       Foreground="White"
+                                       FontWeight="SemiBold"
+                                       VerticalAlignment="Center" />
+                        </StackPanel>
+                    </Border>
 
                     <Menu HorizontalAlignment="Center" VerticalAlignment="Center">
                         <MenuItem Header="🏠 首页" Command="{Binding NavigateToHomeCommand}" IsVisible="{Binding IsHomeVisible}" />

@@ -37,7 +37,7 @@ namespace ZlinksPackageSystem.SmokeTest
                 typeof(ToolLibraryViewModel),
                 BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
                 binder: null,
-                args: new object?[] { null, null, null, null, pm, null, null, null, null }, // ... INotificationService, IVenvService
+                args: new object?[] { null, null, null, null, pm, null, null, null, null, null }, // ... INotificationService, IVenvService, INetworkStatusService
                 culture: null)!;
 
             // 注入环境
@@ -577,8 +577,10 @@ namespace ZlinksPackageSystem.SmokeTest
                 var nfs = new StubNotificationService();
                 var dlg = new StubDialogService();
                 var sp = new StubServiceProvider();
-                var mvm = new MainViewModel(null!, sp, dlg);
-                var vm = new SettingsViewModel(mvm, fp, gns, nfs, dlg);
+                var net = new StubNetworkStatusService();
+                var cache = new StubLocalCacheService();
+                var mvm = new MainViewModel(null!, sp, dlg, net);
+                var vm = new SettingsViewModel(mvm, fp, gns, nfs, dlg, cache);
                 if (vm.Categories.Count == 0) throw new Exception("Categories 为空");
                 if (vm.SelectedCategory == null) throw new Exception("SelectedCategory 为空");
                 if (vm.IsAppearanceVisible != true) throw new Exception("默认分类不是外观");
@@ -1169,8 +1171,61 @@ namespace ZlinksPackageSystem.SmokeTest
             public object? GetService(Type serviceType)
             {
                 if (serviceType == typeof(LoginViewModel)) return new LoginViewModel();
+                if (serviceType == typeof(HomeViewModel)) return Activator.CreateInstance(typeof(HomeViewModel),
+                    BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
+                    binder: null,
+                    args: new object?[] { null, null, null, null },
+                    culture: null);
                 return null;
             }
+        }
+
+        class StubNetworkStatusService : INetworkStatusService
+        {
+            private bool _isOnline = true;
+            public bool IsOnline => _isOnline;
+            public bool IsLocalMode { get; private set; }
+            public event EventHandler<bool>? StatusChanged;
+            public Task<bool> CheckConnectivityAsync() => Task.FromResult(_isOnline);
+            public void StartMonitoring() { }
+            public void StopMonitoring() { }
+            public void SetOnline(bool online)
+            {
+                if (_isOnline == online) return;
+                _isOnline = online;
+                IsLocalMode = false;
+                StatusChanged?.Invoke(this, online);
+            }
+            public void SetLocalMode(bool local)
+            {
+                if (IsLocalMode == local) return;
+                IsLocalMode = local;
+                _isOnline = !local;
+                StatusChanged?.Invoke(this, _isOnline);
+            }
+        }
+
+        class StubLocalCacheService : ILocalCacheService
+        {
+            private readonly Dictionary<string, object> _store = new();
+            private readonly Dictionary<string, DateTime> _timestamps = new();
+            public string CacheDirectory => Path.Combine(Path.GetTempPath(), "zlinks-stub-cache");
+            public Task<T?> LoadAsync<T>(string key) where T : class
+            {
+                if (_store.TryGetValue(key, out var v) && v is T t) return Task.FromResult<T?>(t);
+                return Task.FromResult<T?>(null);
+            }
+            public Task SaveAsync<T>(string key, T data) where T : class
+            {
+                _store[key] = data;
+                _timestamps[key] = DateTime.Now;
+                return Task.CompletedTask;
+            }
+            public Task<DateTime?> GetLastUpdatedAsync(string key)
+                => Task.FromResult(_timestamps.TryGetValue(key, out var d) ? d : (DateTime?)null);
+            public Task<bool> ExistsAsync(string key) => Task.FromResult(_store.ContainsKey(key));
+            public Task ClearAsync(string key) { _store.Remove(key); _timestamps.Remove(key); return Task.CompletedTask; }
+            public Task ClearAllAsync() { _store.Clear(); _timestamps.Clear(); return Task.CompletedTask; }
         }
 
         class StubApiService : IApiService
@@ -1272,11 +1327,12 @@ namespace ZlinksPackageSystem.SmokeTest
             var git = new StubGitService();
             var nfs = new StubNotificationService();
             var venv = new VenvService();
+            var net = new StubNetworkStatusService();
             var vm = (ToolLibraryViewModel)Activator.CreateInstance(
                 typeof(ToolLibraryViewModel),
                 BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
                 binder: null,
-                args: new object?[] { api, dlg, rt, fp, pm, git, persistence, nfs, venv },
+                args: new object?[] { api, dlg, rt, fp, pm, git, persistence, nfs, venv, net },
                 culture: null)!;
 
             // 等待构造函数触发的 LoadProjectsAsync 协程(它读缓存 + 调后端,后端是 null 路径)

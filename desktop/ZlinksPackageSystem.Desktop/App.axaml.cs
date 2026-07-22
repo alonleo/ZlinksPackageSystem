@@ -39,6 +39,8 @@ public partial class App : Application
                 services.AddSingleton<IToolPersistenceService, ToolPersistenceService>();
                 services.AddSingleton<IGlobalNotificationService, GlobalNotificationService>();
                 services.AddSingleton<INotificationService, NotificationService>();
+                services.AddSingleton<INetworkStatusService, NetworkStatusService>();
+                services.AddSingleton<ILocalCacheService, LocalCacheService>();
 
                 // ViewModels
                 services.AddSingleton<MainViewModel>();
@@ -48,11 +50,15 @@ public partial class App : Application
                 services.AddTransient<ProductViewModel>(sp =>
                                     new ProductViewModel(
                                         sp.GetRequiredService<IApiService>(),
-                                        sp.GetRequiredService<IDialogService>()));
+                                        sp.GetRequiredService<IDialogService>(),
+                                        sp.GetRequiredService<INetworkStatusService>(),
+                                        sp.GetRequiredService<ILocalCacheService>()));
                 services.AddTransient<ParameterViewModel>(sp =>
                                     new ParameterViewModel(
                                         sp.GetRequiredService<IApiService>(),
-                                        sp.GetRequiredService<IDialogService>()));
+                                        sp.GetRequiredService<IDialogService>(),
+                                        sp.GetRequiredService<INetworkStatusService>(),
+                                        sp.GetRequiredService<ILocalCacheService>()));
                 services.AddTransient<TestViewModel>();
                 services.AddTransient<ToolLibraryViewModel>();
                 services.AddTransient<NotificationViewModel>();
@@ -86,9 +92,17 @@ public override async void OnFrameworkInitializationCompleted()
                 // 在窗口创建之前应用已保存的主题,避免点击设置时才切换
                 SettingsViewModel.ApplyStartupTheme();
 
+                // 启动网络状态监控(后台线程,HEAD ping 兜底 + 监听 NetworkAvailabilityChanged)
+                var networkService = _host.Services.GetRequiredService<INetworkStatusService>();
+                networkService.StartMonitoring();
+
                 var mainWindow = _host.Services.GetRequiredService<MainWindow>();
                 desktop.MainWindow = mainWindow;
                 mainWindow.Show();
+
+                // 启动后异步检测网络:不需要等待,窗口先显示登录界面
+                var mainViewModel = _host.Services.GetRequiredService<MainViewModel>();
+                _ = mainViewModel.InitializeAsync();
             }
 
             base.OnFrameworkInitializationCompleted();

@@ -55,4 +55,13 @@ public class Tool extends BaseEntity {
     private String notificationJson;
     /** 是否系统内置工具（后端管理员在后台系统中标记；1=系统内置，0=用户工具） */
     private Integer isSystemBuiltin;
+
+    /** 是否启动前自动创建 Python 虚拟环境（仅 Language=python 生效；包装类 Boolean 让旧记录反序列化为 null） */
+    private Boolean createVenv;
+    /** Python 虚拟环境目录；空表示默认 {workingDirectory}/.venv */
+    private String venvDirectory;
+    /** requirements.txt 路径 */
+    private String requirementsPath;
+    /** pip 镜像源 URL */
+    private String pipMirrorUrl;
 }

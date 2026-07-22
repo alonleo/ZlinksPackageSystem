@@ -290,7 +290,12 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
                 RunMode = ToolRunModes.ToStringValue(ToolRunModes.Parse(e.RunMode)),
                 IsSystemBuiltin = e.IsSystemBuiltin == 1,
                 SyncState = ToolSyncState.Synced,  // 后端拉来的数据天然是已同步
-                CreateTime = ParseDateTime(e.CreateTime) ?? DateTime.Now
+                CreateTime = ParseDateTime(e.CreateTime) ?? DateTime.Now,
+                // Python 虚拟环境配置回读(后端 DTO 同步加字段后,这里必须把 4 字段带回来)
+                CreateVenv = e.CreateVenv,
+                VenvDirectory = e.VenvDirectory ?? string.Empty,
+                RequirementsPath = e.RequirementsPath ?? string.Empty,
+                PipMirrorUrl = e.PipMirrorUrl ?? string.Empty
             };
             if (!string.IsNullOrEmpty(e.ArgumentsJson))
             {
@@ -338,7 +343,12 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
             ArgumentsJson = p.Arguments == null ? "[]" : JsonSerializer.Serialize(p.Arguments),
             NotificationJson = JsonSerializer.Serialize(p.Notification ?? new NotificationConfig()),
             // 用户自己新建的工具始终标记为非系统内置；后端管理员可后续通过 PUT 翻转该字段
-            IsSystemBuiltin = p.IsSystemBuiltin ? 1 : 0
+            IsSystemBuiltin = p.IsSystemBuiltin ? 1 : 0,
+            // Python 虚拟环境配置(后端 DTO 也必须有这 4 字段,否则保存后丢配置→首次运行退回到系统 Python)
+            CreateVenv = p.CreateVenv,
+            VenvDirectory = p.VenvDirectory ?? string.Empty,
+            RequirementsPath = p.RequirementsPath ?? string.Empty,
+            PipMirrorUrl = p.PipMirrorUrl ?? string.Empty
         };
 
         private static DateTime? ParseDateTime(string s)
@@ -1761,6 +1771,9 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
                         : "虚拟环境已存在";
                     if (result.PipInstalled) msg += "\n依赖已按 requirements.txt 安装完成。";
                     else if (!string.IsNullOrEmpty(tmpProject.RequirementsPath)) msg += "\n(本次未执行 pip install)";
+                    // 回填 venv 的 python 解释器路径,让 EditInterpreterPath 反映真正在用的解释器
+                    if (!string.IsNullOrEmpty(result.PythonExePath))
+                        EditInterpreterPath = result.PythonExePath;
                     await _dialogService.ShowMessageAsync("创建成功", msg);
                 }
                 else

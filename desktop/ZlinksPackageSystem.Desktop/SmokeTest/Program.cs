@@ -888,6 +888,60 @@ namespace ZlinksPackageSystem.SmokeTest
                 }
             });
 
+            // ===== 23.5 ToolEntity 4 字段往返无损(回归首次新建工具 venv 配置丢失 Bug)=====
+            Test("ToolEntity venv 4 字段 POST→GET 往返无损", () =>
+            {
+                // 直接构造 ToolProject,模拟「带 venv 配置的新建」,走 MapToEntity → JSON → MapToProject 链
+                var src = new ToolProject
+                {
+                    Id = 100,
+                    Name = "py-venv-tool",
+                    Language = "python",
+                    RunMode = ToolRunModes.Script,
+                    InterpreterPath = "",
+                    WorkingDirectory = @"D:\tools\demo",
+                    ScriptPath = @"D:\tools\demo\run.py",
+                    CreateVenv = true,
+                    VenvDirectory = "",
+                    RequirementsPath = @"D:\tools\demo\requirements.txt",
+                    PipMirrorUrl = "https://pypi.tuna.tsinghua.edu.cn/simple"
+                };
+
+                // 反射拿到私有的 MapToEntity / MapToProject
+                var miEntity = typeof(ToolLibraryViewModel).GetMethod(
+                    "MapToEntity",
+                    System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
+                var miProject = typeof(ToolLibraryViewModel).GetMethod(
+                    "MapToProject",
+                    System.Reflection.BindingFlags.Static | System.Reflection.BindingFlags.NonPublic);
+                Assert("MapToEntity 反射可见", miEntity != null);
+                Assert("MapToProject 反射可见", miProject != null);
+
+                var ent = (ToolEntity)miEntity!.Invoke(null, new object?[] { src })!;
+                // 桌面 → 后端：4 字段都映射
+                AssertEq("MapToEntity.CreateVenv", true, ent.CreateVenv);
+                AssertEq("MapToEntity.VenvDirectory", "", ent.VenvDirectory);
+                AssertEq("MapToEntity.RequirementsPath",
+                    @"D:\tools\demo\requirements.txt", ent.RequirementsPath);
+                AssertEq("MapToEntity.PipMirrorUrl",
+                    "https://pypi.tuna.tsinghua.edu.cn/simple", ent.PipMirrorUrl);
+
+                // 模拟后端回包:经过 Newtonsoft 序列化/反序列化往返(桌面端 API 调用实情)
+                var json = Newtonsoft.Json.JsonConvert.SerializeObject(ent);
+                var ent2 = Newtonsoft.Json.JsonConvert.DeserializeObject<ToolEntity>(json);
+                Assert("JSON 含 CreateVenv", json.Contains("\"CreateVenv\""));
+                Assert("JSON 含 PipMirrorUrl", json.Contains("\"PipMirrorUrl\""));
+
+                // 后端 → 桌面：4 字段都能被带回
+                var back = (ToolProject)miProject!.Invoke(null, new object?[] { ent2! })!;
+                AssertEq("MapToProject.CreateVenv", true, back.CreateVenv);
+                AssertEq("MapToProject.VenvDirectory", "", back.VenvDirectory);
+                AssertEq("MapToProject.RequirementsPath",
+                    @"D:\tools\demo\requirements.txt", back.RequirementsPath);
+                AssertEq("MapToProject.PipMirrorUrl",
+                    "https://pypi.tuna.tsinghua.edu.cn/simple", back.PipMirrorUrl);
+            });
+
             // ===== 24. OpenAddDialog 默认勾选 venv(创建+自动 pip install) =====
             Test("OpenAddDialog 默认勾选 venv + EditVenvDirectory 默认空", () =>
             {

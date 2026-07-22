@@ -1,5 +1,7 @@
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
+using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
 
 namespace ZlinksPackageSystem.Desktop.Models
@@ -52,14 +54,34 @@ namespace ZlinksPackageSystem.Desktop.Models
     /// <summary>
     /// 工具项目模型
     /// </summary>
-    public class ToolProject
+    public class ToolProject : INotifyPropertyChanged
     {
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        private void OnPropertyChanged([CallerMemberName] string? propertyName = null)
+        {
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+        }
+
+        private bool SetField<T>(ref T field, T value, [CallerMemberName] string? propertyName = null)
+        {
+            if (EqualityComparer<T>.Default.Equals(field, value)) return false;
+            field = value;
+            OnPropertyChanged(propertyName);
+            return true;
+        }
         public long Id { get; set; }
         public string Name { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
         public string Category { get; set; } = string.Empty;
         public string Version { get; set; } = string.Empty;
-        public string Status { get; set; } = string.Empty;
+        public string Status
+        {
+            get => _status;
+            set => SetField(ref _status, value);
+        }
+        private string _status = string.Empty;
+
         public string Manager { get; set; } = string.Empty;
         public DateTime CreateTime { get; set; }
 
@@ -142,11 +164,33 @@ namespace ZlinksPackageSystem.Desktop.Models
         // ===== 运行时状态(不参与持久化)=====
         /// <summary>是否正在运行</summary>
         [JsonIgnore]
-        public bool IsRunning { get; set; }
+        public bool IsRunning
+        {
+            get => _isRunning;
+            set => SetField(ref _isRunning, value);
+        }
+        private bool _isRunning;
 
         /// <summary>当前运行进程的 PID</summary>
         [JsonIgnore]
-        public int? ProcessId { get; set; }
+        public int? ProcessId
+        {
+            get => _processId;
+            set => SetField(ref _processId, value);
+        }
+        private int? _processId;
+
+        /// <summary>
+        /// 当前是否在执行「单条同步」调用。XAML 用于按钮禁用与文案切换。
+        /// 不参与持久化。
+        /// </summary>
+        [JsonIgnore]
+        public bool IsSyncing
+        {
+            get => _isSyncing;
+            set => SetField(ref _isSyncing, value);
+        }
+        private bool _isSyncing;
 
         /// <summary>运行期:克隆成功后实际生成的仓库根目录(= CloneDirectory/<repo名>)。不参与持久化。</summary>
         [JsonIgnore]

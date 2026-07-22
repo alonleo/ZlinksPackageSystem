@@ -81,11 +81,18 @@
                     Margin="8,0,0,0" VerticalAlignment="Center" />
             <Button Grid.Column="6" Margin="8,0,0,0" Padding="10,4"
                     BorderBrush="#FFFFA940" Foreground="#FFFFA940"
+                    IsEnabled="{Binding IsBatchSyncing, Converter={StaticResource BooleanInverseConverter}}"
                     ToolTip.Tip="把本地尚未推送到后台的用户工具批量推送到后台管理系统"
                     Command="{Binding SyncLocalToolsCommand}"
                     VerticalAlignment="Center">
                 <StackPanel Orientation="Horizontal" Spacing="4">
-                    <TextBlock Text="📤 同步本地" VerticalAlignment="Center" />
+                    <TextBlock Text="📤 同步本地" VerticalAlignment="Center">
+                        <TextBlock.IsVisible>
+                            <Binding Path="IsBatchSyncing" Converter="{StaticResource BooleanInverseConverter}" />
+                        </TextBlock.IsVisible>
+                    </TextBlock>
+                    <TextBlock Text="同步中…" VerticalAlignment="Center"
+                               IsVisible="{Binding IsBatchSyncing}" />
                     <Border Background="#FFFFA940" CornerRadius="8"
                             Padding="6,1"
                             IsVisible="{Binding HasPendingSync}">
@@ -215,7 +222,7 @@
                                 </StackPanel>
 
                                 <!-- 操作按钮 -->
-                                <Grid Grid.Row="3" Margin="14,0,14,12" ColumnDefinitions="Auto,Auto,Auto,*">
+                                <Grid Grid.Row="3" Margin="14,0,14,12" ColumnDefinitions="Auto,Auto,Auto,Auto,*">
                                     <!-- ▶ 运行 / ⏹ 关闭 互斥显示 -->
                                     <Button Grid.Column="0" Content="▶ 运行" FontSize="11"
                                             BorderBrush="#FF52C41A" Foreground="#FF52C41A"
@@ -232,7 +239,22 @@
                                             Margin="6,0,0,0"
                                             Command="{Binding DataContext.OpenEditDialogCommand, RelativeSource={RelativeSource FindAncestor, AncestorType=ItemsControl}}"
                                             CommandParameter="{Binding}" />
-                                    <Button Grid.Column="2" Content="🗑 删除" FontSize="11"
+                                    <!-- 📤 单条同步:仅当该卡片处于待同步状态时显示,同步中禁用并切换文案 -->
+                                    <Button Grid.Column="2" FontSize="11"
+                                            BorderBrush="#FFFFA940" Foreground="#FFFFA940"
+                                            Margin="6,0,0,0" Padding="8,0"
+                                            IsVisible="{Binding IsPendingSync}"
+                                            IsEnabled="{Binding IsSyncing, Converter={StaticResource BooleanInverseConverter}}"
+                                            ToolTip.Tip="将本条工具推送到后台管理系统"
+                                            Command="{Binding DataContext.SyncSingleToolCommand, RelativeSource={RelativeSource FindAncestor, AncestorType=ItemsControl}}"
+                                            CommandParameter="{Binding}">
+                                        <Panel>
+                                            <TextBlock Text="📤 同步"
+                                                       IsVisible="{Binding IsSyncing, Converter={StaticResource BooleanInverseConverter}}" />
+                                            <TextBlock Text="同步中…" IsVisible="{Binding IsSyncing}" />
+                                        </Panel>
+                                    </Button>
+                                    <Button Grid.Column="3" Content="🗑 删除" FontSize="11"
                                             BorderBrush="#FFF56C6C" Foreground="#FFF56C6C"
                                             Margin="6,0,0,0"
                                             Command="{Binding DataContext.DeleteProjectCommand, RelativeSource={RelativeSource FindAncestor, AncestorType=ItemsControl}}"

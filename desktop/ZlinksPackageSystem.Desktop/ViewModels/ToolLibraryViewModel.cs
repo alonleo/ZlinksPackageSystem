@@ -43,6 +43,20 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
 
         public bool HasPendingSync => PendingSyncTools.Count > 0;
 
+        /// <summary>
+        /// 批量同步（顶部「📤 同步本地」按钮）的忙碌状态。
+        /// 防止与单卡同步并发重入，也用于 UI 显示加载中。
+        /// </summary>
+        [ObservableProperty]
+        private bool _isBatchSyncing;
+
+        /// <summary>
+        /// 当前正在执行单卡同步的工具 ID（同一时刻只允许一条）。
+        /// 由 <see cref="SyncSingleToolAsync"/> 维护；批量同步循环也会复用。
+        /// </summary>
+        [ObservableProperty]
+        private long? _singleSyncingId;
+
         [ObservableProperty]
         private ToolProject? _selectedProject;
 
@@ -911,64 +925,29 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
         [RelayCommand]
         private async Task SyncLocalToolsAsync()
         {
+            if (IsBatchSyncing || SingleSyncingId != null)
+            {
+                await _dialogService.ShowMessageAsync("提示", "已有同步任务进行中，请等待完成后再试。");
+                return;
+            }
             if (PendingSyncTools.Count == 0)
             {
                 await _dialogService.ShowMessageAsync("提示", "当前无待同步的用户工具。");
                 return;
             }
 
+            IsBatchSyncing = true;
             int success = 0, failed = 0;
             // 用快照避免在迭代中修改集合;但替换卡片需要在 Projects 中找到原引用
             var snapshot = PendingSyncTools.ToList();
             foreach (var pending in snapshot)
             {
-                try
-                {
-                    ToolEntity? saved;
-                    if (pending.SyncState == ToolSyncState.PendingUpdate && pending.Id > 0)
-                    {
-                        // 编辑型:走 PUT,避免重复创建
-                        saved = await _apiService.PutAsync<ToolEntity>(
-                            $"/tools/{pending.Id}", MapToEntity(pending));
-                    }
-                    else
-                    {
-                        // 新建型(包含 LocalTempId<0):走 POST
-                        saved = await _apiService.PostAsync<ToolEntity>(
-                            "/tools", MapToEntity(pending));
-                    }
-
-                    if (saved != null)
-                    {
-                        var refreshed = MapToProject(saved);
-                        refreshed.SyncState = ToolSyncState.Synced;
-
-                        // 就地替换 Projects 中相同 ID 的卡片(避免重复行)
-                        var existingIdx = -1;
-                        for (int i = 0; i < Projects.Count; i++)
-                        {
-                            if (Projects[i].Id == pending.Id) { existingIdx = i; break; }
-                        }
-                        if (existingIdx >= 0)
-                            Projects[existingIdx] = refreshed;
-                        else
-                            Projects.Insert(0, refreshed);
-
-                        // 从 pending 集合移除
-                        RemoveFromPending(pending.Id);
-                        success++;
-                    }
-                    else
-                    {
-                        failed++;
-                    }
-                }
-                catch
-                {
-                    failed++;
-                }
+                var result = await SyncSingleToolAsync(pending, raiseUiEvents: false);
+                if (result.Success) success++;
+                else failed++;
             }
 
+            IsBatchSyncing = false;
             OnPropertyChanged(nameof(HasPendingSync));
             // 一次原子持久化,避免旧实现两次 fire-and-forget 写同一文件造成竞态
             try
@@ -982,6 +961,126 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
 
             await _dialogService.ShowMessageAsync("同步完成",
                 $"成功推送 {success} 个工具到后台管理系统。\n失败 {failed} 个（请检查网络/后端状态后重试）。");
+        }
+
+        /// <summary>
+        /// 单个工具同步入口,同时被卡片按钮和批量同步循环复用。
+        /// </summary>
+        /// <param name="project">待同步的工具。</param>
+        /// <param name="raiseUiEvents">
+        /// true = 由卡片按钮触发,需要弹成功/失败对话框,并更新卡片同步状态;
+        /// false = 由批量同步内部调用,只返回值,UI 反馈交给批量循环统一汇总。
+        /// </param>
+        private async Task<SyncToolResult> SyncSingleToolAsync(ToolProject project, bool raiseUiEvents)
+        {
+            if (project == null) return SyncToolResult.Failed("project is null");
+
+            // 单条同步:同一时刻只允许一条;批量同步会先占住 IsBatchSyncing 来阻止并发
+            if (SingleSyncingId != null && SingleSyncingId != project.Id)
+            {
+                return SyncToolResult.Failed("另一条工具正在同步中");
+            }
+
+            SingleSyncingId = project.Id;
+            project.IsSyncing = true;
+            try
+            {
+                ToolEntity? saved;
+                if (project.SyncState == ToolSyncState.PendingUpdate && project.Id > 0)
+                {
+                    saved = await _apiService.PutAsync<ToolEntity>(
+                        $"/tools/{project.Id}", MapToEntity(project));
+                }
+                else
+                {
+                    saved = await _apiService.PostAsync<ToolEntity>(
+                        "/tools", MapToEntity(project));
+                }
+
+                if (saved != null)
+                {
+                    var refreshed = MapToProject(saved);
+                    refreshed.SyncState = ToolSyncState.Synced;
+                    // 保留客户端维护的运行状态(刷新后卡片不要被重置)
+                    refreshed.IsRunning = project.IsRunning;
+                    refreshed.ProcessId = project.ProcessId;
+                    refreshed.Status = project.Status;
+
+                    // 就地替换 Projects 中相同 ID 的卡片(避免重复行)
+                    var existingIdx = -1;
+                    for (int i = 0; i < Projects.Count; i++)
+                    {
+                        if (Projects[i].Id == project.Id) { existingIdx = i; break; }
+                    }
+                    if (existingIdx >= 0)
+                        Projects[existingIdx] = refreshed;
+                    else
+                        Projects.Insert(0, refreshed);
+
+                    // 从 pending 集合移除
+                    RemoveFromPending(project.Id);
+                    OnPropertyChanged(nameof(HasPendingSync));
+
+                    if (raiseUiEvents)
+                    {
+                        await _persistence.SaveAsync(AllPersistable());
+                        await _dialogService.ShowMessageAsync("同步成功",
+                            $"「{refreshed.Name}」已推送到后台管理系统。");
+                    }
+
+                    return SyncToolResult.Ok();
+                }
+
+                if (raiseUiEvents)
+                {
+                    await _dialogService.ShowMessageAsync("同步失败",
+                        $"「{project.Name}」未收到后端响应，请检查网络或后端状态后重试。");
+                }
+                return SyncToolResult.Failed("后端无响应");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[ToolLibrary] 同步工具 {project.Name} 失败:{ex.Message}");
+                if (raiseUiEvents)
+                {
+                    await _dialogService.ShowMessageAsync("同步失败",
+                        $"「{project.Name}」推送失败:{ex.Message}");
+                }
+                return SyncToolResult.Failed(ex.Message);
+            }
+            finally
+            {
+                project.IsSyncing = false;
+                SingleSyncingId = null;
+            }
+        }
+
+        [RelayCommand]
+        private async Task SyncSingleToolCommand(ToolProject project)
+        {
+            if (project == null) return;
+            if (!project.IsPendingSync) return;
+            if (IsBatchSyncing)
+            {
+                await _dialogService.ShowMessageAsync("提示", "批量同步进行中，请等待完成后再单独同步。");
+                return;
+            }
+            await SyncSingleToolAsync(project, raiseUiEvents: true);
+        }
+
+        private readonly struct SyncToolResult
+        {
+            public bool Success { get; }
+            public string? Error { get; }
+
+            private SyncToolResult(bool success, string? error)
+            {
+                Success = success;
+                Error = error;
+            }
+
+            public static SyncToolResult Ok() => new(true, null);
+            public static SyncToolResult Failed(string? error) => new(false, error);
         }
 
         [RelayCommand]

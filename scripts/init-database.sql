@@ -543,3 +543,109 @@ CREATE TABLE IF NOT EXISTS `sys_logininfor` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='系统访问记录';
 
 -- ==========================
+
+-- ============================================================
+-- 任务分配模块 (Agent 1: 后端 PR1)
+-- MySQL 风格: BIGINT AUTO_INCREMENT + utf8mb4
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS `task` (
+    `id`                BIGINT(20) NOT NULL AUTO_INCREMENT COMMENT '任务ID',
+    `target_type`       VARCHAR(16) NOT NULL COMMENT '目标类型(product/game/test)',
+    `target_id`         BIGINT(20) NOT NULL COMMENT '目标ID',
+    `task_title`        VARCHAR(200) NOT NULL COMMENT '任务标题',
+    `task_desc`         VARCHAR(2000) DEFAULT NULL COMMENT '任务描述',
+    `assignee_user_id`  BIGINT(20) NOT NULL COMMENT '受派人用户ID',
+    `assigner_user_id`  BIGINT(20) NOT NULL COMMENT '分配人用户ID',
+    `status`            VARCHAR(16) NOT NULL DEFAULT 'Pending' COMMENT '状态',
+    `role`              VARCHAR(16) NOT NULL DEFAULT 'WORKER' COMMENT '角色(OWNER/WORKER)',
+    `deadline`          DATETIME DEFAULT NULL COMMENT '截止时间',
+    `accepted_at`       DATETIME DEFAULT NULL COMMENT '接受时间',
+    `started_at`        DATETIME DEFAULT NULL COMMENT '开始时间',
+    `finished_at`       DATETIME DEFAULT NULL COMMENT '完成时间',
+    `comment`           VARCHAR(2000) DEFAULT NULL COMMENT '备注',
+    `test_payload`      TEXT COMMENT '测试业务JSON(target_type=test时使用)',
+    `create_by`         VARCHAR(64) DEFAULT '' COMMENT '创建者',
+    `create_time`       DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_by`         VARCHAR(64) DEFAULT '' COMMENT '更新者',
+    `update_time`       DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
+    `is_deleted`        TINYINT(1) DEFAULT 0 COMMENT '逻辑删除',
+    PRIMARY KEY (`id`),
+    KEY `idx_task_assignee` (`assignee_user_id`, `status`, `is_deleted`),
+    KEY `idx_task_assigner` (`assigner_user_id`, `status`, `is_deleted`),
+    KEY `idx_task_target`   (`target_type`, `target_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='任务分配主表';
+
+CREATE TABLE IF NOT EXISTS `notification_recipient` (
+    `id`              BIGINT(20) NOT NULL AUTO_INCREMENT COMMENT '主键',
+    `notification_id` BIGINT(20) NOT NULL COMMENT '通知ID',
+    `user_id`         BIGINT(20) NOT NULL COMMENT '用户ID',
+    `is_read`         TINYINT(1) DEFAULT 0 COMMENT '是否已读',
+    `read_at`         DATETIME DEFAULT NULL COMMENT '已读时间',
+    `create_time`     DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    PRIMARY KEY (`id`),
+    UNIQUE KEY `uq_notif_user` (`notification_id`, `user_id`),
+    KEY `idx_recipient_user` (`user_id`, `is_read`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='通知收件箱';
+
+CREATE TABLE IF NOT EXISTS `assignment_event` (
+    `id`              BIGINT(20) NOT NULL AUTO_INCREMENT COMMENT '事件ID',
+    `task_id`         BIGINT(20) NOT NULL COMMENT '任务ID',
+    `event_type`      VARCHAR(32) NOT NULL COMMENT '事件类型',
+    `actor_user_id`   BIGINT(20) NOT NULL COMMENT '操作人',
+    `from_status`     VARCHAR(16) DEFAULT NULL COMMENT '原状态',
+    `to_status`       VARCHAR(16) DEFAULT NULL COMMENT '新状态',
+    `comment`         VARCHAR(2000) DEFAULT NULL COMMENT '备注',
+    `create_time`     DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    PRIMARY KEY (`id`),
+    KEY `idx_event_task` (`task_id`, `create_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='任务状态变更事件流';
+
+CREATE TABLE IF NOT EXISTS `assignment_history` (
+    `id`                BIGINT(20) NOT NULL AUTO_INCREMENT COMMENT '主键',
+    `task_id`           BIGINT(20) NOT NULL COMMENT '任务ID',
+    `action_type`       VARCHAR(32) NOT NULL COMMENT '操作类型',
+    `operator_user_id`  BIGINT(20) NOT NULL COMMENT '操作人',
+    `before_snapshot`   TEXT COMMENT '操作前快照JSON',
+    `after_snapshot`    TEXT COMMENT '操作后快照JSON',
+    `comment`           VARCHAR(2000) DEFAULT NULL COMMENT '备注',
+    `create_time`       DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    PRIMARY KEY (`id`),
+    KEY `idx_history_task` (`task_id`, `create_time`),
+    KEY `idx_history_operator` (`operator_user_id`, `create_time`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='管理员操作审计快照';
+
+-- ============================================================
+-- F1 修复: 补全 MySQL 缺失的 sys_job / sys_job_log (H2 已有)
+-- ============================================================
+
+CREATE TABLE IF NOT EXISTS `sys_job` (
+    `job_id`          BIGINT(20) NOT NULL AUTO_INCREMENT COMMENT '任务ID',
+    `job_name`        VARCHAR(64) NOT NULL DEFAULT '' COMMENT '任务名称',
+    `job_group`       VARCHAR(64) NOT NULL DEFAULT 'DEFAULT' COMMENT '任务组名',
+    `invoke_target`   VARCHAR(500) NOT NULL COMMENT '调用目标字符串',
+    `cron_expression` VARCHAR(255) DEFAULT '' COMMENT 'cron执行表达式',
+    `misfire_policy`  VARCHAR(20) DEFAULT '3' COMMENT '计划执行错误策略(1立即执行 2执行一次 3放弃执行)',
+    `concurrent`      CHAR(1) DEFAULT '1' COMMENT '是否并发执行(0允许 1禁止)',
+    `status`          CHAR(1) DEFAULT '0' COMMENT '状态(0正常 1暂停)',
+    `create_by`       VARCHAR(64) DEFAULT '' COMMENT '创建者',
+    `create_time`     DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+    `update_by`       VARCHAR(64) DEFAULT '' COMMENT '更新者',
+    `update_time`     DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '更新时间',
+    `remark`          VARCHAR(500) DEFAULT '' COMMENT '备注信息',
+    PRIMARY KEY (`job_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='定时任务调度表';
+
+CREATE TABLE IF NOT EXISTS `sys_job_log` (
+    `job_log_id`      BIGINT(20) NOT NULL AUTO_INCREMENT COMMENT '任务日志ID',
+    `job_name`        VARCHAR(64) NOT NULL COMMENT '任务名称',
+    `job_group`       VARCHAR(64) NOT NULL COMMENT '任务组名',
+    `invoke_target`   VARCHAR(500) NOT NULL COMMENT '调用目标字符串',
+    `cron_expression` VARCHAR(255) DEFAULT '' COMMENT 'cron执行表达式',
+    `start_time`      DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '开始时间',
+    `end_time`        DATETIME DEFAULT NULL COMMENT '结束时间',
+    `status`          CHAR(1) DEFAULT '0' COMMENT '状态(0正常 1失败)',
+    `job_message`     VARCHAR(1000) DEFAULT '' COMMENT '日志信息',
+    `exception_info`  TEXT COMMENT '异常信息',
+    PRIMARY KEY (`job_log_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='定时任务日志表';

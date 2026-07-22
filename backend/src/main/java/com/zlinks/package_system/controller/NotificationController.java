@@ -38,6 +38,7 @@ import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -52,7 +53,7 @@ public class NotificationController {
     private final UserService userService;
     private final ObjectMapper objectMapper;
 
-    @Operation(summary = "获取通知列表")
+    @Operation(summary = "获取通知列表(管理员视图)")
     @GetMapping
     public Result<PageResult<Notification>> list(
             @RequestParam(defaultValue = "1") Integer current,
@@ -108,15 +109,65 @@ public class NotificationController {
         return Result.success(notification);
     }
 
-    @Operation(summary = "创建通知")
-    @PostMapping
-    public Result<Notification> create(@Valid @RequestBody NotificationRequest request) {
+    @Operation(summary = "当前用户的通知列表(按收件箱视角,含 isRead)")
+    @GetMapping("/mine")
+    public Result<PageResult<Map<String, Object>>> listMine(
+            @RequestParam(defaultValue = "1") Integer current,
+            @RequestParam(defaultValue = "10") Integer size,
+            @RequestParam(defaultValue = "false") Boolean unreadOnly) {
         Long userId = getCurrentUserId();
+        var records = notificationService.listMine(userId, Boolean.TRUE.equals(unreadOnly), current, size);
+        List<Map<String, Object>> rows = records.stream().map(r -> {
+            Map<String, Object> m = new HashMap<>();
+            Notification n = r.notification();
+            m.put("id", n.getId());
+            m.put("title", n.getTitle());
+            m.put("content", n.getContent());
+            m.put("module", n.getModule());
+            m.put("targetId", n.getTargetId());
+            m.put("targetType", n.getTargetType());
+            m.put("senderId", n.getSenderId());
+            m.put("senderName", n.getSenderName());
+            m.put("isPinned", n.getIsPinned());
+            m.put("isRead", r.isRead());
+            m.put("createTime", n.getCreateTime());
+            return m;
+        }).collect(Collectors.toList());
+        // 简单包装为 PageResult(只填 records/total=records.size)
+        PageResult<Map<String, Object>> pr = new PageResult<>(rows, (long) rows.size(), size, current);
+        return Result.success(pr);
+    }
 
-        List<Long> receiverIds = request.getReceiverIds();
-        if ("all".equals(request.getReceiverType())) {
-            receiverIds = userService.list().stream().map(User::getId).collect(Collectors.toList());
+    @Operation(summary = "当前用户未读通知数")
+    @GetMapping("/unread-count")
+    public Result<Long> unreadCount() {
+        Long userId = getCurrentUserId();
+        return Result.success(notificationService.countUnread(userId));
+    }
+
+    @Operation(summary = "单条标记已读")
+    @PostMapping("/{id}/read")
+    public Result<Void> markRead(@PathVariable Long id) {
+        Long userId = getCurrentUserId();
+        boolean ok = notificationService.markRead(userId, id);
+        if (!ok) {
+            // 没有收件箱记录 → 这条通知不属于此用户,不要静默成功
+            throw new BusinessException("通知不存在或不属于当前用户");
         }
+        return Result.success();
+    }
+
+    @Operation(summary = "全部标记已读")
+    @PostMapping("/read-all")
+    public Result<Integer> markAllRead() {
+        Long userId = getCurrentUserId();
+        return Result.success(notificationService.markAllRead(userId));
+    }
+
+    @Operation(summary = "创建通知(分发到 notification_recipient)")
+    @PostMapping
+    public Result<Map<String, Object>> create(@Valid @RequestBody NotificationRequest request) {
+        Long userId = getCurrentUserId();
 
         Notification notification = new Notification();
         notification.setTitle(request.getTitle());
@@ -125,14 +176,34 @@ public class NotificationController {
         notification.setTargetId(request.getTargetId());
         notification.setTargetType(request.getTargetType());
         notification.setSenderId(userId);
-        notification.setReceiverIds(toJson(receiverIds));
-        notification.setReceiverType(request.getReceiverType());
         notification.setIsPinned(request.getIsPinned() != null ? request.getIsPinned() : 0);
         notification.setStatus(request.getStatus() != null ? request.getStatus() : "unread");
 
-        notificationService.save(notification);
+        String rt = request.getReceiverType();
+        // 'all' 时 receiverIds 为空;也允许 'user' 显式传 receiverIds;'group' 用 groupIds
+        List<Long> receiverIds = request.getReceiverIds();
+        List<Long> groupIds = request.getGroupIds();
+
+        int distributed = notificationService.createAndDistribute(notification, rt, receiverIds, groupIds);
+        // 写回主表冗余字段(便于兼容旧前端,receiverIds 写最简形式)
+        List<Long> effectiveIds;
+        if ("user".equalsIgnoreCase(rt)) {
+            effectiveIds = receiverIds == null ? List.of() : receiverIds;
+        } else if ("group".equalsIgnoreCase(rt)) {
+            effectiveIds = List.of();
+        } else {
+            // 'all' 留空
+            effectiveIds = List.of();
+        }
+        notification.setReceiverType(rt);
+        notification.setReceiverIds(toJson(effectiveIds));
+        notificationService.updateById(notification);
+
         fillNames(List.of(notification));
-        return Result.success(notification);
+        Map<String, Object> data = new HashMap<>();
+        data.put("notification", notification);
+        data.put("distributed", distributed);
+        return Result.success(data);
     }
 
     @Operation(summary = "更新通知")
@@ -143,17 +214,11 @@ public class NotificationController {
             throw new BusinessException("通知不存在");
         }
 
-        List<Long> receiverIds = request.getReceiverIds();
-        if ("all".equals(request.getReceiverType())) {
-            receiverIds = userService.list().stream().map(User::getId).collect(Collectors.toList());
-        }
-
         notification.setTitle(request.getTitle());
         notification.setContent(request.getContent());
         notification.setModule(request.getModule());
         notification.setTargetId(request.getTargetId());
         notification.setTargetType(request.getTargetType());
-        notification.setReceiverIds(toJson(receiverIds));
         notification.setReceiverType(request.getReceiverType());
         notification.setIsPinned(request.getIsPinned());
         notification.setStatus(request.getStatus());
@@ -303,11 +368,11 @@ public class NotificationController {
     }
 
     private List<Long> parseIds(String json) {
-        if (!StringUtils.hasText(json)) return List.of();
+        if (!StringUtils.hasText(json)) return Collections.emptyList();
         try {
             return objectMapper.readValue(json, new TypeReference<List<Long>>() {});
         } catch (Exception e) {
-            return List.of();
+            return Collections.emptyList();
         }
     }
 

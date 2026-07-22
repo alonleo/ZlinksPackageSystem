@@ -504,3 +504,74 @@ CREATE TABLE IF NOT EXISTS `tool` (
     `update_time` TIMESTAMP,
     `is_deleted` TINYINT DEFAULT 0
 );
+
+-- ============================================================
+-- 任务分配模块 (Agent 1: 后端 PR1)
+-- 覆盖: task / notification_recipient / assignment_event / assignment_history
+-- ============================================================
+
+-- 主任务表(target_type 枚举:product/game/test;test 业务字段走 test_payload JSON)
+CREATE TABLE IF NOT EXISTS task (
+    id                BIGINT AUTO_INCREMENT PRIMARY KEY,
+    target_type       VARCHAR(16) NOT NULL,
+    target_id         BIGINT NOT NULL,
+    task_title        VARCHAR(200) NOT NULL,
+    task_desc         VARCHAR(2000),
+    assignee_user_id  BIGINT NOT NULL,
+    assigner_user_id  BIGINT NOT NULL,
+    status            VARCHAR(16) NOT NULL DEFAULT 'Pending',
+    role              VARCHAR(16) NOT NULL DEFAULT 'WORKER',
+    deadline          TIMESTAMP,
+    accepted_at       TIMESTAMP,
+    started_at        TIMESTAMP,
+    finished_at       TIMESTAMP,
+    comment           VARCHAR(2000),
+    test_payload      CLOB,
+    create_by         VARCHAR(64) DEFAULT '',
+    create_time       TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    update_by         VARCHAR(64) DEFAULT '',
+    update_time       TIMESTAMP,
+    is_deleted        TINYINT DEFAULT 0
+);
+CREATE INDEX IF NOT EXISTS idx_task_assignee ON task(assignee_user_id, status, is_deleted);
+CREATE INDEX IF NOT EXISTS idx_task_assigner ON task(assigner_user_id, status, is_deleted);
+CREATE INDEX IF NOT EXISTS idx_task_target   ON task(target_type, target_id);
+
+-- 通知收件箱(每用户每通知一行,标记已读)
+CREATE TABLE IF NOT EXISTS notification_recipient (
+    id              BIGINT AUTO_INCREMENT PRIMARY KEY,
+    notification_id BIGINT NOT NULL,
+    user_id         BIGINT NOT NULL,
+    is_read         TINYINT DEFAULT 0,
+    read_at         TIMESTAMP,
+    create_time     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE UNIQUE INDEX IF NOT EXISTS uq_notif_user ON notification_recipient(notification_id, user_id);
+CREATE INDEX IF NOT EXISTS idx_recipient_user ON notification_recipient(user_id, is_read);
+
+-- 分配事件流(append-only,记录每一次状态变更)
+CREATE TABLE IF NOT EXISTS assignment_event (
+    id              BIGINT AUTO_INCREMENT PRIMARY KEY,
+    task_id         BIGINT NOT NULL,
+    event_type      VARCHAR(32) NOT NULL,
+    actor_user_id   BIGINT NOT NULL,
+    from_status     VARCHAR(16),
+    to_status       VARCHAR(16),
+    comment         VARCHAR(2000),
+    create_time     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_event_task ON assignment_event(task_id, create_time);
+
+-- 审计快照(操作级,含 before/after 快照)
+CREATE TABLE IF NOT EXISTS assignment_history (
+    id              BIGINT AUTO_INCREMENT PRIMARY KEY,
+    task_id         BIGINT NOT NULL,
+    action_type     VARCHAR(32) NOT NULL,
+    operator_user_id BIGINT NOT NULL,
+    before_snapshot CLOB,
+    after_snapshot  CLOB,
+    comment         VARCHAR(2000),
+    create_time     TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_history_task ON assignment_history(task_id, create_time);
+CREATE INDEX IF NOT EXISTS idx_history_operator ON assignment_history(operator_user_id, create_time);

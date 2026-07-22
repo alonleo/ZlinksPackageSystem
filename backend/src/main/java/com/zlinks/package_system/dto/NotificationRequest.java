@@ -21,6 +21,9 @@ public class NotificationRequest {
 
     private List<Long> receiverIds;
 
+    /** receiverType='group' 时填写:权限组 ID 列表 */
+    private List<Long> groupIds;
+
     private String receiverType;
 
     private Integer isPinned;

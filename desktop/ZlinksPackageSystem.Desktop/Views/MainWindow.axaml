@@ -176,16 +176,16 @@
                                     </MenuItem.Header>
                                 </MenuItem>
                                 <Separator IsVisible="{Binding CanLoginToServer}" />
-                                <MenuItem Header="🔑 登录远程服务器"
+                                <MenuItem Header="🔑 登录"
                                           Command="{Binding LoginToServerCommand}"
                                           IsVisible="{Binding CanLoginToServer}" />
                                 <Separator />
                                 <MenuItem Header="🔧 修改账号"
                                           Command="{Binding ChangeAccountCommand}"
                                           IsVisible="{Binding CanChangeAccount}" />
-                                <MenuItem Header="🚪 退出"
-                                          Command="{Binding LogoutCommand}"
-                                          IsVisible="{Binding CanChangeAccount}" />
+                                <MenuItem Header="🚪 退出账号"
+                                           Command="{Binding LogoutCommand}"
+                                           IsVisible="{Binding CanChangeAccount}" />
                             </MenuFlyout>
                         </Button.Flyout>
                     </Button>
@@ -219,7 +219,7 @@
                         <MenuItem Header="🔔 消息中心" Command="{Binding NavigateToNotificationCommand}" IsVisible="{Binding IsNotificationVisible}" />
                         <MenuItem Header="⚙️ 设置" Command="{Binding NavigateToSettingsCommand}" IsVisible="{Binding IsSettingsVisible}" />
                         <Separator />
-                        <MenuItem Header="🚪 退出" Command="{Binding LogoutCommand}" />
+                        <MenuItem Header="🚪 退出应用" Command="{Binding ExitApplicationCommand}" />
                     </Menu>
                 </DockPanel>
 

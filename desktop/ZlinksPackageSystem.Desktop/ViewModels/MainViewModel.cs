@@ -284,7 +284,16 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
             Username = string.Empty;
             IsOfflineMode = false;
             _wasOffline = false;
-            CurrentViewModel = _serviceProvider.GetRequiredService<HomeViewModel>();
+            CurrentViewModel = _serviceProvider.GetRequiredService<LoginViewModel>();
+        }
+
+        [RelayCommand]
+        private void ExitApplication()
+        {
+            if (Application.Current?.ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
+            {
+                desktop.Shutdown();
+            }
         }
 
         public async Task InitializeAsync()

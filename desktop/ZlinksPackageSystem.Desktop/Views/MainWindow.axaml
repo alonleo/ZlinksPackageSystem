@@ -185,7 +185,7 @@
                                           IsVisible="{Binding CanChangeAccount}" />
                                 <MenuItem Header="🚪 退出"
                                           Command="{Binding LogoutCommand}"
-                                          IsVisible="{Binding IsServerLoggedIn}" />
+                                          IsVisible="{Binding CanChangeAccount}" />
                             </MenuFlyout>
                         </Button.Flyout>
                     </Button>

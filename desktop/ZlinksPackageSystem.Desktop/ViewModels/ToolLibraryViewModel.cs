@@ -217,116 +217,153 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
         [RelayCommand]
         private async Task LoadProjectsAsync()
         {
-            IsBusy = true;
-
-            // 缓存优先 — 展示本地快照
             try
             {
-                var cachedTools = await _cacheService.LoadAsync<ToolsCache>(CacheKeys.Tools);
-                if (cachedTools?.Projects != null && cachedTools.Projects.Count > 0)
-                {
-                    Projects = new ObservableCollection<ToolProject>(cachedTools.Projects);
-                    foreach (var p in Projects) p.IsFromLocalSnapshot = true;
-                    LastCacheUpdateTime = cachedTools.LastUpdated;
-                    IsFromCache = true;
-                }
-            }
-            catch { /* 缓存可能损坏 */ }
+                IsBusy = true;
+                StatusMessage = "正在加载工具库...";
 
-            // 在线则拉取后端最新数据
-            if (_networkService.IsOnline)
-            {
+                // 缓存优先 — 展示本地快照
                 try
                 {
-                    var page = await _apiService.GetAsync<PageResponse<ToolEntity>>(
-                        "/tools?current=1&size=200");
-
-                    List<ToolProject> backendProjects = new();
-                    HashSet<long> backendIds = new();
-                    if (page?.Records != null && page.Records.Count > 0)
+                    var cachedTools = await _cacheService.LoadAsync<ToolsCache>(CacheKeys.Tools);
+                    if (cachedTools?.Projects != null && cachedTools.Projects.Count > 0)
                     {
-                        backendProjects = page.Records.Select(MapToProject).ToList();
-                        foreach (var p in backendProjects) backendIds.Add(p.Id);
+                        Projects = new ObservableCollection<ToolProject>(cachedTools.Projects);
+                        foreach (var p in Projects) p.IsFromLocalSnapshot = true;
+                        LastCacheUpdateTime = cachedTools.LastUpdated;
+                        IsFromCache = true;
                     }
+                }
+                catch { }
 
-                    List<ToolProject> pendingLocal = new();
+                // 在线则拉取后端最新数据
+                if (_networkService.IsOnline)
+                {
+                    StatusMessage = "正在从服务器同步...";
                     try
                     {
-                        var cached = await _persistence.LoadAsync();
-                        foreach (var c in cached)
+                        var page = await _apiService.GetAsync<PageResponse<ToolEntity>>(
+                            "/tools?current=1&size=200");
+
+                        List<ToolProject> backendProjects = new();
+                        HashSet<long> backendIds = new();
+                        if (page?.Records != null && page.Records.Count > 0)
                         {
-                            bool isPendingCreate = c.SyncState == ToolSyncState.PendingCreate
-                                                  || (c.Id > 0 && !backendIds.Contains(c.Id));
-                            bool isPendingUpdate = c.SyncState == ToolSyncState.PendingUpdate;
-                            if (isPendingCreate || isPendingUpdate)
-                            {
-                                c.SyncState = isPendingUpdate
-                                    ? ToolSyncState.PendingUpdate
-                                    : ToolSyncState.PendingCreate;
-                                pendingLocal.Add(c);
-                            }
+                            backendProjects = page.Records.Select(MapToProject).ToList();
+                            foreach (var p in backendProjects) backendIds.Add(p.Id);
                         }
-                    }
-                    catch { }
 
-                    var merged = new List<ToolProject>(pendingLocal);
-                    merged.AddRange(backendProjects);
-                    foreach (var p in merged) p.IsFromLocalSnapshot = false;
-                    Projects = new ObservableCollection<ToolProject>(merged);
-                    IsFromCache = false;
-
-                    PendingSyncTools.Clear();
-                    foreach (var p in pendingLocal) PendingSyncTools.Add(p);
-                    OnPropertyChanged(nameof(HasPendingSync));
-
-                    await _persistence.SaveAsync(AllPersistable());
-                    await _cacheService.SaveAsync(CacheKeys.Tools, new ToolsCache
-                    {
-                        Projects = Projects.ToList(),
-                        LastUpdated = DateTime.Now
-                    });
-                    LastCacheUpdateTime = DateTime.Now;
-                }
-                catch (Exception ex)
-                {
-                    Debug.WriteLine($"[ToolLibrary] 后端加载失败，保留缓存：{ex.Message}");
-                    if (Projects.Count == 0)
-                    {
+                        List<ToolProject> pendingLocal = new();
                         try
                         {
                             var cached = await _persistence.LoadAsync();
-                            Projects = new ObservableCollection<ToolProject>(cached);
-                            PendingSyncTools.Clear();
                             foreach (var c in cached)
                             {
-                                c.SyncState = ToolSyncState.PendingCreate;
-                                PendingSyncTools.Add(c);
+                                bool isPendingCreate = c.SyncState == ToolSyncState.PendingCreate
+                                                      || (c.Id > 0 && !backendIds.Contains(c.Id));
+                                bool isPendingUpdate = c.SyncState == ToolSyncState.PendingUpdate;
+                                if (isPendingCreate || isPendingUpdate)
+                                {
+                                    c.SyncState = isPendingUpdate
+                                        ? ToolSyncState.PendingUpdate
+                                        : ToolSyncState.PendingCreate;
+                                    pendingLocal.Add(c);
+                                }
                             }
-                            OnPropertyChanged(nameof(HasPendingSync));
                         }
-                        catch
+                        catch { }
+
+                        var merged = new List<ToolProject>(pendingLocal);
+                        merged.AddRange(backendProjects);
+                        foreach (var p in merged) p.IsFromLocalSnapshot = false;
+                        Projects = new ObservableCollection<ToolProject>(merged);
+                        IsFromCache = false;
+
+                        PendingSyncTools.Clear();
+                        foreach (var p in pendingLocal) PendingSyncTools.Add(p);
+                        OnPropertyChanged(nameof(HasPendingSync));
+
+                        await _persistence.SaveAsync(AllPersistable());
+                        await _cacheService.SaveAsync(CacheKeys.Tools, new ToolsCache
                         {
-                            Projects = new ObservableCollection<ToolProject>();
+                            Projects = Projects.ToList(),
+                            LastUpdated = DateTime.Now
+                        });
+                        LastCacheUpdateTime = DateTime.Now;
+
+                        StatusMessage = $"已加载 {Projects.Count} 个工具";
+                    }
+                    catch (Exception ex)
+                    {
+                        Debug.WriteLine($"[ToolLibrary] 后端加载失败，保留缓存：{ex.Message}");
+                        if (Projects.Count == 0)
+                        {
+                            try
+                            {
+                                var cached = await _persistence.LoadAsync();
+                                Projects = new ObservableCollection<ToolProject>(cached);
+                                PendingSyncTools.Clear();
+                                foreach (var c in cached)
+                                {
+                                    c.SyncState = ToolSyncState.PendingCreate;
+                                    PendingSyncTools.Add(c);
+                                }
+                                OnPropertyChanged(nameof(HasPendingSync));
+                            }
+                            catch
+                            {
+                                Projects = new ObservableCollection<ToolProject>();
+                            }
                         }
+                        StatusMessage = "加载失败，已保留本地数据";
                     }
                 }
-            }
-            else
-            {
-                try
+                else
                 {
-                    var cached = await _persistence.LoadAsync();
-                    foreach (var c in cached) c.SyncState = ToolSyncState.PendingCreate;
-                    if (Projects.Count == 0)
-                        Projects = new ObservableCollection<ToolProject>(cached);
-                    PendingSyncTools.Clear();
-                    foreach (var c in cached) PendingSyncTools.Add(c);
-                    OnPropertyChanged(nameof(HasPendingSync));
+                    try
+                    {
+                        var cached = await _persistence.LoadAsync();
+                        foreach (var c in cached) c.SyncState = ToolSyncState.PendingCreate;
+                        if (Projects.Count == 0)
+                            Projects = new ObservableCollection<ToolProject>(cached);
+                        PendingSyncTools.Clear();
+                        foreach (var c in cached) PendingSyncTools.Add(c);
+                        OnPropertyChanged(nameof(HasPendingSync));
+                    }
+                    catch { }
+                    StatusMessage = "离线模式 - 仅显示本地工具";
                 }
-                catch { }
             }
+            finally
+            {
+                IsBusy = false;
+                // 3 秒后清除提示
+                _ = ClearStatusMessageAsync();
+            }
+        }
 
-            IsBusy = false;
+        private bool _hasStatusMessage;
+        public bool HasStatusMessage
+        {
+            get => _hasStatusMessage;
+            set => SetProperty(ref _hasStatusMessage, value);
+        }
+
+        private string _statusMessage = string.Empty;
+        public string StatusMessage
+        {
+            get => _statusMessage;
+            set
+            {
+                SetProperty(ref _statusMessage, value);
+                HasStatusMessage = !string.IsNullOrEmpty(value);
+            }
+        }
+
+        private async Task ClearStatusMessageAsync()
+        {
+            await Task.Delay(3000);
+            StatusMessage = string.Empty;
         }
 
         /// <summary>

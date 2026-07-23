@@ -110,6 +110,12 @@
                        IsVisible="{Binding IsFromCache}" />
         </Grid>
 
+        <!-- 加载状态提示 -->
+        <TextBlock DockPanel.Dock="Top" Text="{Binding StatusMessage}"
+                   FontSize="11" Foreground="#99FFFFFF"
+                   Margin="0,-4,0,8"
+                   IsVisible="{Binding HasStatusMessage}" />
+
         <!-- 可用运行环境面板 -->
                 <Border DockPanel.Dock="Top" Margin="0,0,0,14" Padding="12,10"
                         Background="{DynamicResource SubItemBackground}" CornerRadius="8"

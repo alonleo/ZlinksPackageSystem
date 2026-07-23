@@ -621,6 +621,8 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
             EditNotification = CloneNotification(project.Notification);
             SelectedTabIndex = 0;
             IsSecretsVisible = false;
+
+            _ = RefreshGitEnvironmentAsync();
         }
 
         private static NotificationConfig CloneNotification(NotificationConfig src)
@@ -1368,7 +1370,7 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
                 {
                     return new VenvResult
                     {
-                        ErrorMessage = "未找到可用的 Python 解释器,无法创建虚拟环境。\n请在「启动方式」面板中指定解释器路径,或安装 Python 后重试。"
+                        ErrorMessage = "未找到可用的 Python 解释器,无法创建虚拟环境。\n请在「工具信息」面板的启动配置中指定解释器路径,或安装 Python 后重试。"
                     };
                 }
 
@@ -1872,7 +1874,7 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
 
                     await _dialogService.ShowCloneLogAsync(
                         "克隆成功",
-                        $"仓库已克隆到：\n{result.RepoRoot}\n\n可在「启动方式」中选择脚本。",
+                        $"仓库已克隆到：\n{result.RepoRoot}\n\n可在「工具信息」的启动配置中选择脚本。",
                         result.Logs,
                         success: true);
                 }
@@ -2010,7 +2012,7 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
         {
             if (string.IsNullOrWhiteSpace(EditCloneDirectory))
             {
-                await _dialogService.ShowMessageAsync("提示", "克隆目录为空，无法拉取。请先在「📋 工具信息」- Git 仓库区域设置克隆目录。");
+                await _dialogService.ShowMessageAsync("提示", "克隆目录为空，无法拉取。请先在「🧩 环境与依赖」- Git 仓库区域设置克隆目录。");
                 return;
             }
             if (GitEnvironment?.IsInstalled != true)

@@ -343,117 +343,9 @@
 
                                 <Separator />
 
-                                <!-- ===== Git 仓库面板 ===== -->
-                                <StackPanel Spacing="8">
-                                    <Grid ColumnDefinitions="*,Auto">
-                                        <TextBlock Grid.Column="0" Text="📥 Git 仓库（可选 · 一次性克隆 / 或更新现有仓库）"
-                                                   FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource ForegroundPrimary}"
-                                                   VerticalAlignment="Center" />
-                                        <Button Grid.Column="1"
-                                                Content="{Binding IsGitPanelExpanded, Converter={StaticResource BoolToExpandGlyphConverter}}"
-                                                Command="{Binding ToggleGitPanelCommand}"
-                                                Width="34" Height="26" Padding="0" />
-                                    </Grid>
-
-                                    <StackPanel Spacing="6" IsVisible="{Binding IsGitPanelExpanded}">
-                                        <!-- Git URL + 克隆目标（仅新建） -->
-                                        <TextBox Text="{Binding EditGitUrl}"
-                                                 Watermark="Git URL（HTTPS 或 SSH;本地已有仓库可留空,在拉取前再设置）" />
-                                        <Grid ColumnDefinitions="*,Auto,Auto">
-                                            <TextBox Grid.Column="0" Text="{Binding EditCloneDirectory}"
-                                                     Watermark="克隆目标父目录（如 D:\tools 或 /home/user/tools,若已含 .git 会被自动识别）"
-                                                     Margin="0,0,6,0" />
-                                            <Button Grid.Column="1" Content="📁 浏览" Width="80"
-                                                    Command="{Binding BrowseCloneDirectoryCommand}" />
-                                            <Button Grid.Column="2" Content="🔍 检测" Width="80" Margin="0,0,0,0"
-                                                    IsEnabled="{Binding IsDetectingLocalGit, Converter={StaticResource BooleanInverseConverter}}"
-                                                    Command="{Binding DetectLocalGitNowCommand}" />
-                                        </Grid>
-
-                                        <!-- 本地 .git 自动检测结果提示(共享) -->
-                                        <Border Padding="8,6" CornerRadius="4"
-                                                Background="#0DFFFFFF"
-                                                BorderBrush="{DynamicResource CardBorder}"
-                                                BorderThickness="1"
-                                                IsVisible="{Binding LocalGitHint, Converter={StaticResource StringNotEmptyConverter}}">
-                                            <TextBlock Text="{Binding LocalGitHint}"
-                                                       FontSize="11"
-                                                       TextWrapping="Wrap"
-                                                       Foreground="{DynamicResource ForegroundSecondary}" />
-                                        </Border>
-
-                                        <!-- 远端名(新建/编辑共享)— 默认 origin,可改 -->
-                                        <Grid ColumnDefinitions="Auto,*" Margin="0,4,0,0">
-                                            <TextBlock Grid.Column="0" Text="远端名:" VerticalAlignment="Center"
-                                                       Margin="0,0,8,0"
-                                                       FontSize="11" Foreground="{DynamicResource ForegroundSecondary}" />
-                                            <TextBox Grid.Column="1" Text="{Binding EditRemoteName, Mode=TwoWay}"
-                                                     Watermark="origin" />
-                                        </Grid>
-
-                                        <!-- 本机 Git 检测（共享） -->
-                                        <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
-                                            <Ellipse Width="8" Height="8" VerticalAlignment="Center"
-                                                     Fill="{Binding GitEnvironment.IsInstalled, Converter={StaticResource BoolToColorConverter}, FallbackValue=#666666}" />
-                                            <TextBlock VerticalAlignment="Center" FontSize="11" Foreground="{DynamicResource ForegroundPrimary}">
-                                                <Run Text="本地 Git: " />
-                                                <Run Text="{Binding GitEnvironment.Version, FallbackValue='点击右侧刷新检测', TargetNullValue='点击右侧刷新检测'}" />
-                                            </TextBlock>
-                                            <Button Content="🔄 刷新" Padding="6,2" FontSize="10"
-                                                    IsEnabled="{Binding IsDetectingGit, Converter={StaticResource BooleanInverseConverter}}"
-                                                    Command="{Binding RefreshGitEnvironmentCommand}" />
-                                        </StackPanel>
-
-                                        <!-- 克隆按钮行（仅新建） -->
-                                        <StackPanel Orientation="Horizontal" Spacing="8"
-                                                    IsVisible="{Binding IsNewProject}">
-                                            <Button Content="📥 克隆" Width="110"
-                                                    Background="#FF1976D2" BorderBrush="#FF1976D2" Foreground="{DynamicResource ForegroundPrimary}"
-                                                    IsVisible="{Binding IsCloning, Converter={StaticResource BooleanInverseConverter}}"
-                                                    IsEnabled="{Binding GitEnvironment.IsInstalled}"
-                                                    Command="{Binding StartCloneCommand}" />
-                                            <Button Content="⏳ 取消克隆" Width="110"
-                                                    IsVisible="{Binding IsCloning}"
-                                                    BorderBrush="#FFF56C6C" Foreground="#FFF56C6C"
-                                                    Command="{Binding CancelCloneCommand}" />
-                                            <TextBlock VerticalAlignment="Center" FontSize="11" Foreground="{DynamicResource ForegroundSecondary}"
-                                                       Text="{Binding CloneProgressText}" />
-                                        </StackPanel>
-
-                                        <!-- 🆕 拉取更新按钮行（仅编辑现有项目） -->
-                                        <StackPanel Orientation="Horizontal" Spacing="8"
-                                                    IsVisible="{Binding !IsNewProject}">
-                                            <Button Content="📥 拉取更新" Width="110"
-                                                    Background="#FF52C41A" BorderBrush="#FF52C41A" Foreground="{DynamicResource ForegroundPrimary}"
-                                                    IsVisible="{Binding IsPulling, Converter={StaticResource BooleanInverseConverter}}"
-                                                    IsEnabled="{Binding GitEnvironment.IsInstalled}"
-                                                    Command="{Binding StartPullCommand}" />
-                                            <Button Content="⏳ 取消拉取" Width="110"
-                                                    IsVisible="{Binding IsPulling}"
-                                                    BorderBrush="#FFF56C6C" Foreground="#FFF56C6C"
-                                                    Command="{Binding CancelPullCommand}" />
-                                            <TextBlock VerticalAlignment="Center" FontSize="11" Foreground="{DynamicResource ForegroundSecondary}"
-                                                       Text="{Binding PullProgressText}" />
-                                        </StackPanel>
-                                    </StackPanel>
-                                </StackPanel>
-
-                                <Separator />
-
-                                <!-- 操作按钮已移至 TabControl 外层底栏(跨两个 Tab 共享) -->
-                            </StackPanel>
-                            </ScrollViewer>
-                        </TabItem>
-
-                        <!-- ===== Tab 2: 启动方式 ===== -->
-                        <TabItem Header="🚀 启动方式">
-                            <ScrollViewer VerticalScrollBarVisibility="Auto"
-                                          HorizontalScrollBarVisibility="Disabled"
-                                          Padding="0,0,0,8">
-                            <StackPanel Spacing="10">
-
-                                <!-- ============ 运行模式选择 ============ -->
-                                <TextBlock Text="🚀 启动方式" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource ForegroundPrimary}" />
+                                <!-- ============ 启动配置 ============ -->
+                                <TextBlock Text="🚀 启动配置" FontSize="13" FontWeight="SemiBold"
+                                           Foreground="{DynamicResource ForegroundPrimary}" />
 
                                 <StackPanel Spacing="4">
                                     <TextBlock Text="运行模式 *" FontSize="11" Foreground="{DynamicResource ForegroundSecondary}" />
@@ -462,7 +354,7 @@
                                               SelectedIndex="{Binding EditRunMode, Converter={StaticResource EnumToIntConverter}}" />
                                 </StackPanel>
 
-                                <!-- 脚本模式：显示 解释器 + 脚本 -->
+                                <!-- 脚本模式：显示解释器和脚本 -->
                                 <StackPanel Spacing="6"
                                             IsVisible="{Binding EditRunMode, Converter={StaticResource EnumEqualsConverter}, ConverterParameter=Script}">
                                     <StackPanel Spacing="4">
@@ -496,9 +388,136 @@
                                         <Button Grid.Column="1" Content="📁 浏览" Width="80"
                                                 Command="{Binding BrowseScriptCommand}" />
                                     </Grid>
+                                </StackPanel>
 
-                                    <!-- ===== Python 虚拟环境(仅 Python 工具显示)===== -->
-                                    <Border Padding="10,8"
+                                <!-- 本地可执行程序模式：单可执行文件路径 -->
+                                <StackPanel Spacing="6"
+                                            IsVisible="{Binding EditRunMode, Converter={StaticResource EnumEqualsConverter}, ConverterParameter=LocalExecutable}">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBox Grid.Column="0" Text="{Binding EditExecutablePath}"
+                                                 Watermark="可执行程序绝对路径（如 C:\tools\ffmpeg.exe）*" Margin="0,0,6,0" />
+                                        <Button Grid.Column="1" Content="📁 浏览" Width="80"
+                                                Command="{Binding BrowseExecutableCommand}" />
+                                    </Grid>
+                                    <TextBlock Text="提示：本地可执行程序模式不使用检测到的运行环境，直接启动该 .exe。"
+                                               FontSize="10" Foreground="#66FFFFFF" />
+                                </StackPanel>
+
+                                <!-- 工作目录（两种模式都有） -->
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBox Grid.Column="0" Text="{Binding EditWorkingDirectory}"
+                                             Watermark="工作目录（留空使用脚本/可执行文件所在目录）" Margin="0,0,6,0" />
+                                    <Button Grid.Column="1" Content="📁 浏览" Width="80"
+                                            Command="{Binding BrowseWorkingDirectoryCommand}" />
+                                </Grid>
+
+                                <Separator />
+
+                                <!-- 操作按钮已移至 TabControl 外层底栏(跨所有 Tab 共享) -->
+                            </StackPanel>
+                            </ScrollViewer>
+                        </TabItem>
+
+                        <!-- ===== Tab 2: 环境与依赖 ===== -->
+                        <TabItem Header="🧩 环境与依赖">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                          HorizontalScrollBarVisibility="Disabled"
+                                          Padding="0,0,0,8">
+                            <StackPanel Spacing="10">
+
+                                <!-- ============ 环境与依赖 ============ -->
+                                <TextBlock Text="🧩 环境与依赖" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource ForegroundPrimary}" />
+
+                                <!-- ===== Git 仓库面板 ===== -->
+                                <StackPanel Spacing="8">
+                                    <Grid ColumnDefinitions="*,Auto">
+                                        <TextBlock Grid.Column="0" Text="📥 Git 仓库（可选 · 一次性克隆 / 或更新现有仓库）"
+                                                   FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource ForegroundPrimary}"
+                                                   VerticalAlignment="Center" />
+                                        <Button Grid.Column="1"
+                                                Content="{Binding IsGitPanelExpanded, Converter={StaticResource BoolToExpandGlyphConverter}}"
+                                                Command="{Binding ToggleGitPanelCommand}"
+                                                Width="34" Height="26" Padding="0" />
+                                    </Grid>
+
+                                    <StackPanel Spacing="6" IsVisible="{Binding IsGitPanelExpanded}">
+                                        <TextBox Text="{Binding EditGitUrl}"
+                                                 Watermark="Git URL（HTTPS 或 SSH;本地已有仓库可留空,在拉取前再设置）" />
+                                        <Grid ColumnDefinitions="*,Auto,Auto">
+                                            <TextBox Grid.Column="0" Text="{Binding EditCloneDirectory}"
+                                                     Watermark="克隆目标父目录（如 D:\tools 或 /home/user/tools,若已含 .git 会被自动识别）"
+                                                     Margin="0,0,6,0" />
+                                            <Button Grid.Column="1" Content="📁 浏览" Width="80"
+                                                    Command="{Binding BrowseCloneDirectoryCommand}" />
+                                            <Button Grid.Column="2" Content="🔍 检测" Width="80"
+                                                    IsEnabled="{Binding IsDetectingLocalGit, Converter={StaticResource BooleanInverseConverter}}"
+                                                    Command="{Binding DetectLocalGitNowCommand}" />
+                                        </Grid>
+
+                                        <Border Padding="8,6" CornerRadius="4"
+                                                Background="#0DFFFFFF"
+                                                BorderBrush="{DynamicResource CardBorder}"
+                                                BorderThickness="1"
+                                                IsVisible="{Binding LocalGitHint, Converter={StaticResource StringNotEmptyConverter}}">
+                                            <TextBlock Text="{Binding LocalGitHint}"
+                                                       FontSize="11"
+                                                       TextWrapping="Wrap"
+                                                       Foreground="{DynamicResource ForegroundSecondary}" />
+                                        </Border>
+
+                                        <Grid ColumnDefinitions="Auto,*" Margin="0,4,0,0">
+                                            <TextBlock Grid.Column="0" Text="远端名:" VerticalAlignment="Center"
+                                                       Margin="0,0,8,0"
+                                                       FontSize="11" Foreground="{DynamicResource ForegroundSecondary}" />
+                                            <TextBox Grid.Column="1" Text="{Binding EditRemoteName, Mode=TwoWay}"
+                                                     Watermark="origin" />
+                                        </Grid>
+
+<StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
+                                            <Ellipse Width="8" Height="8" VerticalAlignment="Center"
+                                                     Fill="{Binding GitEnvironment.IsInstalled, Converter={StaticResource BoolToColorConverter}, FallbackValue=#666666}" />
+                                            <TextBlock VerticalAlignment="Center" FontSize="11" Foreground="{DynamicResource ForegroundPrimary}">
+                                                <Run Text="本地 Git: " />
+                                                <Run Text="{Binding GitEnvironment.Version, FallbackValue='点击右侧刷新检测', TargetNullValue='点击右侧刷新检测'}" />
+                                            </TextBlock>
+                                            <Button Content="🔄 刷新" Padding="6,2" FontSize="10"
+                                                    IsEnabled="{Binding IsDetectingGit, Converter={StaticResource BooleanInverseConverter}}"
+                                                    Command="{Binding RefreshGitEnvironmentCommand}" />
+                                            <Button Content="📥 拉取更新" Width="110"
+                                                    Background="#FF52C41A" BorderBrush="#FF52C41A" Foreground="{DynamicResource ForegroundPrimary}"
+                                                    IsVisible="{Binding IsPulling, Converter={StaticResource BooleanInverseConverter}}"
+                                                    IsEnabled="{Binding GitEnvironment.IsInstalled}"
+                                                    Command="{Binding StartPullCommand}" />
+                                            <Button Content="⏳ 取消拉取" Width="110"
+                                                    IsVisible="{Binding IsPulling}"
+                                                    BorderBrush="#FFF56C6C" Foreground="#FFF56C6C"
+                                                    Command="{Binding CancelPullCommand}" />
+                                            <TextBlock VerticalAlignment="Center" FontSize="11" Foreground="{DynamicResource ForegroundSecondary}"
+                                                       Text="{Binding PullProgressText}" />
+                                        </StackPanel>
+
+                                        <StackPanel Orientation="Horizontal" Spacing="8"
+                                                    IsVisible="{Binding IsNewProject}">
+                                            <Button Content="📥 克隆" Width="110"
+                                                    Background="#FF1976D2" BorderBrush="#FF1976D2" Foreground="{DynamicResource ForegroundPrimary}"
+                                                    IsVisible="{Binding IsCloning, Converter={StaticResource BooleanInverseConverter}}"
+                                                    IsEnabled="{Binding GitEnvironment.IsInstalled}"
+                                                    Command="{Binding StartCloneCommand}" />
+                                            <Button Content="⏳ 取消克隆" Width="110"
+                                                    IsVisible="{Binding IsCloning}"
+                                                    BorderBrush="#FFF56C6C" Foreground="#FFF56C6C"
+                                                    Command="{Binding CancelCloneCommand}" />
+                                            <TextBlock VerticalAlignment="Center" FontSize="11" Foreground="{DynamicResource ForegroundSecondary}"
+                                                       Text="{Binding CloneProgressText}" />
+                                        </StackPanel>
+                                    </StackPanel>
+                                </StackPanel>
+
+                                <Separator />
+
+                                <!-- ===== Python 虚拟环境(仅 Python 脚本工具显示)===== -->
+                                <StackPanel IsVisible="{Binding EditRunMode, Converter={StaticResource EnumEqualsConverter}, ConverterParameter=Script}">
+                                <Border Padding="10,8"
                                             CornerRadius="6"
                                             Background="#0DFFFFFF"
                                             BorderBrush="{DynamicResource CardBorder}"
@@ -564,110 +583,7 @@
                                                        Foreground="#66FFFFFF"
                                                        TextWrapping="Wrap" />
                                         </StackPanel>
-                                    </Border>
-                                </StackPanel>
-
-                                <!-- 本地可执行程序模式：单可执行文件路径 -->
-                                <StackPanel Spacing="6"
-                                            IsVisible="{Binding EditRunMode, Converter={StaticResource EnumEqualsConverter}, ConverterParameter=LocalExecutable}">
-                                    <Grid ColumnDefinitions="*,Auto">
-                                        <TextBox Grid.Column="0" Text="{Binding EditExecutablePath}"
-                                                 Watermark="可执行程序绝对路径（如 C:\tools\ffmpeg.exe）*" Margin="0,0,6,0" />
-                                        <Button Grid.Column="1" Content="📁 浏览" Width="80"
-                                                Command="{Binding BrowseExecutableCommand}" />
-                                    </Grid>
-                                    <TextBlock Text="提示：本地可执行程序模式不使用检测到的运行环境，直接启动该 .exe。"
-                                               FontSize="10" Foreground="#66FFFFFF" />
-                                </StackPanel>
-
-                                <!-- 工作目录（两种模式都有） -->
-                                <Grid ColumnDefinitions="*,Auto">
-                                    <TextBox Grid.Column="0" Text="{Binding EditWorkingDirectory}"
-                                             Watermark="工作目录（留空使用脚本/可执行文件所在目录）" Margin="0,0,6,0" />
-                                    <Button Grid.Column="1" Content="📁 浏览" Width="80"
-                                            Command="{Binding BrowseWorkingDirectoryCommand}" />
-                                </Grid>
-
-                                <!-- 参数列表 -->
-                                <StackPanel Spacing="6">
-                                    <Grid ColumnDefinitions="*,Auto">
-                                        <TextBlock Grid.Column="0" Text="📋 参数列表"
-                                                   FontSize="13" FontWeight="SemiBold"
-                                                   Foreground="{DynamicResource ForegroundPrimary}" VerticalAlignment="Center" />
-                                        <Button Grid.Column="1" Content="＋ 添加参数"
-                                                Command="{Binding AddParameterCommand}"
-                                                BorderBrush="#FF52C41A" Foreground="#FF52C41A"
-                                                FontSize="11" Padding="10,4" />
-                                    </Grid>
-
-                                    <Border Background="{DynamicResource SubItemBackground}" CornerRadius="6" Padding="0"
-                                            BorderBrush="{DynamicResource CardBorder}" BorderThickness="1"
-                                            Height="144">
-                                        <Grid RowDefinitions="Auto,*">
-                                            <!-- 表头（始终可见） -->
-                                            <Border Grid.Row="0" Background="#1AFFFFFF" Padding="8,6">
-                                                <Grid ColumnDefinitions="100,*,*,Auto,50">
-                                                    <TextBlock Grid.Column="0" Text="前缀" FontSize="11"
-                                                               Foreground="{DynamicResource ForegroundSecondary}" VerticalAlignment="Center" />
-                                                    <TextBlock Grid.Column="1" Text="参数名" FontSize="11"
-                                                               Foreground="{DynamicResource ForegroundSecondary}" VerticalAlignment="Center"
-                                                               Margin="4,0,0,0" />
-                                                    <TextBlock Grid.Column="2" Text="参数值" FontSize="11"
-                                                               Foreground="{DynamicResource ForegroundSecondary}" VerticalAlignment="Center"
-                                                               Margin="4,0,0,0" />
-                                                    <TextBlock Grid.Column="3" Text="必填" FontSize="11"
-                                                               Foreground="{DynamicResource ForegroundSecondary}" VerticalAlignment="Center"
-                                                               HorizontalAlignment="Center" Margin="8,0,8,0"
-                                                               ToolTip.Tip="勾选后,运行工具前会要求用户输入该参数值" />
-                                                    <TextBlock Grid.Column="4" Text="操作" FontSize="11"
-                                                               Foreground="{DynamicResource ForegroundSecondary}" VerticalAlignment="Center"
-                                                               HorizontalAlignment="Center" />
-                                                </Grid>
-                                            </Border>
-
-                                            <!-- 滚动行列表：Padding 写在 ScrollViewer 上以让滚动条算到真实底部 -->
-                                            <ScrollViewer Grid.Row="1"
-                                                          VerticalScrollBarVisibility="Auto"
-                                                          HorizontalScrollBarVisibility="Disabled"
-                                                          Padding="6,4">
-                                                <ItemsControl ItemsSource="{Binding EditParameters}">
-                                                    <ItemsControl.ItemsPanel>
-                                                        <ItemsPanelTemplate>
-                                                            <StackPanel Spacing="6" />
-                                                        </ItemsPanelTemplate>
-                                                    </ItemsControl.ItemsPanel>
-                                                    <ItemsControl.ItemTemplate>
-                                                        <DataTemplate>
-                                                            <Grid ColumnDefinitions="100,*,*,Auto,50">
-                                                                <TextBox Grid.Column="0" Text="{Binding Prefix, Mode=TwoWay}"
-                                                                         Watermark="--"
-                                                                         FontFamily="Consolas, Courier New, monospace" />
-                                                                <TextBox Grid.Column="1" Text="{Binding Name, Mode=TwoWay}"
-                                                                         Watermark="参数名"
-                                                                         Margin="4,0,0,0" />
-                                                                <TextBox Grid.Column="2" Text="{Binding Value, Mode=TwoWay}"
-                                                                         Watermark="参数值"
-                                                                         Margin="4,0,0,0" />
-                                                                <CheckBox Grid.Column="3"
-                                                                          IsChecked="{Binding RequireInput, Mode=TwoWay}"
-                                                                          HorizontalAlignment="Center"
-                                                                          VerticalAlignment="Center"
-                                                                          Margin="8,0,8,0"
-                                                                          ToolTip.Tip="勾选后,运行工具前会要求用户输入该参数值" />
-                                                                <Button Grid.Column="4" Content="🗑"
-                                                                        Padding="6,2" FontSize="11"
-                                                                        BorderBrush="#FFF56C6C"
-                                                                        Foreground="#FFF56C6C"
-                                                                        HorizontalAlignment="Center"
-                                                                        Command="{Binding DataContext.RemoveParameterCommand, RelativeSource={RelativeSource FindAncestor, AncestorType=ItemsControl}}"
-                                                                        CommandParameter="{Binding}" />
-                                                            </Grid>
-                                                        </DataTemplate>
-                                                    </ItemsControl.ItemTemplate>
-                                                </ItemsControl>
-                                            </ScrollViewer>
-                                        </Grid>
-                                    </Border>
+                                </Border>
                                 </StackPanel>
 
                                 <Separator />
@@ -677,7 +593,97 @@
                             </ScrollViewer>
                         </TabItem>
 
-                        <!-- ===== Tab 2: 通知 ===== -->
+                        <!-- ===== Tab 3: 参数列表 ===== -->
+                        <TabItem Header="📋 参数列表">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto"
+                                          HorizontalScrollBarVisibility="Disabled"
+                                          Padding="0,0,0,8">
+                            <StackPanel Spacing="10">
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <TextBlock Grid.Column="0" Text="📋 参数列表"
+                                               FontSize="13" FontWeight="SemiBold"
+                                               Foreground="{DynamicResource ForegroundPrimary}" VerticalAlignment="Center" />
+                                    <Button Grid.Column="1" Content="＋ 添加参数"
+                                            Command="{Binding AddParameterCommand}"
+                                            BorderBrush="#FF52C41A" Foreground="#FF52C41A"
+                                            FontSize="11" Padding="10,4" />
+                                </Grid>
+
+                                <Border Background="{DynamicResource SubItemBackground}" CornerRadius="6" Padding="0"
+                                        BorderBrush="{DynamicResource CardBorder}" BorderThickness="1"
+                                        Height="360">
+                                    <Grid RowDefinitions="Auto,*">
+                                        <Border Grid.Row="0" Background="#1AFFFFFF" Padding="8,6">
+                                            <Grid ColumnDefinitions="100,*,*,Auto,50">
+                                                <TextBlock Grid.Column="0" Text="前缀" FontSize="11"
+                                                           Foreground="{DynamicResource ForegroundSecondary}" VerticalAlignment="Center" />
+                                                <TextBlock Grid.Column="1" Text="参数名" FontSize="11"
+                                                           Foreground="{DynamicResource ForegroundSecondary}" VerticalAlignment="Center"
+                                                           Margin="4,0,0,0" />
+                                                <TextBlock Grid.Column="2" Text="参数值" FontSize="11"
+                                                           Foreground="{DynamicResource ForegroundSecondary}" VerticalAlignment="Center"
+                                                           Margin="4,0,0,0" />
+                                                <TextBlock Grid.Column="3" Text="必填" FontSize="11"
+                                                           Foreground="{DynamicResource ForegroundSecondary}" VerticalAlignment="Center"
+                                                           HorizontalAlignment="Center" Margin="8,0,8,0"
+                                                           ToolTip.Tip="勾选后,运行工具前会要求用户输入该参数值" />
+                                                <TextBlock Grid.Column="4" Text="操作" FontSize="11"
+                                                           Foreground="{DynamicResource ForegroundSecondary}" VerticalAlignment="Center"
+                                                           HorizontalAlignment="Center" />
+                                            </Grid>
+                                        </Border>
+
+                                        <ScrollViewer Grid.Row="1"
+                                                      VerticalScrollBarVisibility="Auto"
+                                                      HorizontalScrollBarVisibility="Disabled"
+                                                      Padding="6,4">
+                                            <ItemsControl ItemsSource="{Binding EditParameters}">
+                                                <ItemsControl.ItemsPanel>
+                                                    <ItemsPanelTemplate>
+                                                        <StackPanel Spacing="6" />
+                                                    </ItemsPanelTemplate>
+                                                </ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Grid ColumnDefinitions="100,*,*,Auto,50">
+                                                            <TextBox Grid.Column="0" Text="{Binding Prefix, Mode=TwoWay}"
+                                                                     Watermark="--"
+                                                                     FontFamily="Consolas, Courier New, monospace" />
+                                                            <TextBox Grid.Column="1" Text="{Binding Name, Mode=TwoWay}"
+                                                                     Watermark="参数名"
+                                                                     Margin="4,0,0,0" />
+                                                            <TextBox Grid.Column="2" Text="{Binding Value, Mode=TwoWay}"
+                                                                     Watermark="参数值"
+                                                                     Margin="4,0,0,0" />
+                                                            <CheckBox Grid.Column="3"
+                                                                      IsChecked="{Binding RequireInput, Mode=TwoWay}"
+                                                                      HorizontalAlignment="Center"
+                                                                      VerticalAlignment="Center"
+                                                                      Margin="8,0,8,0"
+                                                                      ToolTip.Tip="勾选后,运行工具前会要求用户输入该参数值" />
+                                                            <Button Grid.Column="4" Content="🗑"
+                                                                    Padding="6,2" FontSize="11"
+                                                                    BorderBrush="#FFF56C6C"
+                                                                    Foreground="#FFF56C6C"
+                                                                    HorizontalAlignment="Center"
+                                                                    Command="{Binding DataContext.RemoveParameterCommand, RelativeSource={RelativeSource FindAncestor, AncestorType=ItemsControl}}"
+                                                                    CommandParameter="{Binding}" />
+                                                        </Grid>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </ScrollViewer>
+                                    </Grid>
+                                </Border>
+
+                                <Separator />
+
+                                <!-- 操作按钮已移至 TabControl 外层底栏(跨所有 Tab 共享) -->
+                            </StackPanel>
+                            </ScrollViewer>
+                        </TabItem>
+
+                        <!-- ===== Tab 4: 通知 ===== -->
                         <TabItem Header="📢 通知">
                             <ScrollViewer VerticalScrollBarVisibility="Auto"
                                           HorizontalScrollBarVisibility="Disabled"

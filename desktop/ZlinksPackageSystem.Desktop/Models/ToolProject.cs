@@ -196,6 +196,27 @@ namespace ZlinksPackageSystem.Desktop.Models
         [JsonIgnore]
         public string ClonedRepoRoot { get; set; } = string.Empty;
 
+        /// <summary>UI 运行期:是否从本地缓存加载(非服务器最新)。不参与持久化。</summary>
+        [JsonIgnore]
+        public bool IsFromLocalSnapshot { get; set; }
+
+        /// <summary>上一次运行的详细结果(含输出日志)。运行期仅内存保留,不参与持久化。</summary>
+        [JsonIgnore]
+        public ProcessRunResult? LastRunResult
+        {
+            get => _lastRunResult;
+            set
+            {
+                if (SetField(ref _lastRunResult, value))
+                    OnPropertyChanged(nameof(HasRunLog));
+            }
+        }
+        private ProcessRunResult? _lastRunResult;
+
+        /// <summary>UI 便捷属性:是否有运行日志可查看。</summary>
+        [JsonIgnore]
+        public bool HasRunLog => LastRunResult != null;
+
         /// <summary>
         /// 后端管理员标记:是否系统内置工具。后端有值;本地新创建的工具此值为 false。
         /// </summary>

@@ -58,7 +58,7 @@
             <DockPanel Margin="20" LastChildFill="True">
 
             <!-- 顶部条：标题 + 搜索 + 新建 + 同步本地工具 -->
-            <Grid DockPanel.Dock="Top" Margin="0,0,0,16" ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto,Auto">
+            <Grid DockPanel.Dock="Top" Margin="0,0,0,16" ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto,Auto,Auto,Auto">
             <TextBlock Grid.Column="0" Text="🔧 工具库" FontSize="18" FontWeight="Bold"
                        Foreground="{DynamicResource ForegroundPrimary}" VerticalAlignment="Center" Margin="0,0,16,0" />
             <TextBox Grid.Column="1" Text="{Binding SearchText}"
@@ -101,6 +101,13 @@
                     </Border>
                 </StackPanel>
             </Button>
+            <Button Grid.Column="7" Content="↻ 重新加载" Width="90"
+                    Margin="8,0,0,0" VerticalAlignment="Center"
+                    Command="{Binding LoadProjectsCommand}" />
+            <TextBlock Grid.Column="8" Text="{Binding CacheUpdateTimeText}"
+                       FontSize="10" Foreground="#66FFFFFF"
+                       VerticalAlignment="Center" Margin="8,0,0,0"
+                       IsVisible="{Binding IsFromCache}" />
         </Grid>
 
         <!-- 可用运行环境面板 -->
@@ -123,27 +130,35 @@
                                 </ItemsPanelTemplate>
                             </ItemsControl.ItemsPanel>
                             <ItemsControl.ItemTemplate>
-                                                            <DataTemplate DataType="models:RuntimeEnvironment">
-                                                                <Border Margin="0,0,6,6" Padding="8,5" CornerRadius="4"
-                                                                        Background="#15FFFFFF" BorderBrush="{DynamicResource CardBorder}" BorderThickness="1">
-                                                                    <StackPanel Orientation="Horizontal" Spacing="6">
-                                                                        <TextBlock Text="{Binding Icon}" FontSize="14"
-                                                                                   VerticalAlignment="Center" />
-                                                                        <Ellipse Width="8" Height="8" VerticalAlignment="Center"
-                                                                                 Fill="{Binding IsAvailable, Converter={StaticResource BoolToColorConverter}}" />
-                                                                        <TextBlock Text="{Binding DisplayName}" FontSize="11"
-                                                                                   Foreground="{DynamicResource ForegroundPrimary}" VerticalAlignment="Center" />
-                                                                        <TextBlock FontSize="10" VerticalAlignment="Center"
-                                                                                   Foreground="{Binding ExecutablePath, Converter={StaticResource StringEmptyToDimConverter}}">
-                                                                            <Run Text="{Binding ExecutablePath}" />
-                                                                        </TextBlock>
-                                                                        <Button Content="🔄" Padding="4,1" FontSize="9"
-                                                                                ToolTip.Tip="重新检测此环境"
-                                                                                Command="{Binding DataContext.ReDetectSingleCommand, RelativeSource={RelativeSource FindAncestor, AncestorType=UserControl}}"
-                                                                                CommandParameter="{Binding Language}" />
-                                                                    </StackPanel>
-                                                                </Border>
-                                                            </DataTemplate>
+                                                             <DataTemplate DataType="models:RuntimeEnvironment">
+                                                                 <Border Margin="0,0,6,6" Padding="8,5" CornerRadius="4"
+                                                                         Background="#15FFFFFF" BorderBrush="{DynamicResource CardBorder}" BorderThickness="1"
+                                                                         Cursor="Hand"
+                                                                         PointerPressed="Runtime_PointerPressed">
+                                                                     <StackPanel Spacing="4">
+                                                                         <StackPanel Orientation="Horizontal" Spacing="6">
+                                                                             <TextBlock Text="{Binding Icon}" FontSize="14"
+                                                                                        VerticalAlignment="Center" />
+                                                                             <Ellipse Width="8" Height="8" VerticalAlignment="Center"
+                                                                                      Fill="{Binding IsAvailable, Converter={StaticResource BoolToColorConverter}}" />
+                                                                             <TextBlock Text="{Binding Language}" FontSize="11"
+                                                                                        FontWeight="SemiBold"
+                                                                                        Foreground="{DynamicResource ForegroundPrimary}" VerticalAlignment="Center" />
+                                                                         </StackPanel>
+                                                                         <StackPanel Spacing="3" IsVisible="{Binding IsExpanded}">
+                                                                             <TextBlock Text="{Binding DisplayName}" FontSize="11"
+                                                                                        Foreground="{DynamicResource ForegroundSecondary}" />
+                                                                             <TextBlock Text="{Binding ExecutablePath}" FontSize="10"
+                                                                                        Foreground="{DynamicResource ForegroundSecondary}"
+                                                                                        TextWrapping="Wrap" />
+                                                                             <Button Content="🔄 重新检测此环境" FontSize="10" Padding="8,2"
+                                                                                     HorizontalAlignment="Left"
+                                                                                     Command="{Binding DataContext.ReDetectSingleCommand, RelativeSource={RelativeSource FindAncestor, AncestorType=UserControl}}"
+                                                                                     CommandParameter="{Binding Language}" />
+                                                                         </StackPanel>
+                                                                     </StackPanel>
+                                                                 </Border>
+                                                             </DataTemplate>
                                                         </ItemsControl.ItemTemplate>
                         </ItemsControl>
                     </Grid>
@@ -187,6 +202,11 @@
                                                         IsVisible="{Binding IsPendingSync}">
                                                     <TextBlock Text="{Binding SyncBadgeText}" FontSize="9" Foreground="White" />
                                                 </Border>
+                                                <Border Padding="4,1" CornerRadius="3"
+                                                        Background="#6678A0"
+                                                        IsVisible="{Binding IsFromLocalSnapshot}">
+                                                    <TextBlock Text="📦 缓存" FontSize="9" Foreground="White" />
+                                                </Border>
                                             </StackPanel>
                                         </StackPanel>
                                         <Border Grid.Column="1" Padding="6,3" CornerRadius="4"
@@ -222,7 +242,7 @@
                                 </StackPanel>
 
                                 <!-- 操作按钮 -->
-                                <Grid Grid.Row="3" Margin="14,0,14,12" ColumnDefinitions="Auto,Auto,Auto,Auto,*">
+                                <Grid Grid.Row="3" Margin="14,0,14,12" ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,*">
                                     <!-- ▶ 运行 / ⏹ 关闭 互斥显示 -->
                                     <Button Grid.Column="0" Content="▶ 运行" FontSize="11"
                                             BorderBrush="#FF52C41A" Foreground="#FF52C41A"
@@ -254,7 +274,14 @@
                                             <TextBlock Text="同步中…" IsVisible="{Binding IsSyncing}" />
                                         </Panel>
                                     </Button>
-                                    <Button Grid.Column="3" Content="🗑 删除" FontSize="11"
+                                    <!-- 📋 日志:仅当有运行记录时显示 -->
+                                    <Button Grid.Column="3" Content="📋 日志" FontSize="11"
+                                            BorderBrush="#FF52C41A" Foreground="#FF52C41A"
+                                            Margin="6,0,0,0"
+                                            IsVisible="{Binding HasRunLog}"
+                                            Command="{Binding DataContext.ViewToolLogCommand, RelativeSource={RelativeSource FindAncestor, AncestorType=ItemsControl}}"
+                                            CommandParameter="{Binding}" />
+                                    <Button Grid.Column="4" Content="🗑 删除" FontSize="11"
                                             BorderBrush="#FFF56C6C" Foreground="#FFF56C6C"
                                             Margin="6,0,0,0"
                                             Command="{Binding DataContext.DeleteProjectCommand, RelativeSource={RelativeSource FindAncestor, AncestorType=ItemsControl}}"

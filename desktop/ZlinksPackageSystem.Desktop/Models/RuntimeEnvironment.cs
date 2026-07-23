@@ -22,5 +22,8 @@ namespace ZlinksPackageSystem.Desktop.Models
 
             /// <summary>是否可用</summary>
             public bool IsAvailable { get; set; }
+
+            /// <summary>UI 展开状态(运行期仅内存保留)</summary>
+            public bool IsExpanded { get; set; }
         }
 }

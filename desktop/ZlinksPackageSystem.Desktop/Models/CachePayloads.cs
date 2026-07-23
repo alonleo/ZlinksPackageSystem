@@ -30,4 +30,10 @@ namespace ZlinksPackageSystem.Desktop.Models
         public PageResponse<NotificationEntity> Page { get; set; } = new();
         public DateTime LastUpdated { get; set; }
     }
+
+    public class ToolsCache
+    {
+        public List<ToolProject> Projects { get; set; } = new();
+        public DateTime LastUpdated { get; set; }
+    }
 }

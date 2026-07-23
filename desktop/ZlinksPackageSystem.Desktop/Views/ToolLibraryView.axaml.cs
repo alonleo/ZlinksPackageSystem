@@ -45,5 +45,26 @@ namespace ZlinksPackageSystem.Desktop.Views
                 vm.TestNotificationChannelCommand.Execute(channel);
             }
         }
+
+        private void Runtime_PointerPressed(object? sender, PointerPressedEventArgs e)
+        {
+            if (sender is not Border border) return;
+            if (border.DataContext is not RuntimeEnvironment env) return;
+            if (DataContext is not ToolLibraryViewModel vm) return;
+
+            var point = e.GetCurrentPoint(border);
+            if (!point.Properties.IsLeftButtonPressed) return;
+
+            for (int i = 0; i < vm.AvailableEnvironments.Count; i++)
+            {
+                if (ReferenceEquals(vm.AvailableEnvironments[i], env))
+                {
+                    env.IsExpanded = !env.IsExpanded;
+                    vm.AvailableEnvironments[i] = env;
+                    e.Handled = true;
+                    return;
+                }
+            }
+        }
     }
 }

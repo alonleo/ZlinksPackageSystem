@@ -12,6 +12,7 @@ using System.Threading.Tasks;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using ZlinksPackageSystem.Desktop.Constants;
 using ZlinksPackageSystem.Desktop.Models;
 using ZlinksPackageSystem.Desktop.Services;
 
@@ -29,6 +30,7 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
         private readonly INotificationService _notificationService;
         private readonly IVenvService _venvService;
         private readonly INetworkStatusService _networkService;
+        private readonly ILocalCacheService _cacheService;
         private CancellationTokenSource? _cloneCts;
         private CancellationTokenSource? _pullCts;
         private CancellationTokenSource? _venvCts;
@@ -110,6 +112,16 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
         // ===== 编辑表单字段 - 本地可执行程序 =====
         [ObservableProperty] private string _editExecutablePath = string.Empty;
 
+        // ===== 缓存状态 =====
+        [ObservableProperty] private DateTime? _lastCacheUpdateTime;
+        [ObservableProperty] private bool _isFromCache;
+        public string CacheUpdateTimeText => LastCacheUpdateTime.HasValue
+            ? $"缓存快照: {LastCacheUpdateTime.Value:yyyy-MM-dd HH:mm:ss}"
+            : string.Empty;
+
+        partial void OnLastCacheUpdateTimeChanged(DateTime? value) => OnPropertyChanged(nameof(CacheUpdateTimeText));
+        partial void OnIsFromCacheChanged(bool value) => OnPropertyChanged(nameof(CacheUpdateTimeText));
+
         // ===== 运行时环境面板 =====
         [ObservableProperty] private ObservableCollection<RuntimeEnvironment> _availableEnvironments = new();
         [ObservableProperty] private bool _isDetectingEnvironments;
@@ -169,7 +181,8 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
             IToolPersistenceService persistence,
             INotificationService notificationService,
             IVenvService venvService,
-            INetworkStatusService networkService)
+            INetworkStatusService networkService,
+            ILocalCacheService cacheService)
         {
             Title = "工具库";
             _apiService = apiService;
@@ -182,6 +195,7 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
             _notificationService = notificationService;
             _venvService = venvService;
             _networkService = networkService;
+            _cacheService = cacheService;
 
             // 防抖:逐字修改 EditCloneDirectory 后 500ms 无新输入即触发本地 .git 检测
             _localDetectTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(500) };
@@ -204,101 +218,115 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
         private async Task LoadProjectsAsync()
         {
             IsBusy = true;
+
+            // 缓存优先 — 展示本地快照
             try
             {
-                List<ToolProject> backendProjects = new();
-                HashSet<long> backendIds = new();
-
-                if (_networkService.IsOnline)
+                var cachedTools = await _cacheService.LoadAsync<ToolsCache>(CacheKeys.Tools);
+                if (cachedTools?.Projects != null && cachedTools.Projects.Count > 0)
                 {
-                    // 从后台管理系统拉取（按 create_time 倒序，一次取 200 条；量更大时分页）
+                    Projects = new ObservableCollection<ToolProject>(cachedTools.Projects);
+                    foreach (var p in Projects) p.IsFromLocalSnapshot = true;
+                    LastCacheUpdateTime = cachedTools.LastUpdated;
+                    IsFromCache = true;
+                }
+            }
+            catch { /* 缓存可能损坏 */ }
+
+            // 在线则拉取后端最新数据
+            if (_networkService.IsOnline)
+            {
+                try
+                {
                     var page = await _apiService.GetAsync<PageResponse<ToolEntity>>(
                         "/tools?current=1&size=200");
 
+                    List<ToolProject> backendProjects = new();
+                    HashSet<long> backendIds = new();
                     if (page?.Records != null && page.Records.Count > 0)
                     {
                         backendProjects = page.Records.Select(MapToProject).ToList();
                         foreach (var p in backendProjects) backendIds.Add(p.Id);
                     }
-                }
 
-                // 找出本地缓存中尚未推送到后端的用户工具
-                List<ToolProject> pendingLocal = new();
-                try
-                {
-                    var cached = await _persistence.LoadAsync();
-                    foreach (var c in cached)
-                    {
-                        // 兼容判定:旧 JSON 没有 SyncState 字段(默认 Synced),用 "后端没有该 ID 且 ID<=0" 反推为 PendingCreate
-                        bool isPendingCreate = c.SyncState == ToolSyncState.PendingCreate
-                                              || (c.Id > 0 && !backendIds.Contains(c.Id));
-                        bool isPendingUpdate = c.SyncState == ToolSyncState.PendingUpdate;
-                        if (isPendingCreate || isPendingUpdate)
-                        {
-                            // 修正 SyncState(处理旧文件默认 Synced 但 ID<=0 / 后端缺失的情况)
-                            c.SyncState = isPendingUpdate
-                                ? ToolSyncState.PendingUpdate
-                                : ToolSyncState.PendingCreate;
-                            pendingLocal.Add(c);
-                        }
-                    }
-                }
-                catch { /* 忽略 */ }
-
-                // 离线模式:所有缓存都视为待同步
-                if (!_networkService.IsOnline)
-                {
-                    pendingLocal.Clear();
+                    List<ToolProject> pendingLocal = new();
                     try
                     {
                         var cached = await _persistence.LoadAsync();
                         foreach (var c in cached)
                         {
-                            c.SyncState = ToolSyncState.PendingCreate;
-                            pendingLocal.Add(c);
+                            bool isPendingCreate = c.SyncState == ToolSyncState.PendingCreate
+                                                  || (c.Id > 0 && !backendIds.Contains(c.Id));
+                            bool isPendingUpdate = c.SyncState == ToolSyncState.PendingUpdate;
+                            if (isPendingCreate || isPendingUpdate)
+                            {
+                                c.SyncState = isPendingUpdate
+                                    ? ToolSyncState.PendingUpdate
+                                    : ToolSyncState.PendingCreate;
+                                pendingLocal.Add(c);
+                            }
                         }
                     }
-                    catch { /* 忽略 */ }
+                    catch { }
+
+                    var merged = new List<ToolProject>(pendingLocal);
+                    merged.AddRange(backendProjects);
+                    foreach (var p in merged) p.IsFromLocalSnapshot = false;
+                    Projects = new ObservableCollection<ToolProject>(merged);
+                    IsFromCache = false;
+
+                    PendingSyncTools.Clear();
+                    foreach (var p in pendingLocal) PendingSyncTools.Add(p);
+                    OnPropertyChanged(nameof(HasPendingSync));
+
+                    await _persistence.SaveAsync(AllPersistable());
+                    await _cacheService.SaveAsync(CacheKeys.Tools, new ToolsCache
+                    {
+                        Projects = Projects.ToList(),
+                        LastUpdated = DateTime.Now
+                    });
+                    LastCacheUpdateTime = DateTime.Now;
                 }
-
-                // 组合显示:后端已确认 + 本地待同步(待同步插在前部,与旧版「本地新建工具显示在最上」一致)
-                var merged = new List<ToolProject>(pendingLocal);
-                merged.AddRange(backendProjects);
-                Projects = new ObservableCollection<ToolProject>(merged);
-
-                PendingSyncTools.Clear();
-                foreach (var p in pendingLocal) PendingSyncTools.Add(p);
-                OnPropertyChanged(nameof(HasPendingSync));
-
-                // 一次原子持久化
-                await _persistence.SaveAsync(AllPersistable());
+                catch (Exception ex)
+                {
+                    Debug.WriteLine($"[ToolLibrary] 后端加载失败，保留缓存：{ex.Message}");
+                    if (Projects.Count == 0)
+                    {
+                        try
+                        {
+                            var cached = await _persistence.LoadAsync();
+                            Projects = new ObservableCollection<ToolProject>(cached);
+                            PendingSyncTools.Clear();
+                            foreach (var c in cached)
+                            {
+                                c.SyncState = ToolSyncState.PendingCreate;
+                                PendingSyncTools.Add(c);
+                            }
+                            OnPropertyChanged(nameof(HasPendingSync));
+                        }
+                        catch
+                        {
+                            Projects = new ObservableCollection<ToolProject>();
+                        }
+                    }
+                }
             }
-            catch (Exception ex)
+            else
             {
-                Debug.WriteLine($"[ToolLibrary] 加载工具列表失败：{ex.Message}");
-                // 回退本地缓存：所有缓存记录都恢复显示,标记为 PendingCreate
                 try
                 {
                     var cached = await _persistence.LoadAsync();
-                    Projects = new ObservableCollection<ToolProject>();
+                    foreach (var c in cached) c.SyncState = ToolSyncState.PendingCreate;
+                    if (Projects.Count == 0)
+                        Projects = new ObservableCollection<ToolProject>(cached);
                     PendingSyncTools.Clear();
-                    foreach (var c in cached)
-                    {
-                        c.SyncState = ToolSyncState.PendingCreate;
-                        Projects.Add(c);
-                        PendingSyncTools.Add(c);
-                    }
+                    foreach (var c in cached) PendingSyncTools.Add(c);
                     OnPropertyChanged(nameof(HasPendingSync));
                 }
-                catch
-                {
-                    Projects = new ObservableCollection<ToolProject>();
-                }
+                catch { }
             }
-            finally
-            {
-                IsBusy = false;
-            }
+
+            IsBusy = false;
         }
 
         /// <summary>
@@ -429,12 +457,14 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
         {
             if (string.IsNullOrEmpty(language)) return;
             var env = await _runtimeEnvService.ReDetectAsync(language);
-            var idx = -1;
-            for (int i = 0; i < AvailableEnvironments.Count; i++)
-            {
-                if (AvailableEnvironments[i].Language == language) { idx = i; break; }
-            }
+
+            var existing = AvailableEnvironments.FirstOrDefault(e => e.Language == language);
+            if (existing != null) env.IsExpanded = existing.IsExpanded;
+
+            var idx = AvailableEnvironments.IndexOf(existing!);
             if (idx >= 0) AvailableEnvironments[idx] = env;
+            else AvailableEnvironments.Add(env);
+
             var msg = env.IsAvailable
                 ? $"{env.Icon}  {env.DisplayName}\n\n路径：{env.ExecutablePath}\n版本：{env.Version}"
                 : $"{env.Icon}  {env.Language}\n\n未检测到该运行环境，请确认已安装并加入 PATH。";
@@ -1343,38 +1373,14 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
 
         private void OnProcessExited(int pid, int exitCode)
         {
-            // 进程退出事件可能在工作线程触发，统一 marshal 到 UI 线程
             Dispatcher.UIThread.Post(() =>
             {
                 var p = Projects.FirstOrDefault(x => x.ProcessId == pid);
                 if (p == null) return;
                 p.IsRunning = false;
                 p.ProcessId = null;
-                p.Status = exitCode == 0 ? "已停止" : $"异常退出({exitCode})";
+                p.Status = exitCode == 0 ? "已停止" : "异常退出";
 
-                // 触发成功/失败通知
-                var output = _processManager.GetOutput(pid);
-                var snapshot = new ToolRunSnapshot
-                {
-                    StartTime = DateTime.Now.AddMilliseconds(-1000),
-                    EndTime = DateTime.Now,
-                    ProcessId = pid,
-                    WorkingDirectory = p.WorkingDirectory,
-                    ExitCode = exitCode,
-                    Output = output,
-                    Trigger = exitCode == 0 ? NotificationTrigger.Success : NotificationTrigger.Failure
-                };
-                _ = FireNotificationAsync(p, snapshot);
-
-                // 异步展示执行结果弹窗(在 UI 线程上 await,避免 async void 崩溃)
-                _ = ShowRunResultAsync(p, pid, exitCode);
-            });
-        }
-
-        private async Task ShowRunResultAsync(ToolProject project, int pid, int exitCode)
-        {
-            try
-            {
                 var (stdout, stderr) = _processManager.GetDetailedOutput(pid);
                 _runningCommands.TryRemove(pid, out var cmdLine);
                 _runningStartTimes.TryRemove(pid, out var startTime);
@@ -1389,11 +1395,47 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
                     ElapsedMilliseconds = elapsed,
                     ProcessId = pid
                 };
+                p.LastRunResult = result;
+
+                var snapshot = new ToolRunSnapshot
+                {
+                    StartTime = startTime != default ? startTime : DateTime.Now.AddMilliseconds(-1000),
+                    EndTime = DateTime.Now,
+                    ProcessId = pid,
+                    WorkingDirectory = p.WorkingDirectory,
+                    ExitCode = exitCode,
+                    Output = stdout,
+                    Trigger = exitCode == 0 ? NotificationTrigger.Success : NotificationTrigger.Failure
+                };
+                _ = FireNotificationAsync(p, snapshot);
+
+                _ = ShowRunResultDialogAsync(p, result);
+            });
+        }
+
+        private async Task ShowRunResultDialogAsync(ToolProject project, ProcessRunResult result)
+        {
+            try
+            {
                 await _dialogService.ShowOutputAsync(project.Name, result);
             }
             catch (Exception ex)
             {
                 Debug.WriteLine($"[RunResult] 展示执行结果异常：{ex.Message}");
+            }
+        }
+
+        [RelayCommand]
+        private async Task ViewToolLogAsync(ToolProject? project)
+        {
+            if (project?.LastRunResult == null) return;
+            try
+            {
+                await _dialogService.ShowOutputAsync(project.Name, project.LastRunResult);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"[ViewLog] 展示日志异常：{ex.Message}");
             }
         }
 

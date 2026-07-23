@@ -1337,11 +1337,12 @@ namespace ZlinksPackageSystem.SmokeTest
             var nfs = new StubNotificationService();
             var venv = new VenvService();
             var net = new StubNetworkStatusService();
+            var cache = new StubLocalCacheService();
             var vm = (ToolLibraryViewModel)Activator.CreateInstance(
                 typeof(ToolLibraryViewModel),
                 BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic,
                 binder: null,
-                args: new object?[] { api, dlg, rt, fp, pm, git, persistence, nfs, venv, net },
+                args: new object?[] { api, dlg, rt, fp, pm, git, persistence, nfs, venv, net, cache },
                 culture: null)!;
 
             // 等待构造函数触发的 LoadProjectsAsync 协程(它读缓存 + 调后端,后端是 null 路径)

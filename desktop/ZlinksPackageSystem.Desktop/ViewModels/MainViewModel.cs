@@ -29,6 +29,7 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
         private string _lastBackgroundValue = string.Empty;
         private bool _startupCompleted;
         private bool _wasOffline;
+        private bool _initialNetworkResultReceived;
 
         [ObservableProperty]
         private ViewModelBase? _currentViewModel;
@@ -47,13 +48,18 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
 
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(CanChangeAccount))]
+        [NotifyPropertyChangedFor(nameof(ShowOfflineBanner))]
         private bool _isOfflineMode;
 
         [ObservableProperty]
-        private string _connectionStatusText = "在线";
+        [NotifyPropertyChangedFor(nameof(ShowOfflineBanner))]
+        private bool _isLocalMode;
 
         [ObservableProperty]
-        private IBrush _connectionStatusBrush = new SolidColorBrush(Color.FromRgb(76, 175, 80));
+        private string _connectionStatusText = "检测中...";
+
+        [ObservableProperty]
+        private IBrush _connectionStatusBrush = new SolidColorBrush(Color.FromRgb(150, 150, 150));
 
         [ObservableProperty]
         [NotifyPropertyChangedFor(nameof(CanLoginToServer))]
@@ -65,6 +71,8 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
         public bool CanLoginToServer => !IsServerLoggedIn;
 
         public bool CanChangeAccount => IsServerLoggedIn && !IsOfflineMode;
+
+        public bool ShowOfflineBanner => IsOfflineMode;
 
         private static readonly string SettingsPath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
@@ -84,7 +92,10 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
             LoadSettings();
             SettingsViewModel.ThemeChanged += OnThemeChanged;
             _networkService.StatusChanged += OnNetworkStatusChanged;
-            UpdateConnectionUi(_networkService.IsOnline);
+            if (_networkService.HasInitialResult)
+            {
+                UpdateConnectionUi(_networkService.IsOnline);
+            }
             CurrentViewModel = _serviceProvider.GetRequiredService<HomeViewModel>();
         }
 
@@ -260,6 +271,7 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
                     IsServerLoggedIn = true;
                     IsLoggedIn = true;
                     IsOfflineMode = false;
+                    IsLocalMode = false;
                     _wasOffline = false;
                     var user = await _authService.GetCurrentUserAsync();
                     CurrentUser = user;
@@ -283,6 +295,7 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
             CurrentUser = null;
             Username = string.Empty;
             IsOfflineMode = false;
+            IsLocalMode = false;
             _wasOffline = false;
             CurrentViewModel = _serviceProvider.GetRequiredService<LoginViewModel>();
         }
@@ -301,32 +314,32 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
             if (_startupCompleted) return;
             _startupCompleted = true;
 
-            var online = await _networkService.CheckConnectivityAsync();
+            var online = await _networkService.CheckConnectivityAsync("startup-vm");
+            _initialNetworkResultReceived = true;
             UpdateConnectionUi(online);
 
             if (!online)
             {
-                EnterOfflineMode();
+                _wasOffline = true;
+                if (CurrentViewModel is not LoginViewModel && CurrentUser == null && !_networkService.IsLocalMode)
+                {
+                    CurrentViewModel = _serviceProvider.GetRequiredService<HomeViewModel>();
+                }
             }
-        }
-
-        private void EnterOfflineMode()
-        {
-            IsOfflineMode = true;
-            _wasOffline = true;
-            CurrentViewModel = _serviceProvider.GetRequiredService<HomeViewModel>();
         }
 
         private void OnNetworkStatusChanged(object? sender, bool online)
         {
             Avalonia.Threading.Dispatcher.UIThread.Post(async () =>
             {
+                _initialNetworkResultReceived = true;
                 UpdateConnectionUi(online);
 
                 if (online && _wasOffline)
                 {
                     _wasOffline = false;
                     IsOfflineMode = false;
+                    IsLocalMode = false;
                     if (CurrentUser == null && CurrentViewModel is not LoginViewModel)
                     {
                         var confirmed = await _dialogService.ShowConfirmAsync(
@@ -344,14 +357,10 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
                 }
                 else if (!online)
                 {
-                    if (!_wasOffline && CurrentViewModel is not LoginViewModel && CurrentUser == null)
+                    _wasOffline = true;
+                    if (!_initialNetworkResultReceived && CurrentViewModel is not LoginViewModel && CurrentUser == null && !_networkService.IsLocalMode)
                     {
-                        EnterOfflineMode();
-                    }
-                    else
-                    {
-                        IsOfflineMode = true;
-                        _wasOffline = true;
+                        CurrentViewModel = _serviceProvider.GetRequiredService<HomeViewModel>();
                     }
                 }
             });
@@ -359,19 +368,33 @@ namespace ZlinksPackageSystem.Desktop.ViewModels
 
         private void UpdateConnectionUi(bool online)
         {
-            IsOfflineMode = !online;
+            if (!_initialNetworkResultReceived && !_networkService.HasInitialResult)
+            {
+                ConnectionStatusText = "检测中...";
+                ConnectionStatusBrush = new SolidColorBrush(Color.FromRgb(150, 150, 150));
+                IsOfflineMode = false;
+                IsLocalMode = false;
+                return;
+            }
+
             if (online)
             {
+                IsOfflineMode = false;
+                IsLocalMode = false;
                 ConnectionStatusText = "在线";
                 ConnectionStatusBrush = new SolidColorBrush(Color.FromRgb(76, 175, 80));
             }
             else if (_networkService.IsLocalMode)
             {
+                IsOfflineMode = false;
+                IsLocalMode = true;
                 ConnectionStatusText = "本地模式";
                 ConnectionStatusBrush = new SolidColorBrush(Color.FromRgb(230, 162, 60));
             }
             else
             {
+                IsOfflineMode = true;
+                IsLocalMode = false;
                 ConnectionStatusText = "离线模式";
                 ConnectionStatusBrush = new SolidColorBrush(Color.FromRgb(244, 67, 54));
             }

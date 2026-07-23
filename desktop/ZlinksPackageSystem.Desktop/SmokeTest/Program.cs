@@ -1183,14 +1183,22 @@ namespace ZlinksPackageSystem.SmokeTest
         class StubNetworkStatusService : INetworkStatusService
         {
             private bool _isOnline = true;
+            private bool _hasInitialResult;
             public bool IsOnline => _isOnline;
             public bool IsLocalMode { get; private set; }
+            public bool HasInitialResult => _hasInitialResult;
             public event EventHandler<bool>? StatusChanged;
-            public Task<bool> CheckConnectivityAsync() => Task.FromResult(_isOnline);
+            public Task<bool> CheckConnectivityAsync(string reason = "manual")
+            {
+                _hasInitialResult = true;
+                return Task.FromResult(_isOnline);
+            }
             public void StartMonitoring() { }
             public void StopMonitoring() { }
+            public IReadOnlyList<NetworkTransitionRecord> GetRecentTransitions() => Array.Empty<NetworkTransitionRecord>();
             public void SetOnline(bool online)
             {
+                _hasInitialResult = true;
                 if (_isOnline == online) return;
                 _isOnline = online;
                 IsLocalMode = false;
@@ -1198,6 +1206,7 @@ namespace ZlinksPackageSystem.SmokeTest
             }
             public void SetLocalMode(bool local)
             {
+                _hasInitialResult = true;
                 if (IsLocalMode == local) return;
                 IsLocalMode = local;
                 _isOnline = !local;
